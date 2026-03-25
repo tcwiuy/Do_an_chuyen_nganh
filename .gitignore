@@ -1,0 +1,17 @@
+# Môi trường ảo Python
+venv/
+env/
+.env
+
+# File cache của Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# File Cơ sở dữ liệu SQLite cục bộ
+*.db
+*.sqlite3
+
+# Các file hệ thống tự sinh ra
+.DS_Store
+.vscode/
