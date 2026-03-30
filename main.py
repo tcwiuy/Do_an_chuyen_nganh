@@ -3,7 +3,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 import models
 from database import engine
-from routers import router as expenses_router, recurring_router, auth_router
+from routers import router as expenses_router, recurring_router, auth_router, ai_router
 
 # Tạo bảng trong CSDL
 models.Base.metadata.create_all(bind=engine)
@@ -20,10 +20,17 @@ templates = Jinja2Templates(directory="templates")
 app.include_router(expenses_router)
 app.include_router(recurring_router)
 app.include_router(auth_router)
+app.include_router(ai_router)
 
 # ---------------------------------------------------------
 # ROUTER CHO GIAO DIỆN (FRONTEND)
 # ---------------------------------------------------------
+
+# THÊM ĐOẠN NÀY VÀO MAIN.PY
+@app.get("/login")
+def render_login(request: Request):
+    # Trả về trang login.html
+    return templates.TemplateResponse("login.html", {"request": request})
 
 @app.get("/")
 def render_dashboard(request: Request):

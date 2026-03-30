@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/static/fa.min.css">
+    <link rel="stylesheet" href="/static/style.css">
+    <title>ExpenseOwl - Xác thực</title>
+    <style>
+        .auth-container { max-width: 400px; margin: 10vh auto; }
+        .auth-toggle { text-align: center; margin-top: 20px; cursor: pointer; color: #b3b3b3; text-decoration: underline; }
+        .auth-toggle:hover { color: #ffffff; }
+    </style>
+</head>
+<body>
+    <div class="container auth-container">
+        <div style="text-align: center; margin-bottom: 2rem;">
+            <img src="/static/pwa/icon-192.png" alt="ExpenseOwl Logo" height="80">
+            <h2 style="margin-top: 10px;">ExpenseOwl</h2>
+        </div>
+        <div class="form-container">
+            <h3 id="formTitle" align="center">Đăng Nhập</h3>
+            <form id="authForm" class="expense-form">
+                <div class="form-group">
+                    <label for="username">Tên đăng nhập</label>
+                    <input type="text" id="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Mật khẩu</label>
+                    <input type="password" id="password" required>
+                </div>
+                <button type="submit" class="nav-button" id="submitBtn">Đăng Nhập</button>
+            </form>
+            <div id="authMessage" class="form-message"></div>
+            <div class="auth-toggle" id="toggleAuth">Chưa có tài khoản? Đăng ký ngay</div>
+        </div>
+    </div>
+
+    <script>
+        let isLogin = true;
+
+        // Xử lý lật trang Đăng nhập / Đăng ký
+        document.getElementById('toggleAuth').addEventListener('click', () => {
+            isLogin = !isLogin;
+            document.getElementById('formTitle').textContent = isLogin ? 'Đăng Nhập' : 'Đăng Ký';
+            document.getElementById('submitBtn').textContent = isLogin ? 'Đăng Nhập' : 'Đăng Ký';
+            document.getElementById('toggleAuth').textContent = isLogin ? 'Chưa có tài khoản? Đăng ký ngay' : 'Đã có tài khoản? Đăng nhập';
+            document.getElementById('authMessage').textContent = '';
+        });
+
+        // Xử lý gửi Form
+        document.getElementById('authForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const messageDiv = document.getElementById('authMessage');
+
+            try {
+                if (isLogin) {
+                    // Gọi API Đăng nhập (Dùng URLSearchParams theo chuẩn OAuth2 của FastAPI)
+                    const formData = new URLSearchParams();
+                    formData.append('username', username);
+                    formData.append('password', password);
+
+                    const res = await fetch('/api/auth/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: formData
+                    });
+
+                    if (res.ok) {
+                        const data = await res.json();
+                        localStorage.setItem('token', data.access_token); // Lưu token vào trình duyệt
+                        window.location.href = '/'; // Chuyển hướng vào trang chủ
+                    } else {
+                        messageDiv.textContent = 'Sai tên đăng nhập hoặc mật khẩu';
+                        messageDiv.className = 'form-message error';
+                    }
+                } else {
+                    // Gọi API Đăng ký (Dùng JSON)
+                    const res = await fetch('/api/auth/register', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username, password })
+                    });
+
+                    if (res.ok) {
+                        messageDiv.textContent = 'Đăng ký thành công! Vui lòng đăng nhập.';
+                        messageDiv.className = 'form-message success';
+                        document.getElementById('toggleAuth').click(); // Tự động lật về tab Đăng nhập
+                    } else {
+                        const error = await res.json();
+                        messageDiv.textContent = error.detail || 'Lỗi đăng ký';
+                        messageDiv.className = 'form-message error';
+                    }
+                }
+            } catch (error) {
+                messageDiv.textContent = 'Lỗi kết nối đến máy chủ';
+                messageDiv.className = 'form-message error';
+            }
+        });
+    </script>
+</body>
+</html>

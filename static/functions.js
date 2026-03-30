@@ -1,3 +1,15 @@
+// KIỂM TRA ĐĂNG NHẬP (AUTH GUARD)
+// Nếu không có token và không ở trang login -> Đuổi về trang login
+if (!localStorage.getItem('token') && window.location.pathname !== '/login') {
+    window.location.href = '/login';
+}
+
+// HÀM ĐĂNG XUẤT
+function logout() {
+    localStorage.removeItem('token'); // Xóa token
+    window.location.href = '/login'; // Chuyển về trang đăng nhập
+}
+
 const colorPalette = [
     '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', 
     '#FFBE0B', '#FF006E', '#8338EC', '#3A86FF', 
@@ -152,3 +164,27 @@ function escapeHTML(str) {
         }[tag] || tag)
     );
 }
+
+// --- THỦ THUẬT: TỰ ĐỘNG GẮN TOKEN VÀO MỌI REQUEST API ---
+const originalFetch = window.fetch;
+window.fetch = async (...args) => {
+    let [resource, config] = args;
+    
+    // Nếu gọi API (trừ API đăng nhập/đăng ký) thì tự động gắn thẻ Bearer Token
+    if (typeof resource === 'string' && resource.startsWith('/api/') && !resource.includes('/auth/')) {
+        config = config || {};
+        config.headers = {
+            ...config.headers,
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+        };
+        args[1] = config;
+    }
+    
+    const response = await originalFetch(...args);
+    
+    // Nếu Backend báo 401 (Token sai hoặc hết hạn) -> Đá văng ra màn hình Login
+    if (response.status === 401) {
+        logout();
+    }
+    return response;
+};
