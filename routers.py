@@ -155,11 +155,21 @@ def login_user(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = D
 # ---------------------------------------------------------
 # ROUTER CHO TRÍ TUỆ NHÂN TẠO (AI INTEGRATION)
 # ---------------------------------------------------------
+# ---------------------------------------------------------
+# ROUTER CHO TRÍ TUỆ NHÂN TẠO (AI INTEGRATION)
+# ---------------------------------------------------------
 ai_router = APIRouter(prefix="/api/ai", tags=["AI Integration"])
 
+# Schema cho API Nhập liệu (Đã có sẵn, giữ nguyên)
 class AIRequest(BaseModel):
     text: str
 
+# Schema mới cho API Chatbot
+class ChatRequest(BaseModel):
+    message: str
+    history: list = []
+
+# 1. API NHẬP LIỆU BẰNG NGÔN NGỮ TỰ NHIÊN (ĐÃ HOÀN THIỆN)
 @ai_router.post("/parse-expense")
 def parse_expense_from_text(req: AIRequest, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
     api_key = os.getenv("GEMINI_API_KEY")
@@ -182,7 +192,7 @@ def parse_expense_from_text(req: AIRequest, db: Session = Depends(get_db), curre
     """
     
     # Gọi thẳng vào máy chủ của Google bằng HTTP Post
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+    url = f"[https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=](https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=){api_key}"
     payload = {
         "contents": [{"parts": [{"text": prompt}]}]
     }
@@ -199,7 +209,7 @@ def parse_expense_from_text(req: AIRequest, db: Session = Depends(get_db), curre
         clean_text = ai_text.strip().replace("```json", "").replace("```", "")
         data = json.loads(clean_text)
         
-        # THÊM DÒNG NÀY: Ép kiểu chuỗi chữ thành kiểu Ngày tháng (Date Object)
+        # Ép kiểu chuỗi chữ thành kiểu Ngày tháng (Date Object)
         parsed_date = datetime.strptime(data["date"], "%Y-%m-%d").date()
         
         # Lưu vào cơ sở dữ liệu
@@ -209,7 +219,7 @@ def parse_expense_from_text(req: AIRequest, db: Session = Depends(get_db), curre
             name=data["name"],
             amount=data["amount"],
             category=data["category"],
-            date=parsed_date, # ĐÃ SỬA: Truyền đối tượng thời gian vào đây
+            date=parsed_date,
             tags=["AI Assistant"],
             user_id=current_user.id
         )
@@ -221,3 +231,80 @@ def parse_expense_from_text(req: AIRequest, db: Session = Depends(get_db), curre
         
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Lỗi AI: {str(e)}")
+
+# ---------------------------------------------------------
+# 2. API CHATBOT TRUY VẤN DỮ LIỆU CÓ TRÍ NHỚ (RAG + MEMORY)
+# ---------------------------------------------------------
+
+# Schema mới cho API Chatbot (Đã thêm biến history)
+class ChatRequest(BaseModel):
+    message: str
+    history: list = [] # Mảng chứa lịch sử trò chuyện: [{"user": "...", "ai": "..."}, ...]
+
+@ai_router.post("/chat")
+def chat_with_data(req: ChatRequest, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="Chưa cấu hình GEMINI_API_KEY")
+
+    # BƯỚC 1: Rút trích dữ liệu của riêng người dùng này từ Database
+    transactions = db.query(models.Transaction).filter(models.Transaction.user_id == current_user.id).all()
+    
+    # BƯỚC 2: Ráp dữ liệu Database thành chuỗi văn bản cho AI đọc
+    data_context = "DANH SÁCH GIAO DỊCH CỦA NGƯỜI DÙNG:\n"
+    data_context += "Ngày | Tên giao dịch | Số tiền | Danh mục\n"
+    data_context += "-" * 50 + "\n"
+    
+    if not transactions:
+        data_context += "Hiện tại người dùng chưa có giao dịch nào.\n"
+    else:
+        for t in transactions:
+            data_context += f"{t.date} | {t.name} | {t.amount} VND | {t.category}\n"
+
+    # BƯỚC 3: Xử lý mảng lịch sử thành chuỗi văn bản
+    history_text = ""
+    if req.history:
+        history_text = "LỊCH SỬ TRÒ CHUYỆN GẦN ĐÂY CỦA BẠN VÀ NGƯỜI DÙNG:\n"
+        for turn in req.history:
+            history_text += f"Người dùng hỏi: {turn.get('user', '')}\nCú Mèo trả lời: {turn.get('ai', '')}\n"
+        history_text += "-" * 50 + "\n"
+
+    # BƯỚC 4: Kỹ thuật Prompt Engineering định hình Chatbot (Nhồi Context + History)
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    prompt = f"""
+    Bạn là "Cú Mèo" - một chuyên gia tư vấn tài chính cá nhân thông minh, tận tâm và vui tính của ứng dụng ExpenseOwl.
+    Hôm nay là ngày {today_str}.
+    
+    Dưới đây là DỮ LIỆU TÀI CHÍNH THỰC TẾ của người dùng mà bạn đang trò chuyện (Lưu ý: Số tiền ÂM là chi tiêu, DƯƠNG là thu nhập):
+    {data_context}
+    
+    {history_text}
+    
+    CÂU HỎI MỚI NHẤT CỦA NGƯỜI DÙNG: "{req.message}"
+    
+    NHIỆM VỤ CỦA BẠN:
+    1. Trả lời trực tiếp, chính xác câu hỏi MỚI NHẤT của người dùng.
+    2. QUAN TRỌNG: Nếu câu hỏi mới nhất của người dùng ám chỉ đến một thông tin cũ (Ví dụ: "Khoản đó là khoản nào?", "Nó diễn ra khi nào?"), hãy dựa vào LỊCH SỬ TRÒ CHUYỆN ở trên để hiểu "khoản đó", "nó" là gì.
+    3. Nếu cần tính toán (tổng chi, tổng thu, tìm món đắt nhất...), hãy tự tính toán từ DỮ LIỆU TÀI CHÍNH và đưa ra con số cuối cùng (tính nhẩm cẩn thận).
+    4. Trả lời bằng tiếng Việt, giọng điệu thân thiện, tự nhiên. Định dạng Markdown: Dùng in đậm (**chữ**) cho các con số quan trọng.
+    5. Trả lời ngắn gọn, súc tích, không dài dòng giải thích quá trình tính toán trừ khi được hỏi.
+    6. Nếu người dùng hỏi ngoài lề (không liên quan tài chính), hãy khéo léo nhắc họ quay lại chủ đề.
+    """
+    
+    # BƯỚC 5: Gọi Gemini 2.5 Flash
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+    payload = {
+        "contents": [{"parts": [{"text": prompt}]}]
+    }
+    
+    try:
+        response = requests.post(url, json=payload, headers={"Content-Type": "application/json"})
+        response.raise_for_status() 
+        
+        result_data = response.json()
+        ai_reply = result_data["candidates"][0]["content"]["parts"][0]["text"]
+        
+        return {"reply": ai_reply}
+        
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Lỗi Chatbot AI: {str(e)}")
