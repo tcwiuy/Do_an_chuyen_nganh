@@ -4,6 +4,8 @@ from typing import List # Thêm thư viện này cho Python 3.8
 import uuid
 import models, schemas
 from database import get_db
+from fastapi.security import OAuth2PasswordRequestForm
+import auth # Import file auth.py vừa tạo
 
 router = APIRouter(prefix="/api/expenses", tags=["Expenses"])
 
@@ -121,3 +123,40 @@ def update_recurring_transaction(id: str, updateAll: str, transaction: schemas.R
     db.commit()
     db.refresh(db_txn)
     return db_txn
+
+# ---------------------------------------------------------
+# ROUTER CHO XÁC THỰC NGƯỜI DÙNG (AUTH)
+# ---------------------------------------------------------
+auth_router = APIRouter(prefix="/api/auth", tags=["Authentication"])
+
+@auth_router.post("/register", response_model=schemas.UserResponse)
+def register_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
+    # Kiểm tra xem username đã tồn tại chưa
+    db_user = db.query(models.User).filter(models.User.username == user.username).first()
+    if db_user:
+        raise HTTPException(status_code=400, detail="Tên đăng nhập đã tồn tại")
+    
+    # Mã hóa mật khẩu
+    hashed_password = auth.get_password_hash(user.password)
+    
+    # Tạo user mới lưu vào DB
+    new_user = models.User(username=user.username, hashed_password=hashed_password)
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    
+    return new_user
+
+@auth_router.post("/login", response_model=schemas.Token)
+def login_user(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    # 1. Tìm user trong DB
+    user = db.query(models.User).filter(models.User.username == form_data.username).first()
+    
+    # 2. Kiểm tra user có tồn tại và mật khẩu có khớp không
+    if not user or not auth.verify_password(form_data.password, user.hashed_password):
+        raise HTTPException(status_code=401, detail="Tên đăng nhập hoặc mật khẩu không đúng")
+    
+    # 3. Tạo token
+    access_token = auth.create_access_token(data={"sub": user.username})
+    
+    return {"access_token": access_token, "token_type": "bearer"}
