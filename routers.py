@@ -132,15 +132,23 @@ auth_router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
 @auth_router.post("/register", response_model=schemas.UserResponse)
 def register_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
+    
+    # 1. BỨC TƯỜNG BẢO VỆ: Kiểm tra độ dài mật khẩu trước tiên
+    if len(user.password) > 72:
+        raise HTTPException(status_code=400, detail="Mật khẩu quá dài! Vui lòng nhập dưới 72 ký tự.")
+    
+    # 2. Kiểm tra tên đăng nhập đã tồn tại chưa
     db_user = db.query(models.User).filter(models.User.username == user.username).first()
     if db_user:
         raise HTTPException(status_code=400, detail="Tên đăng nhập đã tồn tại")
     
+    # 3. Tiến hành băm mật khẩu và lưu vào Database an toàn
     hashed_password = auth.get_password_hash(user.password)
     new_user = models.User(username=user.username, hashed_password=hashed_password)
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
+    
     return new_user
 
 @auth_router.post("/login")

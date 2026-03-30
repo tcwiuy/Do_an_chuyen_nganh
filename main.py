@@ -55,3 +55,4 @@ def get_config():
         "currency": "usd",
         "startDate": 1
     }
+

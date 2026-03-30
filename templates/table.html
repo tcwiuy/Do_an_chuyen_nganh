@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="/static/fa.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="/static/style.css">
     <script>
         (function() {
@@ -22,7 +22,12 @@
         <header>
             <div class="nav-bar">
                 <a href="/">
-                    <img src="/static/pwa/icon-192.png" alt="ExpenseOwl Logo" height="85" style="vertical-align: middle; margin-right: 20px;">
+                    <div style="background: linear-gradient(135deg, #8a2be2, #d4a5ff); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                        <i class="fa-solid fa-wallet" style="font-size: 32px;"></i>
+                    </div>
+                    <h2 style="margin: 0; font-weight: 800; font-size: 24px; color: var(--text); letter-spacing: 0.5px;">
+                        Smart<span style="color: #8a2be2;">Finance</span>
+                    </h2>
                 </a>
                 <a href="/" class="view-button" data-tooltip="Dashboard">
                     <i class="fa-solid fa-chart-pie"></i>
@@ -468,5 +473,6 @@
         
         window.editExpenseByIndex = editExpenseByIndex;
     </script>
+    <script src="/static/chatbot.js"></script>
 </body>
 </html>
