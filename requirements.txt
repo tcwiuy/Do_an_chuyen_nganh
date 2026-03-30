@@ -1,7 +1,26 @@
+# --- Core Framework & Server ---
 fastapi==0.109.2
-uvicorn==0.27.1
+uvicorn[standard]==0.27.1
+pydantic==2.6.1
+python-multipart==0.0.9
+
+# --- Database (ORM & PostgreSQL) ---
 sqlalchemy==2.0.25
 psycopg2-binary==2.9.9
-pydantic==2.6.1
+
+# --- Security & Authentication ---
+passlib[bcrypt]
+PyJWT
+
+# --- Template Engine (Frontend) ---
 jinja2==3.1.3
-python-multipart==0.0.9
+
+# --- Environment Variables ---
+python-dotenv
+
+# --- AI Integration (Google Gemini SDK & HTTP) ---
+requests
+google-generativeai
+protobuf
+grpcio
+grpcio-status
