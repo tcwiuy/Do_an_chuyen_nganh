@@ -188,3 +188,44 @@ window.fetch = async (...args) => {
     }
     return response;
 };
+
+// =========================================
+// HỆ THỐNG TOAST NOTIFICATION
+// =========================================
+
+// 1. Tự động tạo một cái giỏ chứa Toast khi trang web vừa tải xong
+document.addEventListener("DOMContentLoaded", () => {
+    if (!document.getElementById('toast-container')) {
+        document.body.insertAdjacentHTML('beforeend', '<div id="toast-container"></div>');
+    }
+});
+
+// 2. Hàm gọi Toast hiển thị
+window.showToast = function(message, type = 'success') {
+    const container = document.getElementById('toast-container');
+    if (!container) return; // Nếu chưa có container thì bỏ qua
+
+    // Tạo cái bong bóng
+    const toast = document.createElement('div');
+    toast.className = `toast ${type === 'error' ? 'error' : ''}`;
+    
+    // Thêm icon (Dấu check xanh hoặc Dấu chấm than đỏ)
+    const icon = type === 'error' 
+        ? '<i class="fa-solid fa-circle-exclamation" style="color: #ff4d4d; font-size: 18px;"></i>' 
+        : '<i class="fa-solid fa-circle-check" style="color: #4ade80; font-size: 18px;"></i>';
+    
+    toast.innerHTML = `${icon} <span>${message}</span>`;
+    container.appendChild(toast);
+
+    // Kích hoạt hiệu ứng trượt vào
+    setTimeout(() => {
+        toast.classList.add('show');
+    }, 10);
+
+    // Tự động đá nó ra ngoài sau 3 giây
+    setTimeout(() => {
+        toast.classList.remove('show');
+        // Đợi nó trượt ra ngoài xong thì xóa hẳn khỏi HTML cho nhẹ máy
+        setTimeout(() => toast.remove(), 400); 
+    }, 3000);
+};

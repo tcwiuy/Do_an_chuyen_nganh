@@ -1,6 +1,6 @@
 // ==========================================
 // WIDGET CHATBOT CÚ MÈO TOÀN CỤC (GLOBAL)
-// Tự động tiêm (inject) vào mọi trang web
+// Tích hợp Trí nhớ SessionStorage
 // ==========================================
 
 const chatbotHTML = `
@@ -36,18 +36,38 @@ const chatbotHTML = `
     </div>
 `;
 
-// Tự động nhúng mã HTML vào cuối trang web khi trang vừa load xong
+// 1. NẠP TRÍ NHỚ TỪ TRÌNH DUYỆT (Nếu không có thì tạo mảng rỗng)
+let conversationMemory = JSON.parse(sessionStorage.getItem('expenseOwl_memory')) || [];
+
 document.addEventListener("DOMContentLoaded", () => {
     document.body.insertAdjacentHTML('beforeend', chatbotHTML);
     
+    // 2. PHỤC HỒI TIN NHẮN CŨ LÊN MÀN HÌNH NẾU CÓ TRÍ NHỚ
+    const messagesContainer = document.getElementById('chat-messages');
+    if (conversationMemory.length > 0) {
+        conversationMemory.forEach(turn => {
+            // In tin nhắn User
+            messagesContainer.innerHTML += `
+                <div style="align-self: flex-end; max-width: 80%; background-color: #8a2be2; padding: 12px; border-radius: 15px 15px 0 15px; color: white; font-size: 14px; line-height: 1.5;">
+                    ${turn.user}
+                </div>
+            `;
+            // In tin nhắn AI (Có xử lý Markdown)
+            let formattedReply = turn.ai.replace(/\*\*(.*?)\*\*/g, '<b style="color:#d4a5ff;">$1</b>').replace(/\n/g, '<br>');
+            messagesContainer.innerHTML += `
+                <div style="align-self: flex-start; max-width: 80%; background-color: #2a2a40; padding: 12px; border-radius: 0 15px 15px 15px; color: #ffffff; font-size: 14px; line-height: 1.5;">
+                    ${formattedReply}
+                </div>
+            `;
+        });
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
     // Bắt sự kiện Enter để gửi
     document.getElementById('chatInput').addEventListener('keypress', function (e) {
         if (e.key === 'Enter') sendChatMessage();
     });
 });
-
-// Logic quản lý trạng thái
-let conversationMemory = [];
 
 window.toggleChat = function() {
     const chatWin = document.getElementById('chat-window');
@@ -67,7 +87,7 @@ window.sendChatMessage = async function() {
 
     if (!message) return;
 
-    // 1. User message
+    // Hiển thị tin User
     messagesContainer.innerHTML += `
         <div style="align-self: flex-end; max-width: 80%; background-color: #8a2be2; padding: 12px; border-radius: 15px 15px 0 15px; color: white; font-size: 14px; line-height: 1.5;">
             ${message}
@@ -76,11 +96,11 @@ window.sendChatMessage = async function() {
     input.value = '';
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
-    // 2. Loading state
+    // Hiển thị loading
     const loadingId = 'loading-' + Date.now();
     messagesContainer.innerHTML += `
         <div id="${loadingId}" style="align-self: flex-start; max-width: 80%; background-color: #2a2a40; padding: 12px; border-radius: 0 15px 15px 15px; color: #a0a0b0; font-size: 14px;">
-            <i class="fa-solid fa-ellipsis fa-fade"></i> Cú Mèo đang lục tìm sổ sách...
+            <i class="fa-solid fa-ellipsis fa-fade"></i> Cú Mèo đang suy nghĩ...
         </div>
     `;
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
@@ -98,11 +118,12 @@ window.sendChatMessage = async function() {
         if (res.ok) {
             const data = await res.json();
             
+            // 3. CẬP NHẬT TRÍ NHỚ VÀ LƯU VÀO TRÌNH DUYỆT
             conversationMemory.push({ user: message, ai: data.reply });
             if (conversationMemory.length > 5) conversationMemory.shift(); 
+            sessionStorage.setItem('expenseOwl_memory', JSON.stringify(conversationMemory)); // LƯU!
             
-            let formattedReply = data.reply.replace(/\*\*(.*?)\*\*/g, '<b style="color:#d4a5ff;">$1</b>');
-            formattedReply = formattedReply.replace(/\n/g, '<br>');
+            let formattedReply = data.reply.replace(/\*\*(.*?)\*\*/g, '<b style="color:#d4a5ff;">$1</b>').replace(/\n/g, '<br>');
 
             messagesContainer.innerHTML += `
                 <div style="align-self: flex-start; max-width: 80%; background-color: #2a2a40; padding: 12px; border-radius: 0 15px 15px 15px; color: #ffffff; font-size: 14px; line-height: 1.5;">
@@ -110,11 +131,7 @@ window.sendChatMessage = async function() {
                 </div>
             `;
         } else {
-            messagesContainer.innerHTML += `
-                <div style="align-self: flex-start; max-width: 80%; background-color: #3f1d1d; border: 1px solid #ff4d4d; padding: 12px; border-radius: 0 15px 15px 15px; color: #ff4d4d; font-size: 14px;">
-                    ❌ Lỗi kết nối AI.
-                </div>
-            `;
+            messagesContainer.innerHTML += `<div style="align-self: flex-start; max-width: 80%; background-color: #3f1d1d; border: 1px solid #ff4d4d; padding: 12px; border-radius: 0 15px 15px 15px; color: #ff4d4d; font-size: 14px;">❌ Lỗi kết nối AI.</div>`;
         }
     } catch (error) {
         document.getElementById(loadingId).remove();
@@ -123,4 +140,28 @@ window.sendChatMessage = async function() {
         sendBtn.disabled = false;
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }
+}
+
+// Thêm container chứa Toast vào body
+document.body.insertAdjacentHTML('beforeend', '<div id="toast-container"></div>');
+
+// Hàm hiển thị Toast
+window.showToast = function(message, type = 'success') {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = `toast ${type === 'error' ? 'error' : ''}`;
+    
+    const icon = type === 'error' ? '<i class="fa-solid fa-circle-exclamation" style="color: #ff4d4d;"></i>' : '<i class="fa-solid fa-circle-check" style="color: #4ade80;"></i>';
+    
+    toast.innerHTML = `${icon} <span>${message}</span>`;
+    container.appendChild(toast);
+
+    // Hiệu ứng trượt vào
+    setTimeout(() => toast.classList.add('show'), 10);
+
+    // Tự động biến mất sau 3 giây
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300); // Đợi animation trượt ra rồi xóa
+    }, 3000);
 }

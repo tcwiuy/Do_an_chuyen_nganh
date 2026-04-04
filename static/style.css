@@ -873,3 +873,41 @@ header {
 .table-controls label:hover {
     background-color: var(--accent);
 }
+
+/* =========================================
+   TOAST NOTIFICATION (THÔNG BÁO NỔI)
+   ========================================= */
+#toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 99999; /* Đảm bảo nổi lên trên mọi thứ */
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    pointer-events: none; /* Không che mất các nút bấm bên dưới */
+}
+
+.toast {
+    min-width: 250px;
+    background-color: #2a2a40;
+    color: white;
+    padding: 15px 20px;
+    border-radius: 8px;
+    border-left: 5px solid #4ade80;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transform: translateX(120%); /* Giấu ra ngoài màn hình */
+    transition: transform 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.toast.show {
+    transform: translateX(0); /* Trượt vào trong */
+}
+
+.toast.error {
+    border-left-color: #ff4d4d; /* Đổi viền đỏ nếu là lỗi */
+}
