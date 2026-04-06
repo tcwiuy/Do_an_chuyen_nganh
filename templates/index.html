@@ -73,7 +73,6 @@
                         <i class="fa-solid fa-paper-plane"></i> Gửi
                     </button>
                 </div>
-                <div id="aiMessage" class="form-message" style="margin-top: 10px;"></div>
             </div>
 
             <div class="form-container">
@@ -123,15 +122,27 @@
 
                     <button type="submit" class="nav-button">Add Expense</button>
                 </form>
-                <div id="formMessage" class="form-message"></div>
             </div>
         </div>
 
         <div class="chart-container">
             <div id="noDataMessage" class="no-data" style="display: none; width: 100%;">No expenses recorded this month.</div>
-            <div class="chart-box">
-                <canvas id="categoryPieChart"></canvas>
+            
+            <div class="chart-left-wrapper" id="chartLeftWrapper" style="display: flex; flex-direction: column; flex: 1; min-width: 0; padding-right: 15px;">
+                <div class="chart-box" style="position: relative; height: 320px; width: 100%;">
+                    <canvas id="categoryPieChart"></canvas>
+                </div>
+
+                <div class="chart-controls" style="text-align: center; margin-top: 20px; width: 100%;">
+                    <select id="chartTypeSelect" style="padding: 8px 15px; border-radius: 8px; background-color: #2a2a40; color: #d4a5ff; border: 1px solid #8a2be2; outline: none; cursor: pointer; font-family: inherit;">
+                        <option value="doughnut">🍩 Biểu đồ Vòng (Doughnut)</option>
+                        <option value="pie">🍕 Biểu đồ Tròn (Pie)</option>
+                        <option value="bar">📊 Biểu đồ Cột (Bar)</option>
+                        <option value="polarArea">🕸️ Biểu đồ Lưới (Polar Area)</option>
+                    </select>
+                </div>
             </div>
+
             <div class="legend-box" id="customLegend">
             </div>
         </div>
@@ -152,12 +163,12 @@
         </div>
     </div>
 
-
     <script src="/static/functions.js"></script>
     <script>
         let currentCurrency = 'usd';
         let startDate = 1;
         let pieChart = null;
+        let currentChartType = 'doughnut';
         let currentDate = new Date();
         let allExpenses = [];
         let disabledCategories = new Set();
@@ -206,22 +217,23 @@
 
         function updateChartAndLegend() {
             const monthExpenses = getMonthExpenses(allExpenses);
-            const chartBox = document.querySelector('.chart-box');
+            const chartWrapper = document.getElementById('chartLeftWrapper'); // Lấy element Wrapper thay vì chartBox
             const legendBox = document.getElementById('customLegend');
             const cashflowSection = document.getElementById('cashflow-section');
             const noDataMessage = document.getElementById('noDataMessage');
             const hasExpenses = monthExpenses.some(e => e.amount < 0);
+            
             if (!hasExpenses) {
                 if (pieChart) {
                     pieChart.destroy();
                     pieChart = null;
                 }
-                chartBox.style.display = 'none';
+                chartWrapper.style.display = 'none'; // Ẩn cả biểu đồ và nút khi không có data
                 legendBox.style.display = 'none';
                 cashflowSection.style.display = 'none';
                 noDataMessage.style.display = 'block';
             } else {
-                chartBox.style.display = 'flex';
+                chartWrapper.style.display = 'flex'; // Hiện lại
                 legendBox.style.display = 'flex';
                 cashflowSection.style.display = 'flex';
                 noDataMessage.style.display = 'none';
@@ -254,34 +266,48 @@
 
         function createPieChart(categoryData) {
             if (pieChart) pieChart.destroy();
-            pieChart = new Chart('categoryPieChart', {
-                type: 'doughnut',
-                data: {
-                    labels: categoryData.map(c => c.category),
-                    datasets: [{
-                        data: categoryData.map(c => c.total),
-                        backgroundColor: categoryData.map(c => categoryColors[c.category]),
-                        borderColor: '#1a1a1a',
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            callbacks: {
-                                label: (context) => {
-                                    const value = context.raw;
-                                    const total = context.dataset.data.reduce((sum, val) => sum + val, 0);
-                                    const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
-                                    return `${context.label}: ${formatCurrency(value)} (${percentage}%)`;
-                                }
+            
+            const isBarChart = currentChartType === 'bar';
+
+            let chartOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => {
+                                const value = context.raw;
+                                const total = context.dataset.data.reduce((sum, val) => sum + val, 0);
+                                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                                return `${context.label}: ${formatCurrency(value)} (${percentage}%)`;
                             }
                         }
                     }
                 }
+            };
+
+            if (isBarChart) {
+                chartOptions.scales = {
+                    y: { beginAtZero: true, grid: { color: '#333' }, ticks: { color: '#a0a0b0' } },
+                    x: { grid: { display: false }, ticks: { color: '#a0a0b0' } }
+                };
+            }
+
+            pieChart = new Chart('categoryPieChart', {
+                type: currentChartType,
+                data: {
+                    labels: categoryData.map(c => c.category),
+                    datasets: [{
+                        label: 'Tổng chi', 
+                        data: categoryData.map(c => c.total),
+                        backgroundColor: categoryData.map(c => categoryColors[c.category] || '#8a2be2'),
+                        borderColor: '#1a1a1a',
+                        borderWidth: 1,
+                        borderRadius: isBarChart ? 6 : 0 
+                    }]
+                },
+                options: chartOptions
             });
         }
 
@@ -487,7 +513,7 @@
                 this.innerHTML = '<i class="fa-solid fa-plus"></i> Add Expense';
             }
         });
-        // Hàm Promise tạo Popup Confirm tùy chỉnh
+        
         function showCustomConfirm(message) {
             return new Promise((resolve) => {
                 const modal = document.getElementById('customConfirmModal');
@@ -496,37 +522,38 @@
                 const btnProceed = document.getElementById('btnConfirmProceed');
 
                 msgEl.textContent = message;
-                modal.style.display = 'flex'; // Hiện Popup
+                modal.style.display = 'flex';
 
-                // Hàm dọn dẹp và đóng Popup
                 const cleanup = () => {
                     modal.style.display = 'none';
                     btnCancel.removeEventListener('click', onCancel);
                     btnProceed.removeEventListener('click', onProceed);
                 };
 
-                const onCancel = () => { cleanup(); resolve(false); }; // Trả về false nếu Hủy
-                const onProceed = () => { cleanup(); resolve(true); };  // Trả về true nếu Tiếp tục
+                const onCancel = () => { cleanup(); resolve(false); }; 
+                const onProceed = () => { cleanup(); resolve(true); };  
 
                 btnCancel.addEventListener('click', onCancel);
                 btnProceed.addEventListener('click', onProceed);
             });
         }
 
-        // Bắt sự kiện lưu giao dịch
         document.getElementById('expenseForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const isGain = document.getElementById('reportGain').checked;
             let amount = parseFloat(document.getElementById('amount').value);
-            
-            // Lấy tên danh mục người dùng vừa chọn trên Form
+            // ==========================================
+            // 💸 TÍNH NĂNG MỚI: QUY ĐỔI VỀ VND TRƯỚC KHI LƯU
+            // ==========================================
+            if (typeof exchangeRatesToVND !== 'undefined') {
+                const rate = exchangeRatesToVND[currentCurrency] || 1;
+                amount = amount * rate; // Nhân với tỷ giá (VD: 50 USD * 25400 = 1,270,000 VND)
+            }
+            // ==========================================
             const selectedCategory = document.getElementById('category').value;
+            
 
-            // ==========================================
-            // 🚦 TÍNH NĂNG MỚI: PHÁT HIỆN CHI TIÊU BẤT THƯỜNG THEO TỪNG DANH MỤC
-            // ==========================================
             if (!isGain && selectedCategory) {
-                // 1. Chỉ lọc ra các khoản chi cũ CÙNG DANH MỤC với giao dịch đang nhập
                 const categoryExpenses = allExpenses.filter(exp => exp.amount < 0 && exp.category === selectedCategory);
                 let categoryAverage = 0;
                 
@@ -535,19 +562,16 @@
                     categoryAverage = totalCategory / categoryExpenses.length;
                 }
 
-                // 2. So sánh số tiền nhập vào với mức trung bình của RIÊNG DANH MỤC ĐÓ
-                // (Vẫn giữ điều kiện > $50 để tránh báo ảo các khoản quá lặt vặt)
                 if (categoryAverage > 0 && amount > (categoryAverage * 3) && amount > 50) {
                     const confirmMsg = `Số tiền bạn định lưu (${formatCurrency(amount)}) lớn hơn GẤP NHIỀU LẦN so với mức chi tiêu trung bình của danh mục "${selectedCategory}" (${formatCurrency(categoryAverage)}).\n\nBạn có chắc chắn thông tin này là chính xác và muốn lưu không?`;
                     
                     const userConfirmed = await showCustomConfirm(confirmMsg);
                     
                     if (!userConfirmed) {
-                        return; // Ngừng chạy nếu người dùng chọn "Hủy bỏ"
+                        return; 
                     }
                 }
             }
-            // ==========================================
             if (!isGain) {
                 amount *= -1;
             }
@@ -566,8 +590,7 @@
                 });
 
                 if (response.ok) {
-                    // 1. GỌI TOAST THÀNH CÔNG
-                    showToast("Đã thêm giao dịch thành công!", "success");
+                    if(window.showToast) showToast("Đã thêm giao dịch thành công!", "success");
 
                     document.getElementById('expenseForm').reset();
                     document.getElementById('selected-tags').innerHTML = '';
@@ -580,15 +603,14 @@
                     document.getElementById('date').value = `${year}-${month}-${day}`;
                 } else {
                     const error = await response.json();
-                    // 2. GỌI TOAST LỖI
-                    showToast(`Lỗi: ${error.error || 'Không thể thêm giao dịch'}`, "error");
+                    if(window.showToast) showToast(`Lỗi: ${error.error || 'Không thể thêm giao dịch'}`, "error");
                 }
             } catch (error) {
                 console.error('Error adding expense:', error);
-                // 3. GỌI TOAST LỖI MẠNG
-                showToast("Lỗi: Không thể kết nối đến máy chủ", "error");
+                if(window.showToast) showToast("Lỗi: Không thể kết nối đến máy chủ", "error");
             }
         });
+        
         document.addEventListener('DOMContentLoaded', initialize);
 
         document.getElementById('name').addEventListener('click', (e) => {
@@ -597,26 +619,20 @@
             }
         });
 
-        // --- ĐÂY LÀ PHẦN CODE AI ĐÃ ĐƯỢC CHUYỂN VÀO TRONG THẺ SCRIPT ---
         async function sendToAI() {
             const inputField = document.getElementById('aiInput');
             const btn = document.getElementById('aiBtn');
-            const msgDiv = document.getElementById('aiMessage');
             const text = inputField.value.trim();
 
             if (!text) {
-                msgDiv.textContent = 'Vui lòng nhập chi tiêu của bạn!';
-                msgDiv.className = 'form-message error';
+                if(window.showToast) showToast('Vui lòng nhập chi tiêu của bạn!', 'error');
                 return;
             }
 
-            // Đổi trạng thái nút thành Đang xử lý
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang nghĩ...';
             btn.disabled = true;
-            msgDiv.textContent = '';
 
             try {
-                // Gửi dữ liệu lên API AI
                 const res = await fetch('/api/ai/parse-expense', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -625,36 +641,33 @@
 
                 if (res.ok) {
                     const data = await res.json();
-
-                    // 1. GỌI TOAST THÀNH CÔNG CHO AI
-                    showToast(`Đã lưu: ${data.transaction.name} (${data.transaction.amount.toLocaleString('vi-VN')} đ)`, "success");
-
-                    // Xóa ô nhập liệu
+                    if(window.showToast) showToast(`Đã lưu: ${data.transaction.name} (${Math.abs(data.transaction.amount).toLocaleString('vi-VN')} đ)`, "success");
                     inputField.value = '';
-
-                    // Vẽ lại biểu đồ
                     await initialize();
                 } else {
                     const err = await res.json();
-                    // 2. GỌI TOAST LỖI AI
-                    showToast(err.detail || 'Có lỗi xảy ra khi AI phân tích.', "error");
+                    if(window.showToast) showToast(err.detail || 'Có lỗi xảy ra khi AI phân tích.', "error");
                 }
             } catch (error) {
-                // 3. GỌI TOAST LỖI MẠNG AI
-                showToast("Lỗi kết nối đến máy chủ AI.", "error");
+                if(window.showToast) showToast("Lỗi kết nối đến máy chủ AI.", "error");
             } finally {
-                // Khôi phục nút
                 btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Gửi';
                 btn.disabled = false;
             }
         }
 
-        // Hỗ trợ bấm phím Enter trong ô nhập liệu AI
         document.getElementById('aiInput').addEventListener('keypress', function (e) {
             if (e.key === 'Enter') {
                 sendToAI();
             }
         });
+
+        // BẮT SỰ KIỆN KHI NGƯỜI DÙNG CHỌN LOẠI BIỂU ĐỒ MỚI
+        document.getElementById('chartTypeSelect').addEventListener('change', (e) => {
+            currentChartType = e.target.value;
+            updateChartAndLegend();
+        });
+
     </script>
     <script src="/static/chatbot.js"></script>
     <div id="aiModal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); align-items: center; justify-content: center;">

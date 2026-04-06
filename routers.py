@@ -363,3 +363,99 @@ def analyze_trends_and_anomalies(db: Session = Depends(get_db), current_user: mo
         return {"reply": ai_reply}
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Lỗi AI phân tích: {str(e)}")
+    
+
+# ---------------------------------------------------------
+# ROUTER CHO CẤU HÌNH NGƯỜI DÙNG (USER CONFIG)
+# ---------------------------------------------------------
+config_router = APIRouter(prefix="/api", tags=["User Config"])
+
+@config_router.get("/config")
+def get_config(db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
+    user_config = db.query(models.UserConfig).filter(models.UserConfig.user_id == current_user.id).first()
+    
+    # Nếu là người dùng mới chưa chỉnh Settings bao giờ, trả về bộ mặc định
+    if not user_config:
+        return {
+            "currency": "usd",
+            "startDate": 1,
+            "categories": ["Food", "Transport", "Shopping", "Bills", "Entertainment"]
+        }
+        
+    return {
+        "currency": user_config.currency,
+        "startDate": user_config.startDate,
+        "categories": user_config.categories
+    }
+
+# 1. API Lưu Loại Tiền Tệ
+from fastapi import Body
+
+@config_router.post("/currency/edit")
+def edit_currency(
+    currency_code: str = Body(...),
+    db: Session = Depends(get_db), 
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    try:
+        user_config = db.query(models.UserConfig).filter(models.UserConfig.user_id == current_user.id).first()
+        if not user_config:
+            # Nếu chưa có cấu hình, tạo mới
+            user_config = models.UserConfig(user_id=current_user.id, currency=currency_code.lower())
+            db.add(user_config)
+        else:
+            user_config.currency = currency_code.lower() 
+            
+        db.commit()
+        return {"message": "Cập nhật loại tiền tệ thành công"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+# 2. API Lưu Ngày Bắt Đầu Tháng
+@config_router.post("/startdate/edit")
+def edit_start_date(
+    start_date: int = Body(...),
+    db: Session = Depends(get_db), 
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    if start_date < 1 or start_date > 31:
+        raise HTTPException(status_code=400, detail="Ngày bắt đầu phải từ 1 đến 31")
+        
+    try:
+        user_config = db.query(models.UserConfig).filter(models.UserConfig.user_id == current_user.id).first()
+        if not user_config:
+            user_config = models.UserConfig(user_id=current_user.id, startDate=start_date)
+            db.add(user_config)
+        else:
+            user_config.startDate = start_date
+            
+        db.commit()
+        return {"message": "Cập nhật ngày bắt đầu thành công"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+# 3. API Lưu Danh Mục Chi Tiêu (Categories)
+@config_router.post("/categories/edit")
+def edit_categories(
+    categories: list = Body(...),
+    db: Session = Depends(get_db), 
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    if not categories:
+        raise HTTPException(status_code=400, detail="Phải có ít nhất một danh mục")
+        
+    try:
+        user_config = db.query(models.UserConfig).filter(models.UserConfig.user_id == current_user.id).first()
+        if not user_config:
+            user_config = models.UserConfig(user_id=current_user.id, categories=categories)
+            db.add(user_config)
+        else:
+            user_config.categories = categories
+            
+        db.commit()
+        return {"message": "Cập nhật danh mục thành công"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))

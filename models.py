@@ -2,6 +2,7 @@ from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, JSO
 from sqlalchemy.orm import relationship
 from database import Base
 import datetime
+from sqlalchemy import Column, Integer, String, JSON
 
 # Thêm bảng User (đề bài yêu cầu có đăng nhập)
 class User(Base):
@@ -45,3 +46,12 @@ class RecurringTransaction(Base):
 
     user_id = Column(Integer, ForeignKey("users.id"))
     owner = relationship("User")
+
+class UserConfig(Base):
+    __tablename__ = "user_configs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, index=True, unique=True) # ID của người dùng
+    currency = Column(String, default="usd")
+    startDate = Column(Integer, default=1)
+    categories = Column(JSON, default=["Food", "Transport", "Shopping", "Bills", "Entertainment"])

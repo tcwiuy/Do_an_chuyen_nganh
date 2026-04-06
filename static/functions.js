@@ -1,13 +1,13 @@
+// =========================================
 // KIỂM TRA ĐĂNG NHẬP (AUTH GUARD)
-// Nếu không có token và không ở trang login -> Đuổi về trang login
+// =========================================
 if (!localStorage.getItem('token') && window.location.pathname !== '/login') {
     window.location.href = '/login';
 }
 
-// HÀM ĐĂNG XUẤT
 function logout() {
-    localStorage.removeItem('token'); // Xóa token
-    window.location.href = '/login'; // Chuyển về trang đăng nhập
+    localStorage.removeItem('token');
+    window.location.href = '/login';
 }
 
 const colorPalette = [
@@ -15,6 +15,44 @@ const colorPalette = [
     '#FFBE0B', '#FF006E', '#8338EC', '#3A86FF', 
     '#FB5607', '#38B000', '#9B5DE5', '#F15BB5'
 ];
+
+// =========================================
+// 🌍 HỆ THỐNG TỶ GIÁ & CHUYỂN ĐỔI TIỀN TỆ 
+// =========================================
+// Quy ước: Database của bạn luôn lưu tiền gốc là VND. 
+const exchangeRatesToVND = {
+    vnd: 1,         // Việt Nam Đồng
+    usd: 25400,     // Đô la Mỹ
+    eur: 27500,     // Euro
+    gbp: 32000,     // Bảng Anh
+    jpy: 165,       // Yên Nhật
+    cny: 3500,      // Nhân dân tệ (Trung Quốc)
+    krw: 18.5,      // Won Hàn Quốc
+    inr: 305,       // Rupee Ấn Độ
+    rub: 275,       // Rúp Nga
+    brl: 4900,      // Real Brazil
+    zar: 1350,      // Rand Nam Phi
+    aed: 6915,      // Dirham UAE
+    aud: 16800,     // Đô la Úc
+    cad: 18600,     // Đô la Canada
+    chf: 28000,     // Franc Thụy Sĩ
+    hkd: 3250,      // Đô la Hồng Kông
+    bdt: 230,       // Taka Bangladesh
+    sgd: 18800,     // Đô la Singapore
+    thb: 690,       // Baht Thái
+    try: 780,       // Lira Thổ Nhĩ Kỳ
+    mxn: 1500,      // Peso Mexico
+    php: 440,       // Peso Philippines
+    pln: 6350,      // Zloty Ba Lan
+    sek: 2350,      // Krona Thụy Điển
+    nzd: 15300,     // Đô la New Zealand
+    dkk: 3680,      // Krone Đan Mạch
+    idr: 1.58,      // Rupiah Indonesia
+    ils: 6750,      // Shekel Israel
+    myr: 5350,      // Ringgit Malaysia
+    mad: 2520       // Dirham Maroc
+};
+
 const currencyBehaviors = {
     usd: {symbol: "$", useComma: false, useDecimals: true, useSpace: false, right: false},
     eur: {symbol: "€", useComma: true, useDecimals: true, useSpace: false, right: false},
@@ -49,26 +87,35 @@ const currencyBehaviors = {
 };
 
 function formatCurrency(amount) {
+    if (amount === undefined || amount === null) return '0';
+
     const behavior = currencyBehaviors[currentCurrency] || {
-        symbol: "$",
-        useComma: false,
-        useDecimals: true,
-        useSpace: false,
-        right: false,
+        symbol: "$", useComma: false, useDecimals: true, useSpace: false, right: false
     };
-    const isNegative = amount < 0;
-    const absAmount = Math.abs(amount);
+
+    // Quy đổi từ VND sang tiền đang chọn
+    const rate = exchangeRatesToVND[currentCurrency] || 1;
+    const convertedAmount = amount / rate;
+
+    const isNegative = convertedAmount < 0;
+    const absAmount = Math.abs(convertedAmount);
+
     const options = {
         minimumFractionDigits: behavior.useDecimals ? 2 : 0,
         maximumFractionDigits: behavior.useDecimals ? 2 : 0,
     };
-    let formattedAmount = new Intl.NumberFormat(behavior.useComma ? "de-DE" : "en-US",options).format(absAmount);
+    let formattedAmount = new Intl.NumberFormat(behavior.useComma ? "de-DE" : "en-US", options).format(absAmount);
+
     let result = behavior.right
         ? `${formattedAmount}${behavior.useSpace ? " " : ""}${behavior.symbol}`
         : `${behavior.symbol}${behavior.useSpace ? " " : ""}${formattedAmount}`;
+        
     return isNegative ? `-${result}` : result;
 }
 
+// =========================================
+// QUẢN LÝ THỜI GIAN & NGÀY THÁNG
+// =========================================
 function getUserTimeZone() {
     return Intl.DateTimeFormat().resolvedOptions().timeZone;
 }
@@ -117,6 +164,7 @@ function getMonthBounds(date) {
         const endLocal = new Date(localDate.getFullYear(), localDate.getMonth() + 1, 0, 23, 59, 59, 999);
         return { start: new Date(startLocal.toISOString()), end: new Date(endLocal.toISOString()) };
     }
+    
     let thisMonthStartDate = startDate;
     let prevMonthStartDate = startDate;
 
@@ -165,12 +213,14 @@ function escapeHTML(str) {
     );
 }
 
-// --- THỦ THUẬT: TỰ ĐỘNG GẮN TOKEN VÀO MỌI REQUEST API ---
+// =========================================
+// THỦ THUẬT FETCH INTERCEPTOR (GẮN TOKEN)
+// =========================================
 const originalFetch = window.fetch;
 window.fetch = async (...args) => {
     let [resource, config] = args;
     
-    // Nếu gọi API (trừ API đăng nhập/đăng ký) thì tự động gắn thẻ Bearer Token
+    // Tự động gắn Token vào tất cả API (trừ đăng nhập)
     if (typeof resource === 'string' && resource.startsWith('/api/') && !resource.includes('/auth/')) {
         config = config || {};
         config.headers = {
@@ -182,9 +232,8 @@ window.fetch = async (...args) => {
     
     const response = await originalFetch(...args);
     
-    // Nếu Backend báo 401 (Token sai hoặc hết hạn) -> Đá văng ra màn hình Login
     if (response.status === 401) {
-        logout();
+        logout(); // Đăng xuất nếu token hết hạn
     }
     return response;
 };
@@ -192,24 +241,19 @@ window.fetch = async (...args) => {
 // =========================================
 // HỆ THỐNG TOAST NOTIFICATION
 // =========================================
-
-// 1. Tự động tạo một cái giỏ chứa Toast khi trang web vừa tải xong
 document.addEventListener("DOMContentLoaded", () => {
     if (!document.getElementById('toast-container')) {
         document.body.insertAdjacentHTML('beforeend', '<div id="toast-container"></div>');
     }
 });
 
-// 2. Hàm gọi Toast hiển thị
 window.showToast = function(message, type = 'success') {
     const container = document.getElementById('toast-container');
-    if (!container) return; // Nếu chưa có container thì bỏ qua
+    if (!container) return;
 
-    // Tạo cái bong bóng
     const toast = document.createElement('div');
     toast.className = `toast ${type === 'error' ? 'error' : ''}`;
     
-    // Thêm icon (Dấu check xanh hoặc Dấu chấm than đỏ)
     const icon = type === 'error' 
         ? '<i class="fa-solid fa-circle-exclamation" style="color: #ff4d4d; font-size: 18px;"></i>' 
         : '<i class="fa-solid fa-circle-check" style="color: #4ade80; font-size: 18px;"></i>';
@@ -217,33 +261,29 @@ window.showToast = function(message, type = 'success') {
     toast.innerHTML = `${icon} <span>${message}</span>`;
     container.appendChild(toast);
 
-    // Kích hoạt hiệu ứng trượt vào
     setTimeout(() => {
         toast.classList.add('show');
     }, 10);
 
-    // Tự động đá nó ra ngoài sau 3 giây
     setTimeout(() => {
         toast.classList.remove('show');
-        // Đợi nó trượt ra ngoài xong thì xóa hẳn khỏi HTML cho nhẹ máy
         setTimeout(() => toast.remove(), 400); 
     }, 3000);
 };
-// Biến toàn cục để lưu "công tắc" hủy request
+
+// =========================================
+// TRỢ LÝ AI (PHÂN TÍCH XU HƯỚNG)
+// =========================================
 let aiAbortController = null;
 
-// Hàm đóng Popup AI
 function closeAiModal() {
     document.getElementById('aiModal').style.display = 'none';
-    
-    // Nếu AI đang chạy mà user đóng khung, ta sẽ ngắt tiến trình đó ngay lập tức
     if (aiAbortController) {
-        aiAbortController.abort(); // Lệnh hủy API
+        aiAbortController.abort();
         aiAbortController = null;
     }
 }
 
-// BẮT SỰ KIỆN: Tự động đóng Popup khi click ra vùng nền đen bên ngoài
 window.addEventListener('click', function(event) {
     const modal = document.getElementById('aiModal');
     if (event.target === modal) {
@@ -251,23 +291,18 @@ window.addEventListener('click', function(event) {
     }
 }); 
 
-// =========================================
-// HÀM PHÂN TÍCH XU HƯỚNG CỦA CÚ MÈO
-// =========================================
 async function analyzeTrends() {
     const modal = document.getElementById('aiModal');
     const loadingText = document.getElementById('aiLoading');
     const contentBox = document.getElementById('aiContent');
     const btn = document.getElementById('btnAnalyze');
 
-    // Hiển thị Modal (Popup) và trạng thái tải
     modal.style.display = 'flex';
     loadingText.style.display = 'block';
     contentBox.innerHTML = '';
     btn.disabled = true;
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang xử lý...';
 
-    // Tạo một "công tắc" mới mỗi khi bấm nút phân tích
     aiAbortController = new AbortController();
 
     try {
@@ -275,14 +310,13 @@ async function analyzeTrends() {
         const response = await fetch('/api/ai/analyze-trends', {
             method: 'GET',
             headers: { 'Authorization': 'Bearer ' + token },
-            signal: aiAbortController.signal // Gắn công tắc vào request này
+            signal: aiAbortController.signal
         });
 
         if (!response.ok) throw new Error('Lỗi khi gọi API');
 
         const data = await response.json();
         
-        // Đổi Markdown sang HTML
         let formattedReply = data.reply
             .replace(/### (.*?)\n/g, '<h3 style="color:#d4a5ff; margin-top: 15px; margin-bottom:5px;">$1</h3>')
             .replace(/\*\*(.*?)\*\*/g, '<strong style="color: #fff;">$1</strong>')
@@ -291,14 +325,12 @@ async function analyzeTrends() {
         contentBox.innerHTML = formattedReply;
 
     } catch (error) {
-        // Kiểm tra xem có phải lỗi do user chủ động hủy (đóng popup) không
         if (error.name === 'AbortError') {
             console.log('Tiến trình AI đã bị ngắt vì người dùng đóng cửa sổ.');
         } else {
             contentBox.innerHTML = '<span style="color:#ff4d4d;">Lỗi: Không thể kết nối với Cú Mèo lúc này. Hãy thử lại sau!</span>';
         }
     } finally {
-        // Khối finally luôn chạy cuối cùng: Reset lại giao diện dù thành công, lỗi, hay bị ngắt
         loadingText.style.display = 'none';
         btn.disabled = false;
         btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Phân Tích AI';
