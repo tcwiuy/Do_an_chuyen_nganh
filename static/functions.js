@@ -229,3 +229,78 @@ window.showToast = function(message, type = 'success') {
         setTimeout(() => toast.remove(), 400); 
     }, 3000);
 };
+// Biến toàn cục để lưu "công tắc" hủy request
+let aiAbortController = null;
+
+// Hàm đóng Popup AI
+function closeAiModal() {
+    document.getElementById('aiModal').style.display = 'none';
+    
+    // Nếu AI đang chạy mà user đóng khung, ta sẽ ngắt tiến trình đó ngay lập tức
+    if (aiAbortController) {
+        aiAbortController.abort(); // Lệnh hủy API
+        aiAbortController = null;
+    }
+}
+
+// BẮT SỰ KIỆN: Tự động đóng Popup khi click ra vùng nền đen bên ngoài
+window.addEventListener('click', function(event) {
+    const modal = document.getElementById('aiModal');
+    if (event.target === modal) {
+        closeAiModal();
+    }
+}); 
+
+// =========================================
+// HÀM PHÂN TÍCH XU HƯỚNG CỦA CÚ MÈO
+// =========================================
+async function analyzeTrends() {
+    const modal = document.getElementById('aiModal');
+    const loadingText = document.getElementById('aiLoading');
+    const contentBox = document.getElementById('aiContent');
+    const btn = document.getElementById('btnAnalyze');
+
+    // Hiển thị Modal (Popup) và trạng thái tải
+    modal.style.display = 'flex';
+    loadingText.style.display = 'block';
+    contentBox.innerHTML = '';
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang xử lý...';
+
+    // Tạo một "công tắc" mới mỗi khi bấm nút phân tích
+    aiAbortController = new AbortController();
+
+    try {
+        const token = localStorage.getItem('token'); 
+        const response = await fetch('/api/ai/analyze-trends', {
+            method: 'GET',
+            headers: { 'Authorization': 'Bearer ' + token },
+            signal: aiAbortController.signal // Gắn công tắc vào request này
+        });
+
+        if (!response.ok) throw new Error('Lỗi khi gọi API');
+
+        const data = await response.json();
+        
+        // Đổi Markdown sang HTML
+        let formattedReply = data.reply
+            .replace(/### (.*?)\n/g, '<h3 style="color:#d4a5ff; margin-top: 15px; margin-bottom:5px;">$1</h3>')
+            .replace(/\*\*(.*?)\*\*/g, '<strong style="color: #fff;">$1</strong>')
+            .replace(/\n/g, '<br>');
+
+        contentBox.innerHTML = formattedReply;
+
+    } catch (error) {
+        // Kiểm tra xem có phải lỗi do user chủ động hủy (đóng popup) không
+        if (error.name === 'AbortError') {
+            console.log('Tiến trình AI đã bị ngắt vì người dùng đóng cửa sổ.');
+        } else {
+            contentBox.innerHTML = '<span style="color:#ff4d4d;">Lỗi: Không thể kết nối với Cú Mèo lúc này. Hãy thử lại sau!</span>';
+        }
+    } finally {
+        // Khối finally luôn chạy cuối cùng: Reset lại giao diện dù thành công, lỗi, hay bị ngắt
+        loadingText.style.display = 'none';
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Phân Tích AI';
+    }
+}
