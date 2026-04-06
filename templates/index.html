@@ -34,14 +34,6 @@
     <div class="container">
         <header>
             <div class="nav-bar">
-                <a href="/">
-                    <div style="background: linear-gradient(135deg, #8a2be2, #d4a5ff); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
-                        <i class="fa-solid fa-wallet" style="font-size: 32px;"></i>
-                    </div>
-                    <h2 style="margin: 0; font-weight: 800; font-size: 24px; color: var(--text); letter-spacing: 0.5px;">
-                        Smart<span style="color: #8a2be2;">Finance</span>
-                    </h2>
-                </a>
                 <a href="/" class="view-button active" data-tooltip="Dashboard">
                     <i class="fa-solid fa-chart-pie"></i>
                 </a>
@@ -534,7 +526,7 @@
             } catch (error) {
                 console.error('Error adding expense:', error);
                 // 3. GỌI TOAST LỖI MẠNG
-                showToast("Error: Failed to connect to server", "error");
+                showToast("Lỗi: Không thể kết nối đến máy chủ", "error");
             }
         });
         document.addEventListener('DOMContentLoaded', initialize);
