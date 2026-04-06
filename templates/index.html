@@ -487,11 +487,67 @@
                 this.innerHTML = '<i class="fa-solid fa-plus"></i> Add Expense';
             }
         });
+        // Hàm Promise tạo Popup Confirm tùy chỉnh
+        function showCustomConfirm(message) {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('customConfirmModal');
+                const msgEl = document.getElementById('confirmMessage');
+                const btnCancel = document.getElementById('btnConfirmCancel');
+                const btnProceed = document.getElementById('btnConfirmProceed');
 
+                msgEl.textContent = message;
+                modal.style.display = 'flex'; // Hiện Popup
+
+                // Hàm dọn dẹp và đóng Popup
+                const cleanup = () => {
+                    modal.style.display = 'none';
+                    btnCancel.removeEventListener('click', onCancel);
+                    btnProceed.removeEventListener('click', onProceed);
+                };
+
+                const onCancel = () => { cleanup(); resolve(false); }; // Trả về false nếu Hủy
+                const onProceed = () => { cleanup(); resolve(true); };  // Trả về true nếu Tiếp tục
+
+                btnCancel.addEventListener('click', onCancel);
+                btnProceed.addEventListener('click', onProceed);
+            });
+        }
+
+        // Bắt sự kiện lưu giao dịch
         document.getElementById('expenseForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const isGain = document.getElementById('reportGain').checked;
             let amount = parseFloat(document.getElementById('amount').value);
+            
+            // Lấy tên danh mục người dùng vừa chọn trên Form
+            const selectedCategory = document.getElementById('category').value;
+
+            // ==========================================
+            // 🚦 TÍNH NĂNG MỚI: PHÁT HIỆN CHI TIÊU BẤT THƯỜNG THEO TỪNG DANH MỤC
+            // ==========================================
+            if (!isGain && selectedCategory) {
+                // 1. Chỉ lọc ra các khoản chi cũ CÙNG DANH MỤC với giao dịch đang nhập
+                const categoryExpenses = allExpenses.filter(exp => exp.amount < 0 && exp.category === selectedCategory);
+                let categoryAverage = 0;
+                
+                if (categoryExpenses.length > 0) {
+                    const totalCategory = categoryExpenses.reduce((sum, exp) => sum + Math.abs(exp.amount), 0);
+                    categoryAverage = totalCategory / categoryExpenses.length;
+                }
+
+                // 2. So sánh số tiền nhập vào với mức trung bình của RIÊNG DANH MỤC ĐÓ
+                // (Vẫn giữ điều kiện > $50 để tránh báo ảo các khoản quá lặt vặt)
+                if (categoryAverage > 0 && amount > (categoryAverage * 3) && amount > 50) {
+                    const confirmMsg = `Số tiền bạn định lưu (${formatCurrency(amount)}) lớn hơn GẤP NHIỀU LẦN so với mức chi tiêu trung bình của danh mục "${selectedCategory}" (${formatCurrency(categoryAverage)}).\n\nBạn có chắc chắn thông tin này là chính xác và muốn lưu không?`;
+                    
+                    const userConfirmed = await showCustomConfirm(confirmMsg);
+                    
+                    if (!userConfirmed) {
+                        return; // Ngừng chạy nếu người dùng chọn "Hủy bỏ"
+                    }
+                }
+            }
+            // ==========================================
             if (!isGain) {
                 amount *= -1;
             }
@@ -612,6 +668,18 @@
             </div>
 
             <div id="aiContent" style="line-height: 1.6; color: #e0e0e0;"></div>
+        </div>
+    </div>
+    <div id="customConfirmModal" style="display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); align-items: center; justify-content: center;">
+        <div style="background: linear-gradient(145deg, #2a1e2d, #402a30); border: 2px solid #ff4d4d; border-radius: 12px; width: 90%; max-width: 450px; padding: 25px; box-shadow: 0 0 25px rgba(255, 77, 77, 0.4); text-align: center;">
+            <h3 style="color: #ff4d4d; margin-top: 0; margin-bottom: 15px;">
+                <i class="fa-solid fa-triangle-exclamation fa-beat"></i> Cảnh Báo
+            </h3>
+            <p id="confirmMessage" style="color: #e0e0e0; line-height: 1.6; margin-bottom: 25px; white-space: pre-line; font-size: 15px;"></p>
+            <div style="display: flex; gap: 15px; justify-content: center;">
+                <button id="btnConfirmCancel" style="padding: 10px 20px; background-color: #4a4a60; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">Hủy bỏ</button>
+                <button id="btnConfirmProceed" style="padding: 10px 20px; background-color: #ff4d4d; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">Vẫn Lưu</button>
+            </div>
         </div>
     </div>
 </body>
