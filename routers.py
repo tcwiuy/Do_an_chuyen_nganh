@@ -297,3 +297,56 @@ def chat_with_data(req: ChatRequest, db: Session = Depends(get_db), current_user
         
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Lỗi Chatbot AI: {str(e)}")
+
+# ---------------------------------------------------------
+# 3. API PHÂN TÍCH XU HƯỚNG VÀ PHÁT HIỆN BẤT THƯỜNG
+# ---------------------------------------------------------
+@ai_router.get("/analyze-trends")
+def analyze_trends_and_anomalies(db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="Chưa cấu hình GEMINI_API_KEY")
+
+    # 1. Lấy toàn bộ giao dịch của người dùng
+    transactions = db.query(models.Transaction).filter(models.Transaction.user_id == current_user.id).all()
+    
+    if not transactions:
+        return {"reply": "Chưa có đủ dữ liệu giao dịch để phân tích. Bạn hãy ghi chép thêm nhé!"}
+
+    # 2. Ráp dữ liệu thành bảng văn bản
+    data_context = "DANH SÁCH GIAO DỊCH TRONG QUÁ KHỨ VÀ HIỆN TẠI:\nNgày | Tên giao dịch | Số tiền | Danh mục\n"
+    data_context += "-" * 50 + "\n"
+    for t in transactions:
+        data_context += f"{t.date.strftime('%Y-%m-%d')} | {t.name} | {t.amount} | {t.category}\n"
+
+    # 3. Viết Prompt yêu cầu phân tích
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    prompt = f"""
+    Hôm nay là ngày {today_str}.
+    Bạn là "Cú Mèo", chuyên gia phân tích tài chính của ExpenseOwl.
+    Dưới đây là lịch sử giao dịch (Số tiền ÂM là chi tiêu, DƯƠNG là thu nhập):
+    
+    {data_context}
+    
+    Hãy phân tích khối dữ liệu trên và xuất ra báo cáo bằng tiếng Việt, định dạng Markdown theo cấu trúc sau:
+    Lưu ý quan trọng: Luôn định dạng số tiền theo chuẩn Đô la Mỹ, sử dụng dấu phẩy để phân cách hàng nghìn và đặt ký hiệu $ ở ngay phía trước số tiền (Ví dụ: $1,200.50 hoặc $50). Tuyệt đối không dùng chữ "VNĐ" hay "đơn vị tiền tệ".
+    ###  Dự đoán xu hướng
+    (Dự đoán tháng tới họ sẽ tiêu tốn nhiều nhất vào việc gì)
+    ###  Phát hiện bất thường
+    (Tìm ra khoản chi cao đột biến. Nếu mọi thứ bình thường, hãy khen ngợi)
+    ###  Lời khuyên từ Cú Mèo
+    (1 hành động cụ thể để tối ưu hóa dòng tiền)
+    """
+    
+    # 4. Gọi API Gemini
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+    payload = {"contents": [{"parts": [{"text": prompt}]}]}
+    
+    try:
+        response = requests.post(url, json=payload, headers={"Content-Type": "application/json"})
+        response.raise_for_status() 
+        result_data = response.json()
+        ai_reply = result_data["candidates"][0]["content"]["parts"][0]["text"]
+        return {"reply": ai_reply}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Lỗi AI phân tích: {str(e)}")

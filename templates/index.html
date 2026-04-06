@@ -55,15 +55,18 @@
             <button id="nextMonth" class="nav-button"><i class="fa-solid fa-arrow-right"></i></button>
         </div>
 
-        <div class="table-controls">
+        <div class="table-controls" style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
             <button id="toggleExpenseFormBtn" class="nav-button"><i class="fa-solid fa-plus"></i> Add Expense</button>
+            <button id="btnAnalyze" class="nav-button" onclick="analyzeTrends()" style="background-color: #8a2be2; border: 1px solid #d4a5ff;">
+                <i class="fa-solid fa-wand-magic-sparkles"></i> Phân Tích AI
+            </button>
         </div>
 
         <div id="addExpenseContainer" style="display: none;">
             <div class="form-container" style="border: 2px solid #8a2be2; background: linear-gradient(145deg, #1e1e2d, #2a2a40); box-shadow: 0 0 15px rgba(138, 43, 226, 0.3); margin-bottom: 20px;">
                 <h3 align="center" style="color: #d4a5ff;"><i class="fa-solid fa-wand-magic-sparkles"></i> Trợ lý AI Cú Mèo</h3>
                 <p style="text-align: center; color: #a0a0b0; font-size: 0.9rem; margin-bottom: 15px;">Hãy nhập câu nói tự nhiên, AI sẽ tự phân tích và lưu!</p>
-                
+
                 <div class="form-group" style="display: flex; gap: 10px; align-items: center;">
                     <input type="text" id="aiInput" placeholder="VD: Tối qua đổ 50k tiền xăng và uống ly cafe 30k..." style="flex: 1; padding: 12px; border-radius: 8px;">
                     <button onclick="sendToAI()" id="aiBtn" class="nav-button" style="background-color: #8a2be2; width: auto; padding: 0 20px;">
@@ -79,14 +82,14 @@
                         <label for="name">Name</label>
                         <input type="text" id="name" value="-" required>
                     </div>
-                    
+
                     <div class="form-group">
                         <label for="category">Category</label>
                         <select id="category" required>
                             <option value="">categories</option>
                         </select>
                     </div>
-    
+
                     <div class="form-group">
                         <label for="tags-input">Tags</label>
                         <div id="tags-input-container" class="tags-input-container">
@@ -95,12 +98,12 @@
                         </div>
                         <div id="tags-dropdown" class="tags-dropdown"></div>
                     </div>
-                    
+
                     <div class="form-group">
                         <label for="amount">Amount</label>
                         <input type="number" id="amount" step="0.01" min="0.01" max="9000000000000000" required>
                     </div>
-                    
+
                     <div class="form-group">
                         <label for="date">Date</label>
                         <input type="date" id="date" required>
@@ -112,12 +115,12 @@
                             document.getElementById('date').value = `${yyyy}-${mm}-${dd}`;
                         </script>
                     </div>
-                    
+
                     <div class="form-group form-group-checkbox">
                         <label for="reportGain">Report Gain</label>
                         <input type="checkbox" id="reportGain" class="styled-checkbox">
                     </div>
-    
+
                     <button type="submit" class="nav-button">Add Expense</button>
                 </form>
                 <div id="formMessage" class="form-message"></div>
@@ -148,6 +151,7 @@
             </div>
         </div>
     </div>
+
 
     <script src="/static/functions.js"></script>
     <script>
@@ -221,7 +225,7 @@
                 legendBox.style.display = 'flex';
                 cashflowSection.style.display = 'flex';
                 noDataMessage.style.display = 'none';
-                
+
                 const categoryData = calculateCategoryBreakdown(monthExpenses);
                 updateCashflow(monthExpenses);
                 createPieChart(categoryData);
@@ -233,11 +237,11 @@
             const income = calculateIncome(expenses);
             const expenseTotal = calculateExpenses(expenses);
             const balance = income - expenseTotal;
-            
+
             document.getElementById('cashflow-income').textContent = formatCurrency(income);
             document.getElementById('cashflow-expenses').textContent = formatCurrency(expenseTotal);
             document.getElementById('cashflow-balance').textContent = formatCurrency(balance);
-            
+
             const balanceElement = document.getElementById('cashflow-balance');
             if (balance >= 0) {
                 balanceElement.classList.add('positive');
@@ -289,7 +293,7 @@
                 .filter(exp => exp.amount < 0)
                 .map(exp => exp.category))];
             const categoryMap = new Map(categoryData.map(cat => [cat.category, cat]));
-            
+
             currentMonthCategories.sort((a, b) => {
                 const dataA = categoryMap.get(a);
                 const dataB = categoryMap.get(b);
@@ -305,12 +309,12 @@
                 const percentage = categoryDataItem ? ` (${categoryDataItem.percentage.toFixed(1)}%)` : '';
                 const amount = categoryDataItem ? formatCurrency(categoryDataItem.total) : '';
                 item.innerHTML = `
-                    <div class="color-box" style="background-color: ${color}"></div>
-                    <div class="legend-text">
-                        <span>${category}${percentage}</span>
-                        <span class="amount">${amount}</span>
-                    </div>
-                `;
+                            <div class="color-box" style="background-color: ${color}"></div>
+                            <div class="legend-text">
+                                <span>${category}${percentage}</span>
+                                <span class="amount">${amount}</span>
+                            </div>
+                        `;
                 item.addEventListener('click', () => toggleCategory(category));
                 legendContainer.appendChild(item);
             });
@@ -320,13 +324,13 @@
                 .reduce((sum, exp) => sum + Math.abs(exp.amount), 0);
 
             const totalsHtml = `
-                <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border);">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span>Total:</span>
-                        <span class="amount">${formatCurrency(activeTotalExpenses)}</span>
-                    </div>
-                </div>
-            `;
+                        <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border);">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span>Total:</span>
+                                <span class="amount">${formatCurrency(activeTotalExpenses)}</span>
+                            </div>
+                        </div>
+                    `;
             legendContainer.insertAdjacentHTML('beforeend', totalsHtml);
         }
 
@@ -345,12 +349,12 @@
                 if (!configResponse.ok) throw new Error('Failed to fetch configuration');
                 const config = await configResponse.json();
                 const categorySelect = document.getElementById('category');
-                categorySelect.innerHTML = config.categories.map(cat => 
+                categorySelect.innerHTML = config.categories.map(cat =>
                     `<option value="${cat}">${cat}</option>`
                 ).join('');
                 currentCurrency = config.currency;
                 startDate = config.startDate;
-                
+
                 const response = await fetch('/api/expenses/');
                 if (!response.ok) throw new Error('Failed to fetch data');
                 const data = await response.json();
@@ -362,7 +366,7 @@
                         exp.tags.forEach(tag => allTags.add(tag));
                     }
                 });
-                
+
                 const uniqueCategories = [...new Set(allExpenses.map(exp => exp.category))];
                 assignCategoryColors(uniqueCategories);
                 updateMonthDisplay();
@@ -423,7 +427,7 @@
                 const value = input.value.trim().toLowerCase();
                 dropdown.innerHTML = '';
                 const filteredTags = [...allTags].filter(tag => tag.toLowerCase().includes(value) && !selectedTags.has(tag));
-                
+
                 if (value && ![...allTags].map(t => t.toLowerCase()).includes(value)) {
                     const newItem = document.createElement('div');
                     newItem.textContent = `+ Create "${input.value.trim()}"`;
@@ -438,7 +442,7 @@
                     item.onclick = () => addTag(tag);
                     dropdown.appendChild(item);
                 });
-                
+
                 dropdown.style.display = dropdown.children.length > 0 ? 'block' : 'none';
             });
 
@@ -471,7 +475,7 @@
             updateChartAndLegend();
         });
 
-        document.getElementById('toggleExpenseFormBtn').addEventListener('click', function() {
+        document.getElementById('toggleExpenseFormBtn').addEventListener('click', function () {
             const formContainer = document.getElementById('addExpenseContainer');
             const isHidden = formContainer.style.display === 'none' || formContainer.style.display === '';
 
@@ -504,11 +508,11 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(formData)
                 });
-                
+
                 if (response.ok) {
                     // 1. GỌI TOAST THÀNH CÔNG
                     showToast("Đã thêm giao dịch thành công!", "success");
-                    
+
                     document.getElementById('expenseForm').reset();
                     document.getElementById('selected-tags').innerHTML = '';
                     selectedTags.clear();
@@ -565,13 +569,13 @@
 
                 if (res.ok) {
                     const data = await res.json();
-                    
+
                     // 1. GỌI TOAST THÀNH CÔNG CHO AI
                     showToast(`Đã lưu: ${data.transaction.name} (${data.transaction.amount.toLocaleString('vi-VN')} đ)`, "success");
-                    
+
                     // Xóa ô nhập liệu
                     inputField.value = '';
-                    
+
                     // Vẽ lại biểu đồ
                     await initialize();
                 } else {
@@ -597,5 +601,18 @@
         });
     </script>
     <script src="/static/chatbot.js"></script>
+    <div id="aiModal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); align-items: center; justify-content: center;">
+        <div style="background: linear-gradient(145deg, #1e1e2d, #2a2a40); border: 2px solid #8a2be2; border-radius: 12px; width: 90%; max-width: 500px; max-height: 80vh; overflow-y: auto; padding: 20px; box-shadow: 0 0 20px rgba(138,43,226,0.4); position: relative;">
+            <button onclick="closeAiModal()" style="position: absolute; right: 15px; top: 15px; background: none; border: none; color: #ff4d4d; font-size: 20px; cursor: pointer;"><i class="fa-solid fa-xmark"></i></button>
+            <h3 style="color: #d4a5ff; margin-top: 0; margin-bottom: 15px; text-align: center;"><i class="fa-solid fa-wand-magic-sparkles"></i> Báo Cáo Từ Cú Mèo</h3>
+
+            <div id="aiLoading" style="display:none; color: #a0a0b0; font-style: italic; text-align: center;">
+                <i class="fa-solid fa-spinner fa-spin" style="font-size: 24px; margin-bottom: 10px;"></i><br>
+                Cú Mèo đang đọc hồ sơ...
+            </div>
+
+            <div id="aiContent" style="line-height: 1.6; color: #e0e0e0;"></div>
+        </div>
+    </div>
 </body>
 </html>
