@@ -141,15 +141,28 @@ def login_user(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = D
     access_token = auth.create_access_token(data={"sub": user.username})
     return {"access_token": access_token, "token_type": "bearer"}
 
-# ---------------------------------------------------------
-# ROUTER CHO TRÍ TUỆ NHÂN TẠO (AI INTEGRATION)
-# ---------------------------------------------------------
+@auth_router.put("/change-password")
+def change_password(passwords: schemas.UserUpdatePassword, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
+    # 1. Kiểm tra xem mật khẩu cũ nhập vào có đúng không
+    if not auth.verify_password(passwords.old_password, current_user.hashed_password):
+        raise HTTPException(status_code=400, detail="Mật khẩu hiện tại không chính xác!")
+    
+    # 2. Kiểm tra mật khẩu mới không được trùng mật khẩu cũ
+    if auth.verify_password(passwords.new_password, current_user.hashed_password):
+        raise HTTPException(status_code=400, detail="Mật khẩu mới không được giống mật khẩu cũ!")
+
+    # 3. Băm mật khẩu mới và lưu vào cơ sở dữ liệu
+    current_user.hashed_password = auth.get_password_hash(passwords.new_password)
+    db.commit()
+    
+    return {"message": "Đổi mật khẩu thành công!"}
+
 # ---------------------------------------------------------
 # ROUTER CHO TRÍ TUỆ NHÂN TẠO (AI INTEGRATION)
 # ---------------------------------------------------------
 ai_router = APIRouter(prefix="/api/ai", tags=["AI Integration"])
 
-# Schema cho API Nhập liệu (Đã có sẵn, giữ nguyên)
+# Schema cho API Nhập liệu 
 class AIRequest(BaseModel):
     text: str
 
@@ -158,7 +171,7 @@ class ChatRequest(BaseModel):
     message: str
     history: list = []
 
-# 1. API NHẬP LIỆU BẰNG NGÔN NGỮ TỰ NHIÊN (ĐÃ HOÀN THIỆN)
+# 1. API NHẬP LIỆU BẰNG NGÔN NGỮ TỰ NHIÊN 
 @ai_router.post("/parse-expense")
 def parse_expense_from_text(req: AIRequest, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
     api_key = os.getenv("GEMINI_API_KEY")
@@ -225,7 +238,7 @@ def parse_expense_from_text(req: AIRequest, db: Session = Depends(get_db), curre
 # 2. API CHATBOT TRUY VẤN DỮ LIỆU CÓ TRÍ NHỚ (RAG + MEMORY)
 # ---------------------------------------------------------
 
-# Schema mới cho API Chatbot (Đã thêm biến history)
+# Schema mới cho API Chatbot 
 class ChatRequest(BaseModel):
     message: str
     history: list = [] # Mảng chứa lịch sử trò chuyện: [{"user": "...", "ai": "..."}, ...]

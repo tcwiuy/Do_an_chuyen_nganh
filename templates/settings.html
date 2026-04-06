@@ -35,6 +35,37 @@
                 </a>
             </div>
         </header>
+
+        <div class="form-container">
+            <h2 align="center">Bảo mật tài khoản</h2>
+            
+            <div class="form-group">
+                <label>Tên đăng nhập</label>
+                <input type="text" id="currentUsername" value="Đang tải..." disabled style="background-color: #151521; color: #a0a0b0; border-color: #2a2a40;">
+            </div>
+
+            <form id="changePasswordForm" class="expense-form">
+                <div class="form-group">
+                    <label for="oldPassword">Mật khẩu hiện tại</label>
+                    <input type="password" id="oldPassword" placeholder="Nhập mật khẩu cũ..." required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="newPassword">Mật khẩu mới (Tối thiểu 6 ký tự)</label>
+                    <input type="password" id="newPassword" placeholder="Nhập mật khẩu mới..." required minlength="6">
+                </div>
+                
+                <div class="form-group">
+                    <label for="confirmPassword">Xác nhận mật khẩu mới</label>
+                    <input type="password" id="confirmPassword" placeholder="Nhập lại mật khẩu mới..." required minlength="6">
+                </div>
+                
+                <button type="submit" class="nav-button" style="width: 100%; margin-top: 15px; background-color: #8a2be2;">
+                    <i class="fa-solid fa-key"></i> Đổi Mật Khẩu
+                </button>
+            </form>
+        </div>
+
         <div class="form-container">
             <h2 align="center">Category Settings</h2>
             <div id="categories-manager">
@@ -45,7 +76,6 @@
                     <button id="addCategory" class="nav-button">Add</button>
                 </div>
                 <button id="saveCategories" class="nav-button">Save Categories</button>
-                <div id="categoriesMessage" class="form-message"></div>
             </div>
         </div>
 
@@ -57,7 +87,6 @@
                     </select>
                     <button id="saveCurrency" class="nav-button">Save</button>
                 </div>
-                <div id="currencyMessage" class="form-message"></div>
             </div>
             
             <div class="form-container half-width">
@@ -66,7 +95,6 @@
                     <input type="number" id="startDate" min="1" max="31" placeholder="1">
                     <button id="saveStartDate" class="nav-button">Save</button>
                 </div>
-                <div id="startDateMessage" class="form-message"></div>
             </div>
         </div>
 
@@ -80,7 +108,6 @@
                         <option value="dark">Dark</option>
                     </select>
                 </div>
-                <div id="themeMessage" class="form-message"></div>
             </div>
             <div class="form-container half-width">
                 <h2 align="center">Import/Export Data</h2>
@@ -97,7 +124,6 @@
                         <input type="file" id="csv-import-file-old" accept=".csv" style="display: none;">
                     </div>
                 </div>
-                <div id="importMessage" class="form-message"></div>
                 <div id="importSummary" class="import-summary" style="display: none;">
                     <h3>Import Summary</h3>
                     <p>Total Processed: <span id="summary-processed"></span></p>
@@ -162,7 +188,6 @@
                 </div>
                 <button type="submit" class="nav-button">Add Recurring Transaction</button>
             </form>
-            <div id="recurringExpenseMessage" class="form-message"></div>
             <h3 align="center" style="margin-top: 2rem;">Existing Recurring Transactions</h3>
             <div id="recurring-expenses-list">
             </div>
@@ -248,15 +273,67 @@
         let recurringExpenseToDelete = null;
         let recurringExpenseToEdit = null;
 
-        function showMessage(elementId, message, isSuccess) {
-            const messageDiv = document.getElementById(elementId);
-            messageDiv.textContent = message;
-            messageDiv.className = isSuccess ? 'form-message success' : 'form-message error';
-            setTimeout(() => {
-                messageDiv.textContent = '';
-                messageDiv.className = 'form-message';
-            }, 3000);
+        // XỬ LÝ LẤY TÊN ĐĂNG NHẬP TRỰC TIẾP TỪ TOKEN
+        const token = localStorage.getItem('token'); 
+        if (token) {
+            try {
+                // Giải mã phần thân (Payload) của JWT Token
+                const base64Url = token.split('.')[1];
+                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+                    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                }).join(''));
+                
+                const payload = JSON.parse(jsonPayload);
+                // Biến 'sub' trong token chính là username mà Backend đã cấp
+                document.getElementById('currentUsername').value = payload.sub || "Không rõ"; 
+            } catch (error) {
+                document.getElementById('currentUsername').value = "Lỗi giải mã token";
+            }
+        } else {
+            document.getElementById('currentUsername').value = "Chưa đăng nhập";
         }
+
+        document.getElementById('changePasswordForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const oldPassword = document.getElementById('oldPassword').value;
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+
+            if (newPassword !== confirmPassword) {
+                if(window.showToast) showToast("Hai ô mật khẩu mới không khớp nhau!", "error");
+                return;
+            }
+
+            const btn = e.target.querySelector('button');
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang xử lý...';
+            btn.disabled = true;
+
+            try {
+                const token = localStorage.getItem('token'); 
+                const res = await fetch('/api/auth/change-password', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ old_password: oldPassword, new_password: newPassword })
+                });
+
+                if (res.ok) {
+                    if(window.showToast) showToast("Đổi mật khẩu thành công! Hãy dùng mật khẩu mới cho lần đăng nhập sau.", "success");
+                    e.target.reset();
+                } else {
+                    const err = await res.json();
+                    if(window.showToast) showToast(err.detail || "Lỗi khi đổi mật khẩu!", "error");
+                }
+            } catch (error) {
+                if(window.showToast) showToast("Lỗi kết nối máy chủ!", "error");
+            } finally {
+                btn.innerHTML = '<i class="fa-solid fa-key"></i> Đổi Mật Khẩu';
+                btn.disabled = false;
+            }
+        });
 
         // --- Category Management ---
         function renderCategories() {
@@ -349,9 +426,9 @@
                 renderCategories();
                 input.value = '';
             } else if (categories.includes(category)) {
-                showMessage('categoriesMessage', 'Category already exists', false);
+                if(window.showToast) showToast('Category already exists', "error");
             } else if (!category) {
-                showMessage('categoriesMessage', 'Category name cannot be empty.', false);
+                if(window.showToast) showToast('Category name cannot be empty.', "error");
             }
         }
 
@@ -362,25 +439,24 @@
 
         async function saveCategories() {
             if (categories.length === 0) {
-                showMessage('categoriesMessage', 'At least one category is required', false);
+                if(window.showToast) showToast('At least one category is required', "error");
                 return;
             }
             try {
-                // CẬP NHẬT: /api/categories/edit
                 const response = await fetch('/api/categories/edit', {
-                    method: 'POST', // Đổi sang POST cho dễ map với FastAPI
+                    method: 'POST', 
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(categories)
                 });   
                 if (response.ok) {
-                    showMessage('categoriesMessage', 'Categories saved successfully', true);
+                    if(window.showToast) showToast('Categories saved successfully', "success");
                 } else {
                     const error = await response.json();
-                    showMessage('categoriesMessage', `Failed to save categories: ${error.error}`, false);
+                    if(window.showToast) showToast(`Failed to save categories: ${error.error}`, "error");
                 }
             } catch (error) {
                 console.error('Error saving categories:', error);
-                showMessage('categoriesMessage', 'Error saving categories', false);
+                if(window.showToast) showToast('Error saving categories', "error");
             }
         }
         
@@ -485,21 +561,20 @@
         async function saveCurrency() {
             const currencyCode = document.getElementById('currencySelect').value;
             try {
-                // CẬP NHẬT: /api/currency/edit
                 const response = await fetch('/api/currency/edit', {
-                    method: 'POST', // Đổi thành POST
+                    method: 'POST', 
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(currencyCode)
                 });
                 if (response.ok) {
-                    showMessage('currencyMessage', 'Currency saved successfully', true);
+                    if(window.showToast) showToast('Currency saved successfully', "success");
                     currentCurrency = currencyCode;
                 } else {
-                    showMessage('currencyMessage', 'Failed to save currency', false);
+                    if(window.showToast) showToast('Failed to save currency', "error");
                 }
             } catch (error) {
                 console.error('Error saving currency:', error);
-                showMessage('currencyMessage', 'Error saving currency', false);
+                if(window.showToast) showToast('Error saving currency', "error");
             }
         }
 
@@ -510,22 +585,23 @@
         async function saveStartDate() {
             const startDateValue = document.getElementById("startDate").value;
             try {
-                // CẬP NHẬT: /api/startdate/edit
                 const response = await fetch('/api/startdate/edit', {
-                    method: 'POST', // Đổi thành POST
+                    method: 'POST', 
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(parseInt(startDateValue, 10))
                 });
-                showMessage('startDateMessage', response.ok ? 'Start date saved successfully' : 'Failed to save start date', response.ok);
+                if(window.showToast) {
+                   if(response.ok) showToast('Start date saved successfully', "success");
+                   else showToast('Failed to save start date', "error");
+                }
             } catch (error) {
                 console.error('Error saving start date:', error);
-                showMessage('startDateMessage', 'Error saving start date', false);
+                if(window.showToast) showToast('Error saving start date', "error");
             }
         }
         
         async function fetchAndRenderRecurringExpenses() {
             try {
-                // CẬP NHẬT: /api/recurring-expenses
                 const response = await fetch('/api/recurring-expenses');
                 if (!response.ok) throw new Error('Failed to fetch recurring expenses');
                 recurringExpenses = await response.json() || [];
@@ -606,14 +682,13 @@
         async function confirmRecurringDelete(removeAll) {
             if (!recurringExpenseToDelete) return;
             try {
-                // CẬP NHẬT: /api/recurring-expenses/delete
                 const response = await fetch(`/api/recurring-expenses/delete?id=${recurringExpenseToDelete}&removeAll=${removeAll}`, { method: 'DELETE' });
                 if (!response.ok) throw new Error('Failed to delete recurring expense');
-                showMessage('recurringExpenseMessage', 'Recurring expense deleted successfully', true);
+                if(window.showToast) showToast('Recurring expense deleted successfully', "success");
                 fetchAndRenderRecurringExpenses();
             } catch (error) {
                 console.error('Error deleting recurring expense:', error);
-                showMessage('recurringExpenseMessage', 'Failed to delete recurring expense', false);
+                if(window.showToast) showToast('Failed to delete recurring expense', "error");
             } finally {
                 closeRecurringDeleteModal();
             }
@@ -658,18 +733,17 @@
             };
             
             try {
-                // CẬP NHẬT: /api/recurring-expenses/edit
                 const response = await fetch(`/api/recurring-expenses/edit?id=${recurringExpenseToEdit.id}&updateAll=${updateAll}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(updatedData)
                 });
                 if (!response.ok) throw new Error('Failed to update recurring expense');
-                showMessage('recurringExpenseMessage', 'Recurring expense updated successfully', true);
+                if(window.showToast) showToast('Recurring expense updated successfully', "success");
                 fetchAndRenderRecurringExpenses();
             } catch(error) {
                 console.error('Error updating recurring expense:', error);
-                showMessage('recurringExpenseMessage', 'Failed to update recurring expense', false);
+                if(window.showToast) showToast('Failed to update recurring expense', "error");
             } finally {
                 closeRecurringEditModal();
             }
@@ -681,15 +755,12 @@
             if (!file) return;
             const formData = new FormData();
             formData.append('file', file);
-            const messageDiv = document.getElementById('importMessage');
             const summaryDiv = document.getElementById('importSummary');
 
-            messageDiv.textContent = 'Importing... this may take a while for large files.';
-            messageDiv.className = 'form-message';
+            if(window.showToast) showToast('Importing... this may take a while for large files.', "success");
             summaryDiv.style.display = 'none';
 
             try {
-                // CẬP NHẬT: /api/import/csv
                 const response = await fetch('/api/import/csv', {
                     method: 'POST',
                     body: formData
@@ -698,8 +769,7 @@
                 const result = await response.json();
 
                 if (response.ok) {
-                    messageDiv.textContent = 'Import completed!';
-                    messageDiv.className = 'form-message success';
+                    if(window.showToast) showToast('Import completed!', "success");
                     summaryDiv.style.display = 'block';
                     document.getElementById('summary-processed').textContent = result.total_processed;
                     document.getElementById('summary-imported').textContent = result.imported;
@@ -708,13 +778,11 @@
                     
                     await initialize();
                 } else {
-                    messageDiv.textContent = `Error: ${result.error || 'Failed to import CSV'}`;
-                    messageDiv.className = 'form-message error';
+                    if(window.showToast) showToast(`Error: ${result.error || 'Failed to import CSV'}`, "error");
                 }
             } catch (error) {
                 console.error('Error importing CSV:', error);
-                messageDiv.textContent = 'Error: An unexpected error occurred during import.';
-                messageDiv.className = 'form-message error';
+                if(window.showToast) showToast('Error: An unexpected error occurred during import.', "error");
             } finally {
                 event.target.value = '';
             }
@@ -725,15 +793,12 @@
             if (!file) return;
             const formData = new FormData();
             formData.append('file', file);
-            const messageDiv = document.getElementById('importMessage');
             const summaryDiv = document.getElementById('importSummary');
 
-            messageDiv.textContent = 'Importing... this may take a while for large files.';
-            messageDiv.className = 'form-message';
+            if(window.showToast) showToast('Importing... this may take a while for large files.', "success");
             summaryDiv.style.display = 'none';
 
             try {
-                // CẬP NHẬT: /api/import/csvold
                 const response = await fetch('/api/import/csvold', {
                     method: 'POST',
                     body: formData
@@ -742,8 +807,7 @@
                 const result = await response.json();
 
                 if (response.ok) {
-                    messageDiv.textContent = 'Import completed!';
-                    messageDiv.className = 'form-message success';
+                    if(window.showToast) showToast('Import completed!', "success");
                     summaryDiv.style.display = 'block';
                     document.getElementById('summary-processed').textContent = result.total_processed;
                     document.getElementById('summary-imported').textContent = result.imported;
@@ -752,13 +816,11 @@
                     
                     await initialize();
                 } else {
-                    messageDiv.textContent = `Error: ${result.error || 'Failed to import CSV'}`;
-                    messageDiv.className = 'form-message error';
+                    if(window.showToast) showToast(`Error: ${result.error || 'Failed to import CSV'}`, "error");
                 }
             } catch (error) {
                 console.error('Error importing CSV:', error);
-                messageDiv.textContent = 'Error: An unexpected error occurred during import.';
-                messageDiv.className = 'form-message error';
+                if(window.showToast) showToast('Error: An unexpected error occurred during import.', "error");
             } finally {
                 event.target.value = '';
             }
@@ -767,7 +829,6 @@
         // --- Initialization ---
         async function initialize() {
             try {
-                // CẬP NHẬT: Các endpoint api
                 const [configResponse, expensesResponse, recurringExpensesResponse] = await Promise.all([
                     fetch('/api/config'),
                     fetch('/api/expenses/'),
@@ -776,7 +837,6 @@
                 if (!configResponse.ok) throw new Error('Failed to fetch configuration');
                 const config = await configResponse.json();
                 
-                // Mặc định empty list nếu API chưa viết xong
                 let expenses = [];
                 if (expensesResponse.ok) expenses = await expensesResponse.json();
                 
@@ -801,18 +861,9 @@
 
                 createTagInput('tags-input', 'selected-tags', 'tags-dropdown', addFormSelectedTags);
                 
-                // CẬP NHẬT: /api/version
-                fetch('/api/version').then(r => r.ok ? r.text() : 'dev').then(version => {
-                    const link = document.getElementById('version-link');
-                    // Remove quotes if they exist in response
-                    version = version.replace(/["']/g, ""); 
-                    link.textContent = version;
-                    if (version !== 'dev') link.href = `https://github.com/tanq16/expenseowl/releases/tag/${version}`;
-                }).catch(e => console.error('Failed to fetch version:', e));
-
             } catch (error) {
                 console.error('Failed to initialize settings:', error);
-                showMessage('categoriesMessage', 'Failed to load settings', false);
+                if(window.showToast) showToast('Failed to load settings', "error");
             }
         }
         
@@ -833,7 +884,7 @@
             const selectedTheme = e.target.value;
             localStorage.setItem('theme', selectedTheme);
             applyTheme(selectedTheme);
-            showMessage('themeMessage', 'Theme updated successfully.', true);
+            if(window.showToast) showToast('Theme updated successfully.', "success");
         });
 
         // --- Event Listeners ---
@@ -862,25 +913,24 @@
             };
 
             try {
-                // CẬP NHẬT: /api/recurring-expenses/ và đổi thành POST
                 const response = await fetch('/api/recurring-expenses/', {
                     method: 'POST', 
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(formData)
                 });
                 if (response.ok) {
-                    showMessage('recurringExpenseMessage', 'Recurring expense added successfully!', true);
+                    if(window.showToast) showToast('Recurring expense added successfully!', "success");
                     document.getElementById('recurringExpenseForm').reset();
                     document.getElementById('selected-tags').innerHTML = '';
                     addFormSelectedTags.clear();
                     fetchAndRenderRecurringExpenses();
                 } else {
                     const error = await response.json();
-                    showMessage('recurringExpenseMessage', `Error: ${error.error || 'Failed to add recurring expense'}`, false);
+                    if(window.showToast) showToast(`Error: ${error.error || 'Failed to add recurring expense'}`, "error");
                 }
             } catch (error) {
                 console.error('Error adding recurring expense:', error);
-                showMessage('recurringExpenseMessage', 'Error: Failed to add recurring expense', false);
+                if(window.showToast) showToast('Error: Failed to add recurring expense', "error");
             }
         });
 

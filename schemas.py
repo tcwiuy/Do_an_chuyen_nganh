@@ -98,3 +98,16 @@ class UserResponse(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str
+
+class UserUpdatePassword(BaseModel):
+    old_password: str
+    new_password: str
+
+    @field_validator('new_password')
+    @classmethod
+    def validate_password(cls, value):
+        if len(value) < 6:
+            raise ValueError("Mật khẩu mới phải có ít nhất 6 ký tự.")
+        if len(value) > 72:
+            raise ValueError("Mật khẩu mới quá dài! Vui lòng nhập dưới 72 ký tự.")
+        return value

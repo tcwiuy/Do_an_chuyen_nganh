@@ -8,9 +8,9 @@ const chatbotHTML = `
         <i class="fa-solid fa-comment-dots" style="color: white; font-size: 24px;"></i>
     </div>
 
-    <div id="chat-window" style="display: none; position: fixed; bottom: 90px; right: 20px; width: 350px; max-width: 90vw; height: 500px; max-height: 75vh; background-color: var(--surface); border: 1px solid #8a2be2; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.8); z-index: 9999; flex-direction: column; overflow: hidden;">
+    <div id="chat-window" style="display: none; position: fixed; bottom: 90px; right: 20px; width: 350px; max-width: 90vw; height: 500px; max-height: 75vh; background-color: #1e1e2d; border: 1px solid #8a2be2; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.8); z-index: 9999; flex-direction: column; overflow: hidden;">
         
-        <div style="background: linear-gradient(145deg, var(--bg), var(--surface); padding: 15px; border-bottom: 1px solid #8a2be2; display: flex; justify-content: space-between; align-items: center;">
+        <div style="background: linear-gradient(145deg, #2a2a40, #1e1e2d); padding: 15px; border-bottom: 1px solid #8a2be2; display: flex; justify-content: space-between; align-items: center;">
             <div style="display: flex; align-items: center; gap: 10px;">
                 <div style="width: 35px; height: 35px; background-color: #8a2be2; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px;">🦉</div>
                 <div>
@@ -21,14 +21,14 @@ const chatbotHTML = `
             <button onclick="toggleChat()" style="background: none; border: none; color: #a0a0b0; cursor: pointer; font-size: 16px;"><i class="fa-solid fa-times"></i></button>
         </div>
 
-        <div id="chat-messages" style="flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; background-color: var(--bg);">
-            <div style="align-self: flex-start; max-width: 80%; background-color: var(--bg); padding: 12px; border-radius: 0 15px 15px 15px; color: var(--text); font-size: 14px; line-height: 1.5;">
+        <div id="chat-messages" style="flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; background-color: #151521;">
+            <div style="align-self: flex-start; max-width: 80%; background-color: #2a2a40; padding: 12px; border-radius: 0 15px 15px 15px; color: #e0e0e0; font-size: 14px; line-height: 1.5;">
                 Xin chào! Tôi là trợ lý tài chính Cú Mèo. Bạn muốn hỏi gì về tình hình thu chi của mình nào?
             </div>
         </div>
 
-        <div style="padding: 15px; background-color: var(--surface); border-top: 1px solid var(--bg); display: flex; gap: 10px;">
-            <input type="text" id="chatInput" placeholder="Hỏi tôi bất cứ điều gì..." style="flex: 1; padding: 10px 15px; border-radius: 20px; border: 1px solid #3a3a50; background-color: var(--bg); color: var(--text); font-size: 14px; outline: none;">
+        <div style="padding: 15px; background-color: #1e1e2d; border-top: 1px solid #2a2a40; display: flex; gap: 10px;">
+            <input type="text" id="chatInput" placeholder="Hỏi tôi bất cứ điều gì..." style="flex: 1; padding: 10px 15px; border-radius: 20px; border: 1px solid #3a3a50; background-color: #151521; color: #ffffff; font-size: 14px; outline: none;">
             <button onclick="sendChatMessage()" id="chatSendBtn" style="background-color: #8a2be2; color: white; border: none; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s;">
                 <i class="fa-solid fa-paper-plane"></i>
             </button>
@@ -55,7 +55,7 @@ document.addEventListener("DOMContentLoaded", () => {
             // In tin nhắn AI (Có xử lý Markdown)
             let formattedReply = turn.ai.replace(/\*\*(.*?)\*\*/g, '<b style="color:#d4a5ff;">$1</b>').replace(/\n/g, '<br>');
             messagesContainer.innerHTML += `
-                <div style="align-self: flex-start; max-width: 80%; background-color: var(--bg); padding: 12px; border-radius: 0 15px 15px 15px; color: var(--text); font-size: 14px; line-height: 1.5;">
+                <div style="align-self: flex-start; max-width: 80%; background-color: #2a2a40; padding: 12px; border-radius: 0 15px 15px 15px; color: #ffffff; font-size: 14px; line-height: 1.5;">
                     ${formattedReply}
                 </div>
             `;
@@ -99,7 +99,7 @@ window.sendChatMessage = async function() {
     // Hiển thị loading
     const loadingId = 'loading-' + Date.now();
     messagesContainer.innerHTML += `
-        <div id="${loadingId}" style="align-self: flex-start; max-width: 80%; background-color: var(--bg); padding: 12px; border-radius: 0 15px 15px 15px; color: #a0a0b0; font-size: 14px;">
+        <div id="${loadingId}" style="align-self: flex-start; max-width: 80%; background-color: #2a2a40; padding: 12px; border-radius: 0 15px 15px 15px; color: #a0a0b0; font-size: 14px;">
             <i class="fa-solid fa-ellipsis fa-fade"></i> Cú Mèo đang suy nghĩ...
         </div>
     `;
@@ -126,7 +126,7 @@ window.sendChatMessage = async function() {
             let formattedReply = data.reply.replace(/\*\*(.*?)\*\*/g, '<b style="color:#d4a5ff;">$1</b>').replace(/\n/g, '<br>');
 
             messagesContainer.innerHTML += `
-                <div style="align-self: flex-start; max-width: 80%; background-color: var(--bg); padding: 12px; border-radius: 0 15px 15px 15px; color: var(--text); font-size: 14px; line-height: 1.5;">
+                <div style="align-self: flex-start; max-width: 80%; background-color: #2a2a40; padding: 12px; border-radius: 0 15px 15px 15px; color: #ffffff; font-size: 14px; line-height: 1.5;">
                     ${formattedReply}
                 </div>
             `;
@@ -165,4 +165,3 @@ window.showToast = function(message, type = 'success') {
         setTimeout(() => toast.remove(), 300); // Đợi animation trượt ra rồi xóa
     }, 3000);
 }
-
