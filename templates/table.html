@@ -42,10 +42,16 @@
             <button id="nextMonth" class="nav-button"><i class="fa-solid fa-arrow-right"></i></button>
         </div>
         
-        <div class="table-controls">
+        <div class="table-controls" style="display: flex; gap: 20px; align-items: center; justify-content: center; flex-wrap: wrap; background: linear-gradient(145deg, #1e1e2d, #2a2a40); padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #2a2a40;">
             <label for="showAllToggle">
                 <input type="checkbox" id="showAllToggle" class="styled-checkbox"> Show All Transactions
             </label>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <label for="categoryFilter" style="color: #a0a0b0;"><i class="fa-solid fa-filter"></i> Lọc danh mục:</label>
+                <select id="categoryFilter" style="padding: 6px 12px; border-radius: 6px; background-color: #151521; color: #d4a5ff; border: 1px solid #8a2be2; outline: none; cursor: pointer;">
+                    <option value="all">Tất cả danh mục</option>
+                </select>
+            </div>
         </div>
 
         <div class="form-container">
@@ -99,7 +105,7 @@
             <div id="formMessage" class="form-message"></div>
         </div>
 
-        <div id="tableContainer">
+        <div id="tableContainer" style="overflow-x: auto;">
         </div>
     </div>
 
@@ -123,6 +129,40 @@
         let startDate = 1;
         let allTags = new Set();
         let selectedTags = new Set();
+        
+        // BIẾN LƯU BẢNG MÀU CHO DANH MỤC
+        let categoryColors = {};
+
+        let currentFilterCategory = 'all';
+        let currentSortColumn = 'date';
+        let currentSortOrder = 'desc';
+
+        // 1. HÀM GÁN MÀU TỰ ĐỘNG CHO DANH MỤC
+        function assignCategoryColors(categories) {
+            categories.forEach((category, index) => {
+                if (!categoryColors[category]) {
+                    // Lấy mã màu từ file functions.js
+                    categoryColors[category] = colorPalette[index % colorPalette.length]; 
+                }
+            });
+        }
+
+        window.getSortIcon = function(column) {
+            if (currentSortColumn !== column) return '<i class="fa-solid fa-sort" style="color: #4a4a60; margin-left: 5px;"></i>';
+            return currentSortOrder === 'asc' 
+                ? '<i class="fa-solid fa-sort-up" style="color: #d4a5ff; margin-left: 5px;"></i>' 
+                : '<i class="fa-solid fa-sort-down" style="color: #d4a5ff; margin-left: 5px;"></i>';
+        };
+
+        window.handleSort = function(column) {
+            if (currentSortColumn === column) {
+                currentSortOrder = currentSortOrder === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSortColumn = column;
+                currentSortOrder = 'desc';
+            }
+            updateTable();
+        };
 
         function createTable(expenses) {
             if (!expenses || expenses.length === 0) {
@@ -132,25 +172,39 @@
                 return `<div class="no-data">${message}</div>`;
             }
             const hasTags = expenses.some(exp => exp.tags && exp.tags.length > 0);
+            
             return `
-                <table class="expense-table">
+                <table class="expense-table" style="width: 100%;">
                     <thead>
                         <tr>
-                            <th>Name</th>
+                            <th style="cursor: pointer; transition: 0.2s;" onclick="handleSort('name')" onmouseover="this.style.color='#d4a5ff'" onmouseout="this.style.color=''">
+                                Name ${getSortIcon('name')}
+                            </th>
                             <th>Category</th>
                             ${hasTags ? '<th class="tags-column">Tags</th>' : ''}
-                            <th>Amount</th>
-                            <th class="date-header">Date</th>
+                            <th style="cursor: pointer; transition: 0.2s;" onclick="handleSort('amount')" onmouseover="this.style.color='#d4a5ff'" onmouseout="this.style.color=''">
+                                Amount ${getSortIcon('amount')}
+                            </th>
+                            <th style="cursor: pointer; transition: 0.2s;" class="date-header" onclick="handleSort('date')" onmouseover="this.style.color='#d4a5ff'" onmouseout="this.style.color=''">
+                                Date ${getSortIcon('date')}
+                            </th>
                             <th></th>
                         </tr>
                     </thead>
                     <tbody>
-                        ${expenses.map((expense, index) => `
+                        ${expenses.map((expense, index) => {
+                            // LẤY MÀU CỦA DANH MỤC NÀY
+                            const catColor = categoryColors[expense.category] || '#d4a5ff';
+                            
+                            return `
                             <tr>
                                 <td>${escapeHTML(expense.name)}</td>
-                                <td>${escapeHTML(expense.category)}</td>
+                                <td><span style="background: ${catColor}1A; color: ${catColor}; border: 1px solid ${catColor}40; padding: 4px 10px; border-radius: 6px; font-size: 0.85rem; font-weight: bold; white-space: nowrap;">${escapeHTML(expense.category)}</span></td>
+                                
                                 ${hasTags ? `<td class="tags-column">${(expense.tags || []).map(escapeHTML).join(', ')}</td>` : ''}
-                                <td class="amount">${formatCurrency(expense.amount)}</td>
+                                <td class="amount ${expense.amount > 0 ? 'positive' : 'negative'}" style="font-weight: bold;">
+                                    ${formatCurrency(expense.amount)}
+                                </td>
                                 <td class="date-column">${formatDateFromUTC(expense.date)}</td>
                                 <td>
                                     <button class="edit-button" onclick="editExpenseByIndex(${index})">
@@ -161,7 +215,8 @@
                                     </button>
                                 </td>
                             </tr>
-                        `).join('')}
+                            `;
+                        }).join('')}
                     </tbody>
                 </table>
             `;
@@ -171,16 +226,37 @@
             const showAll = document.getElementById('showAllToggle').checked;
             document.querySelector('.month-navigation').style.display = showAll ? 'none' : 'flex';
 
-            expensesForTable = showAll
-                ? allExpenses.slice().sort((a, b) => new Date(b.date) - new Date(a.date))
-                : getMonthExpenses(allExpenses);
-            
+            let filteredList = showAll ? allExpenses.slice() : getMonthExpenses(allExpenses);
+
+            if (currentFilterCategory !== 'all') {
+                filteredList = filteredList.filter(exp => exp.category === currentFilterCategory);
+            }
+
+            filteredList.sort((a, b) => {
+                let valA, valB;
+                if (currentSortColumn === 'date') {
+                    valA = new Date(a.date).getTime();
+                    valB = new Date(b.date).getTime();
+                } else if (currentSortColumn === 'amount') {
+                    valA = a.amount;
+                    valB = b.amount;
+                } else if (currentSortColumn === 'name') {
+                    valA = a.name.toLowerCase();
+                    valB = b.name.toLowerCase();
+                }
+
+                if (valA < valB) return currentSortOrder === 'asc' ? -1 : 1;
+                if (valA > valB) return currentSortOrder === 'asc' ? 1 : -1;
+                return 0;
+            });
+
+            expensesForTable = filteredList; 
             const tableContainer = document.getElementById('tableContainer');
             tableContainer.innerHTML = createTable(expensesForTable);
         }
 
         function editExpenseByIndex(index) {
-            const expense = expensesForTable[index];
+            const expense = expensesForTable[index]; 
             if (expense) {
                 editExpense(expense.id, expense.name, expense.category, expense.amount, (expense.tags || []), expense.date);
             }
@@ -211,7 +287,14 @@
             const isGain = amount > 0;
             document.getElementById('name').value = name;
             document.getElementById('category').value = category;
-            document.getElementById('amount').value = Math.abs(amount);
+            
+            let displayAmount = Math.abs(amount);
+            if (typeof exchangeRatesToVND !== 'undefined') {
+                const rate = exchangeRatesToVND[currentCurrency] || 1;
+                displayAmount = displayAmount / rate;
+            }
+            document.getElementById('amount').value = displayAmount;
+            
             document.getElementById('reportGain').checked = isGain;
             renderSelectedTags(tags);
             
@@ -224,7 +307,7 @@
             const form = document.getElementById('expenseForm');
             form.dataset.editId = id;
             const submitButton = form.querySelector('button[type="submit"]');
-            submitButton.textContent = 'Update Expense';
+            submitButton.innerHTML = '<i class="fa-solid fa-pen-to-square"></i> Update Expense';
             
             form.scrollIntoView({ behavior: 'smooth' });
         }
@@ -304,18 +387,23 @@
 
         async function initialize() {
             try {
-                // CẬP NHẬT: /api/config
                 const configResponse = await fetch('/api/config');
                 if (!configResponse.ok) throw new Error('Failed to fetch configuration');
                 const config = await configResponse.json();
+                
                 const categorySelect = document.getElementById('category');
                 categorySelect.innerHTML = config.categories.map(cat => 
                     `<option value="${cat}">${cat}</option>`
                 ).join('');
+                
+                const filterSelect = document.getElementById('categoryFilter');
+                filterSelect.innerHTML = `<option value="all">Tất cả danh mục</option>` + config.categories.map(cat => 
+                    `<option value="${cat}">${cat}</option>`
+                ).join('');
+
                 currentCurrency = config.currency;
                 startDate = config.startDate;
                 
-                // CẬP NHẬT: /api/expenses/
                 const response = await fetch('/api/expenses/');
                 if (!response.ok) throw new Error('Failed to fetch data');
                 const data = await response.json();
@@ -328,6 +416,10 @@
                     }
                 });
 
+                // TẠO MÀU CHO CÁC DANH MỤC TỪ DỮ LIỆU
+                const uniqueCategories = [...new Set(allExpenses.map(exp => exp.category))];
+                assignCategoryColors(uniqueCategories);
+
                 updateMonthDisplay();
                 updateTable();
                 setupTagInput();
@@ -337,6 +429,11 @@
                     '<div class="no-data">Failed to load expenses</div>';
             }
         }
+
+        document.getElementById('categoryFilter').addEventListener('change', (e) => {
+            currentFilterCategory = e.target.value;
+            updateTable();
+        });
 
         document.getElementById('showAllToggle').addEventListener('change', updateTable);
 
@@ -376,18 +473,19 @@
         async function confirmDelete() {
             if (!expenseToDelete) return;
             try {
-                // CẬP NHẬT: /api/expenses/{id}
                 const response = await fetch(`/api/expenses/${expenseToDelete}`, {
                     method: 'DELETE'
                 });
                 if (!response.ok) {
                     throw new Error('Failed to delete expense');
                 }
+                
+                if(window.showToast) showToast('Đã xóa giao dịch thành công!', "success");
                 await initialize();
                 closeDeleteModal();
             } catch (error) {
                 console.error('Error deleting expense:', error);
-                alert('Failed to delete expense. Please try again.');
+                if(window.showToast) showToast('Lỗi: Không thể xóa giao dịch.', "error");
             }
         }
 
@@ -402,7 +500,13 @@
             const form = e.target;
             const editId = form.dataset.editId;
             const isGain = document.getElementById('reportGain').checked;
+            
             let amount = parseFloat(document.getElementById('amount').value);
+            if (typeof exchangeRatesToVND !== 'undefined') {
+                const rate = exchangeRatesToVND[currentCurrency] || 1;
+                amount = amount * rate; 
+            }
+
             if (!isGain) {
                 amount *= -1;
             }
@@ -414,25 +518,30 @@
                 date: getISODateWithLocalTime(document.getElementById('date').value),
                 tags: Array.from(selectedTags)
             };
+
             try {
-                // CẬP NHẬT: Trỏ về API. Tạo mới là POST, cập nhật là PUT
                 const url = editId ? `/api/expenses/${editId}` : '/api/expenses/';
                 const method = editId ? 'PUT' : 'POST';
                 
+                const submitBtn = form.querySelector('button[type="submit"]');
+                submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang xử lý...';
+                submitBtn.disabled = true;
+
                 const response = await fetch(url, {
                     method: method,
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(formData)
                 });
-                const messageDiv = document.getElementById('formMessage');
+                
                 if (response.ok) {
-                    messageDiv.textContent = editId ? 'Expense updated successfully!' : 'Expense added successfully!';
-                    messageDiv.className = 'form-message success';
+                    if(window.showToast) showToast(editId ? 'Đã cập nhật giao dịch!' : 'Đã thêm giao dịch mới!', "success");
+                    
                     form.reset();
                     document.getElementById('selected-tags').innerHTML = '';
                     selectedTags.clear();
                     delete form.dataset.editId;
-                    form.querySelector('button[type="submit"]').textContent = 'Add Expense';
+                    submitBtn.textContent = 'Add Expense';
+                    
                     await initialize();
                     const today = new Date();
                     const year = today.getFullYear();
@@ -441,20 +550,18 @@
                     document.getElementById('date').value = `${year}-${month}-${day}`;
                 } else {
                     const error = await response.json();
-                    messageDiv.textContent = `Error: ${error.error || 'Failed to save expense'}`;
-                    messageDiv.className = 'form-message error';
+                    if(window.showToast) showToast(`Lỗi: ${error.error || 'Failed to save'}`, "error");
                 }
-                setTimeout(() => {
-                    messageDiv.textContent = '';
-                    messageDiv.className = 'form-message';
-                }, 3000);
             } catch (error) {
                 console.error('Error saving expense:', error);
-                const messageDiv = document.getElementById('formMessage');
-                messageDiv.textContent = 'Error: Failed to save expense';
-                messageDiv.className = 'form-message error';
+                if(window.showToast) showToast("Lỗi kết nối máy chủ!", "error");
+            } finally {
+                const submitBtn = form.querySelector('button[type="submit"]');
+                submitBtn.innerHTML = 'Add Expense';
+                submitBtn.disabled = false;
             }
         });
+        
         document.addEventListener('DOMContentLoaded', initialize);
 
         document.getElementById('name').addEventListener('click', (e) => {

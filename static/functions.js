@@ -139,14 +139,19 @@ function getISODateWithLocalTime(dateInput) {
 }
 
 function formatDateFromUTC(utcDateString) {
-    const date = new Date(utcDateString);
-    return date.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
+    let safeDateString = utcDateString;
+    if (!safeDateString.endsWith('Z')) {
+        safeDateString += 'Z'; 
+    }
+    
+    const date = new Date(safeDateString);
+    
+    return date.toLocaleDateString('vi-VN', {
         hour: '2-digit',
         minute: '2-digit',
-        timeZoneName: 'short'
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
     });
 }
 
