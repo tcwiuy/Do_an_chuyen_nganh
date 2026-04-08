@@ -31,13 +31,13 @@
             <button id="nextMonth" class="nav-button"><i class="fa-solid fa-arrow-right"></i></button>
         </div>
         
-        <div class="table-controls" style="display: flex; gap: 20px; align-items: center; justify-content: center; flex-wrap: wrap; background: linear-gradient(145deg, #1e1e2d, #2a2a40); padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #2a2a40;">
-            <label for="showAllToggle">
+        <div class="form-container" style="display: flex; gap: 20px; align-items: center; justify-content: center; flex-wrap: wrap; padding: 1rem; margin-bottom: 1rem;">
+            <label for="showAllToggle" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; color: var(--text-secondary);">
                 <input type="checkbox" id="showAllToggle" class="styled-checkbox"> Show All Transactions
             </label>
             <div style="display: flex; align-items: center; gap: 10px;">
-                <i class="fa-solid fa-filter" style="color: #a0a0b0;"></i>
-                <select id="categoryFilter" style="padding: 6px 12px; border-radius: 6px; background-color: #151521; color: #d4a5ff; border: 1px solid #8a2be2; outline: none; cursor: pointer;">
+                <i class="fa-solid fa-filter" style="color: var(--text-secondary);"></i>
+                <select id="categoryFilter" style="padding: 0.5rem; border-radius: 4px; background-color: var(--bg-primary); color: var(--text-primary); border: 1px solid var(--border); outline: none; cursor: pointer; font-size: 1rem;">
                     <option value="all">Tất cả danh mục</option>
                 </select>
             </div>
