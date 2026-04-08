@@ -191,28 +191,36 @@ class ChatRequest(BaseModel):
     history: list = []
 
 # 1. API NHẬP LIỆU BẰNG NGÔN NGỮ TỰ NHIÊN 
+# 1. API NHẬP LIỆU BẰNG NGÔN NGỮ TỰ NHIÊN 
 @ai_router.post("/parse-expense")
 def parse_expense_from_text(req: AIRequest, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
         raise HTTPException(status_code=500, detail="Chưa cấu hình GEMINI_API_KEY trong file .env")
 
+    # Lấy danh sách danh mục (Categories) hiện tại của người dùng từ Database
+    user_config = db.query(models.UserConfig).filter(models.UserConfig.user_id == current_user.id).first()
+    if user_config and user_config.categories:
+        categories_str = ", ".join(user_config.categories)
+    else:
+        categories_str = "Food, Transport, Shopping, Bills, Entertainment, Thu nhập"
+
     today_str = datetime.now().strftime("%Y-%m-%d")
     
+    # Nâng cấp Prompt: Dạy AI phân biệt thu/chi và chọn đúng danh mục của người dùng
     prompt = f"""
     Hôm nay là ngày {today_str}.
-    Tôi có một câu mô tả chi tiêu tài chính: "{req.text}"
+    Tôi có một câu mô tả dòng tiền: "{req.text}"
     Hãy trích xuất thông tin và trả về DUY NHẤT một chuỗi JSON hợp lệ, không có thêm bất kỳ văn bản, định dạng markdown hay dấu backtick (```) nào thừa.
     Định dạng JSON yêu cầu:
     {{
-        "name": "Tên món đồ/dịch vụ thật ngắn gọn",
-        "amount": Số tiền (Luôn là số ÂM nếu là chi tiêu, ví dụ -50000. Nếu thu vào thì số DƯƠNG),
-        "category": "Chọn 1 trong các từ sau cho phù hợp nhất: Food, Transport, Shopping, Bills, Entertainment",
+        "name": "Tên món đồ hoặc khoản thu thật ngắn gọn",
+        "amount": Số tiền (QUAN TRỌNG: Nếu là CHI TIÊU thì phải là số ÂM ví dụ -50000. Nếu là THU NHẬP như nhận lương, được cho tiền, bán đồ thì phải là số DƯƠNG ví dụ 2000000),
+        "category": "Chọn 1 từ phù hợp nhất TRONG DANH SÁCH SAU ĐÂY của người dùng: {categories_str}",
         "date": "YYYY-MM-DD"
     }}
     """
     
-    # Gọi thẳng vào máy chủ của Google bằng HTTP Post
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
     payload = {
         "contents": [{"parts": [{"text": prompt}]}]
@@ -220,20 +228,21 @@ def parse_expense_from_text(req: AIRequest, db: Session = Depends(get_db), curre
     
     try:
         response = requests.post(url, json=payload, headers={"Content-Type": "application/json"})
-        response.raise_for_status() # Bắt lỗi nếu Google từ chối
         
-        # Bóc tách kết quả từ cấu trúc JSON trả về của Google
+        # Bắt lỗi 503 từ Google để báo tiếng Việt cho người dùng
+        if response.status_code == 503:
+            raise Exception("Máy chủ Google Gemini đang quá tải. Vui lòng thử lại sau 1 phút!")
+            
+        response.raise_for_status() 
+        
         result_data = response.json()
         ai_text = result_data["candidates"][0]["content"]["parts"][0]["text"]
         
-        # Làm sạch chuỗi
         clean_text = ai_text.strip().replace("```json", "").replace("```", "")
         data = json.loads(clean_text)
         
-        # Ép kiểu chuỗi chữ thành kiểu Ngày tháng (Date Object)
         parsed_date = datetime.strptime(data["date"], "%Y-%m-%d").date()
         
-        # Lưu vào cơ sở dữ liệu
         new_id = str(uuid.uuid4())
         db_transaction = models.Transaction(
             id=new_id,
@@ -250,8 +259,10 @@ def parse_expense_from_text(req: AIRequest, db: Session = Depends(get_db), curre
         
         return {"message": "AI đã phân tích và lưu thành công!", "transaction": db_transaction}
         
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="AI trả về dữ liệu không hợp lệ. Vui lòng thử lại.")
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Lỗi AI: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"{str(e)}")
 
 # ---------------------------------------------------------
 # 2. API CHATBOT TRUY VẤN DỮ LIỆU CÓ TRÍ NHỚ (RAG + MEMORY)
