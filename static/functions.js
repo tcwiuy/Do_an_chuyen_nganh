@@ -200,7 +200,10 @@ function getMonthBounds(date) {
 function getMonthExpenses(expenses) {
     const { start, end } = getMonthBounds(currentDate);
     return expenses.filter(exp => {
-        const expDate = new Date(exp.date);
+        let safeDateString = exp.date;
+        if (!safeDateString.endsWith('Z')) safeDateString += 'Z';
+        
+        const expDate = new Date(safeDateString);
         return expDate >= start && expDate <= end;
     }).sort((a, b) => new Date(b.date) - new Date(a.date));
 }

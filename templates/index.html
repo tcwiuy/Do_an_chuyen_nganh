@@ -218,7 +218,11 @@
         function getFilteredExpensesOverride(expenses) {
             const { start, end } = getPeriodBoundsOverride(currentDate, currentPeriodType);
             return expenses.filter(exp => {
-                const expDate = new Date(exp.date);
+                // THÊM CHỮ 'Z' ĐỂ BỘ LỌC ĐỌC CHÍNH XÁC GIỜ VN
+                let safeDateString = exp.date;
+                if (!safeDateString.endsWith('Z')) safeDateString += 'Z';
+                
+                const expDate = new Date(safeDateString);
                 return expDate >= start && expDate <= end;
             }).sort((a, b) => new Date(b.date) - new Date(a.date));
         }
