@@ -501,8 +501,6 @@ def edit_categories(
 # =============================================================
 # ROUTER OCR - QUÉT HÓA ĐƠN 
 # =============================================================
-
-
 @router.post("/api/scan-receipt")
 async def scan_receipt(
     file: UploadFile = File(...),
