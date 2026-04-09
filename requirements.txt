@@ -21,7 +21,7 @@ python-dotenv
 # --- AI Integration (Google Gemini SDK & HTTP) ---
 requests
 google-generativeai
-google-genai==1.71.0
+google-genai
 protobuf
 grpcio
 grpcio-status
