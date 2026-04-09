@@ -1,4 +1,4 @@
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, Field
 from datetime import datetime, date # Đã sửa lại import cho chuẩn
 from typing import List, Optional
 
@@ -8,7 +8,7 @@ class TransactionBase(BaseModel):
     amount: float
     category: str
     date: datetime
-    tags: Optional[List[str]] = []
+    tags: Optional[List[str]] = Field(default_factory=list)
 
     # 1. Chặn số tiền bằng 0 hoặc lớn hơn 1 tỷ VNĐ
     @field_validator('amount')
