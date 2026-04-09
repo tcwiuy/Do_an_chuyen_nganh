@@ -1,470 +1,658 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <meta name="theme-color" content="#1a1a1a">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="manifest" href="/static/manifest.json">
-    <link rel="apple-touch-icon" href="/static/pwa/icon-192.png">
-    <link rel="stylesheet" href="/static/style.css">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+    />
+    <meta name="theme-color" content="#1a1a1a" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+    <link rel="manifest" href="/static/manifest.json" />
+    <link rel="apple-touch-icon" href="/static/pwa/icon-192.png" />
+    <link rel="stylesheet" href="/static/style.css" />
     <script>
-        (function() {
-            const theme = localStorage.getItem('theme') || 'system';
-            if (theme === 'light') {
-                document.documentElement.setAttribute('data-theme', 'light');
-            } else if (theme === 'dark') {
-                document.documentElement.setAttribute('data-theme', 'dark');
-            }
-        })();
+      (function () {
+        const theme = localStorage.getItem("theme") || "system";
+        if (theme === "light") {
+          document.documentElement.setAttribute("data-theme", "light");
+        } else if (theme === "dark") {
+          document.documentElement.setAttribute("data-theme", "dark");
+        }
+      })();
     </script>
     <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/static/sw.js');
-            });
-        }
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker.register("/static/sw.js");
+        });
+      }
     </script>
     <title>ExpenseOwl Dashboard</title>
     <script src="/static/chart.min.js"></script>
-</head>
-<body>
+  </head>
+  <body>
     <div class="container">
-        <header>
-            <div class="nav-bar">
-                <a href="/" class="view-button active" data-tooltip="Dashboard">
-                    <i class="fa-solid fa-chart-pie"></i>
-                </a>
-                <a href="/table" class="view-button" data-tooltip="Table View">
-                    <i class="fa-solid fa-table"></i>
-                </a>
-                <a href="/settings" class="view-button" data-tooltip="Settings">
-                    <i class="fa-solid fa-gear"></i>
-                </a>
-                <a href="javascript:void(0)" class="view-button" onclick="logout()" data-tooltip="Logout" style="margin-left: auto; color: #ff4d4d;">
-                    <i class="fa-solid fa-right-from-bracket"></i>
-                </a>
-            </div>
-        </header>
+      <header>
+        <div class="nav-bar">
+          <a href="/" class="view-button active" data-tooltip="Dashboard">
+            <i class="fa-solid fa-chart-pie"></i>
+          </a>
+          <a href="/table" class="view-button" data-tooltip="Table View">
+            <i class="fa-solid fa-table"></i>
+          </a>
+          <a href="/settings" class="view-button" data-tooltip="Settings">
+            <i class="fa-solid fa-gear"></i>
+          </a>
+          <a
+            href="javascript:void(0)"
+            class="view-button"
+            onclick="logout()"
+            data-tooltip="Logout"
+            style="margin-left: auto; color: #ff4d4d"
+          >
+            <i class="fa-solid fa-right-from-bracket"></i>
+          </a>
+        </div>
+      </header>
 
-        <div class="period-navigation" style="display: flex; gap: 15px; align-items: center; justify-content: center; flex-wrap: wrap; margin-bottom: 20px; background: linear-gradient(145deg, #1e1e2d, #2a2a40); padding: 15px; border-radius: 12px; border: 1px solid #2a2a40;">
-            <select id="periodSelect" style="padding: 8px 15px; border-radius: 8px; background-color: #151521; color: #d4a5ff; border: 1px solid #8a2be2; outline: none; cursor: pointer; font-family: inherit; font-weight: bold;">
-                <option value="month">Theo Tháng</option>
-                <option value="week">Theo Tuần</option>
-                <option value="year">Theo Năm</option>
-                <option value="all">Tất cả thời gian</option>
+      <div
+        class="period-navigation"
+        style="
+          display: flex;
+          gap: 15px;
+          align-items: center;
+          justify-content: center;
+          flex-wrap: wrap;
+          margin-bottom: 20px;
+          background: linear-gradient(145deg, #1e1e2d, #2a2a40);
+          padding: 15px;
+          border-radius: 12px;
+          border: 1px solid #2a2a40;
+        "
+      >
+        <select
+          id="periodSelect"
+          style="
+            padding: 8px 15px;
+            border-radius: 8px;
+            background-color: #151521;
+            color: #d4a5ff;
+            border: 1px solid #8a2be2;
+            outline: none;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: bold;
+          "
+        >
+          <option value="month">Theo Tháng</option>
+          <option value="week">Theo Tuần</option>
+          <option value="year">Theo Năm</option>
+          <option value="all">Tất cả thời gian</option>
+        </select>
+
+        <div
+          style="display: flex; align-items: center; gap: 10px"
+          id="periodControls"
+        >
+          <button id="prevPeriod" class="nav-button">
+            <i class="fa-solid fa-arrow-left"></i>
+          </button>
+          <div
+            class="current-month"
+            id="currentPeriodLabel"
+            style="min-width: 180px; text-align: center; color: #e0e0e0"
+          ></div>
+          <button id="nextPeriod" class="nav-button">
+            <i class="fa-solid fa-arrow-right"></i>
+          </button>
+        </div>
+      </div>
+
+      <div
+        class="table-controls"
+        style="
+          display: flex;
+          gap: 10px;
+          justify-content: center;
+          flex-wrap: wrap;
+        "
+      >
+        <button id="toggleExpenseFormBtn" class="nav-button">
+          <i class="fa-solid fa-plus"></i> Add Expense
+        </button>
+        <button
+          id="btnAnalyze"
+          class="nav-button"
+          onclick="analyzeTrends()"
+          style="background-color: #8a2be2; border: 1px solid #d4a5ff"
+        >
+          <i class="fa-solid fa-wand-magic-sparkles"></i> Phân Tích AI
+        </button>
+        <button
+          onclick="
+            OCRScanner.open(function () {
+              initialize();
+            })
+          "
+          class="nav-button"
+        >
+          <i class="fa-solid fa-plus"></i> Scan Receipt
+        </button>
+        <script src="/static/ocr_scanner.js"></script>
+      </div>
+
+      <div id="addExpenseContainer" style="display: none">
+        <div
+          class="form-container"
+          style="
+            border: 2px solid #8a2be2;
+            background: linear-gradient(145deg, #1e1e2d, #2a2a40);
+            box-shadow: 0 0 15px rgba(138, 43, 226, 0.3);
+            margin-bottom: 20px;
+          "
+        >
+          <h3 align="center" style="color: #d4a5ff">
+            <i class="fa-solid fa-wand-magic-sparkles"></i> Trợ lý AI Cú Mèo
+          </h3>
+          <p
+            style="
+              text-align: center;
+              color: #a0a0b0;
+              font-size: 0.9rem;
+              margin-bottom: 15px;
+            "
+          >
+            Hãy nhập câu nói tự nhiên, AI sẽ tự phân tích và lưu!
+          </p>
+
+          <div
+            class="form-group"
+            style="display: flex; gap: 10px; align-items: center"
+          >
+            <input
+              type="text"
+              id="aiInput"
+              placeholder="VD: Tối qua đổ 50k tiền xăng và uống ly cafe 30k..."
+              style="flex: 1; padding: 12px; border-radius: 8px"
+            />
+            <button
+              onclick="sendToAI()"
+              id="aiBtn"
+              class="nav-button"
+              style="background-color: #8a2be2; width: auto; padding: 0 20px"
+            >
+              <i class="fa-solid fa-paper-plane"></i> Gửi
+            </button>
+          </div>
+        </div>
+
+        <div class="form-container">
+          <form id="expenseForm" class="expense-form">
+            <div class="form-group">
+              <label for="name">Name</label>
+              <input type="text" id="name" value="-" required />
+            </div>
+
+            <div class="form-group">
+              <label for="category">Category</label>
+              <select id="category" required>
+                <option value="">categories</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="tags-input">Tags</label>
+              <div id="tags-input-container" class="tags-input-container">
+                <div id="selected-tags" class="selected-tags"></div>
+                <input type="text" id="tags-input" placeholder="(Manual)" />
+              </div>
+              <div id="tags-dropdown" class="tags-dropdown"></div>
+            </div>
+
+            <div class="form-group">
+              <label for="amount">Amount</label>
+              <input
+                type="number"
+                id="amount"
+                step="0.01"
+                min="0.01"
+                max="9000000000000000"
+                required
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="date">Date</label>
+              <input type="date" id="date" required />
+              <script>
+                const todayDate = new Date();
+                const yyyy = todayDate.getFullYear();
+                const mm = String(todayDate.getMonth() + 1).padStart(2, "0");
+                const dd = String(todayDate.getDate()).padStart(2, "0");
+                document.getElementById("date").value = `${yyyy}-${mm}-${dd}`;
+              </script>
+            </div>
+
+            <div class="form-group form-group-checkbox">
+              <label for="reportGain">Report Gain</label>
+              <input type="checkbox" id="reportGain" class="styled-checkbox" />
+            </div>
+
+            <button type="submit" class="nav-button">Add Expense</button>
+          </form>
+        </div>
+      </div>
+
+      <div class="chart-container">
+        <div
+          id="noDataMessage"
+          class="no-data"
+          style="display: none; width: 100%"
+        >
+          No expenses recorded in this period.
+        </div>
+
+        <div
+          class="chart-left-wrapper"
+          id="chartLeftWrapper"
+          style="
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-width: 0;
+            padding-right: 15px;
+          "
+        >
+          <div
+            class="chart-box"
+            style="position: relative; height: 320px; width: 100%"
+          >
+            <canvas id="categoryPieChart"></canvas>
+          </div>
+
+          <div
+            class="chart-controls"
+            style="text-align: center; margin-top: 20px; width: 100%"
+          >
+            <select
+              id="chartTypeSelect"
+              style="
+                padding: 8px 15px;
+                border-radius: 8px;
+                background-color: #2a2a40;
+                color: #d4a5ff;
+                border: 1px solid #8a2be2;
+                outline: none;
+                cursor: pointer;
+                font-family: inherit;
+              "
+            >
+              <option value="doughnut">🍩 Biểu đồ Vòng (Doughnut)</option>
+              <option value="pie">🍕 Biểu đồ Tròn (Pie)</option>
+              <option value="bar">📊 Biểu đồ Cột (Bar)</option>
+              <option value="polarArea">🕸️ Biểu đồ Lưới (Polar Area)</option>
             </select>
-            
-            <div style="display: flex; align-items: center; gap: 10px;" id="periodControls">
-                <button id="prevPeriod" class="nav-button"><i class="fa-solid fa-arrow-left"></i></button>
-                <div class="current-month" id="currentPeriodLabel" style="min-width: 180px; text-align: center; color: #e0e0e0;"></div>
-                <button id="nextPeriod" class="nav-button"><i class="fa-solid fa-arrow-right"></i></button>
-            </div>
+          </div>
         </div>
 
-        <div class="table-controls" style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
-            <button id="toggleExpenseFormBtn" class="nav-button"><i class="fa-solid fa-plus"></i> Add Expense</button>
-            <button id="btnAnalyze" class="nav-button" onclick="analyzeTrends()" style="background-color: #8a2be2; border: 1px solid #d4a5ff;">
-                <i class="fa-solid fa-wand-magic-sparkles"></i> Phân Tích AI</button>
-            <button onclick="OCRScanner.open(function(){ initialize(); })" class="nav-button"><i class="fa-solid fa-plus"></i> Scan Receipt</button>
-                <script src="/static/ocr_scanner.js"></script>
+        <div class="legend-box" id="customLegend"></div>
+      </div>
+
+      <div id="cashflow-section" class="cashflow-container">
+        <div class="cashflow-item income">
+          <div class="cashflow-label">Income</div>
+          <div class="cashflow-value" id="cashflow-income"></div>
         </div>
-
-        <div id="addExpenseContainer" style="display: none;">
-            <div class="form-container" style="border: 2px solid #8a2be2; background: linear-gradient(145deg, #1e1e2d, #2a2a40); box-shadow: 0 0 15px rgba(138, 43, 226, 0.3); margin-bottom: 20px;">
-                <h3 align="center" style="color: #d4a5ff;"><i class="fa-solid fa-wand-magic-sparkles"></i> Trợ lý AI Cú Mèo</h3>
-                <p style="text-align: center; color: #a0a0b0; font-size: 0.9rem; margin-bottom: 15px;">Hãy nhập câu nói tự nhiên, AI sẽ tự phân tích và lưu!</p>
-
-                <div class="form-group" style="display: flex; gap: 10px; align-items: center;">
-                    <input type="text" id="aiInput" placeholder="VD: Tối qua đổ 50k tiền xăng và uống ly cafe 30k..." style="flex: 1; padding: 12px; border-radius: 8px;">
-                    <button onclick="sendToAI()" id="aiBtn" class="nav-button" style="background-color: #8a2be2; width: auto; padding: 0 20px;">
-                        <i class="fa-solid fa-paper-plane"></i> Gửi
-                    </button>
-                </div>
-            </div>
-
-            <div class="form-container">
-                <form id="expenseForm" class="expense-form">
-                    <div class="form-group">
-                        <label for="name">Name</label>
-                        <input type="text" id="name" value="-" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="category">Category</label>
-                        <select id="category" required>
-                            <option value="">categories</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="tags-input">Tags</label>
-                        <div id="tags-input-container" class="tags-input-container">
-                            <div id="selected-tags" class="selected-tags"></div>
-                            <input type="text" id="tags-input" placeholder="(optional)">
-                        </div>
-                        <div id="tags-dropdown" class="tags-dropdown"></div>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="amount">Amount</label>
-                        <input type="number" id="amount" step="0.01" min="0.01" max="9000000000000000" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="date">Date</label>
-                        <input type="date" id="date" required>
-                        <script>
-                            const todayDate = new Date();
-                            const yyyy = todayDate.getFullYear();
-                            const mm = String(todayDate.getMonth() + 1).padStart(2, '0');
-                            const dd = String(todayDate.getDate()).padStart(2, '0');
-                            document.getElementById('date').value = `${yyyy}-${mm}-${dd}`;
-                        </script>
-                    </div>
-
-                    <div class="form-group form-group-checkbox">
-                        <label for="reportGain">Report Gain</label>
-                        <input type="checkbox" id="reportGain" class="styled-checkbox">
-                    </div>
-
-                    <button type="submit" class="nav-button">Add Expense</button>
-                </form>
-            </div>
+        <div class="cashflow-item expenses">
+          <div class="cashflow-label">Expenses</div>
+          <div class="cashflow-value" id="cashflow-expenses"></div>
         </div>
-
-        <div class="chart-container">
-            <div id="noDataMessage" class="no-data" style="display: none; width: 100%;">No expenses recorded in this period.</div>
-            
-            <div class="chart-left-wrapper" id="chartLeftWrapper" style="display: flex; flex-direction: column; flex: 1; min-width: 0; padding-right: 15px;">
-                <div class="chart-box" style="position: relative; height: 320px; width: 100%;">
-                    <canvas id="categoryPieChart"></canvas>
-                </div>
-
-                <div class="chart-controls" style="text-align: center; margin-top: 20px; width: 100%;">
-                    <select id="chartTypeSelect" style="padding: 8px 15px; border-radius: 8px; background-color: #2a2a40; color: #d4a5ff; border: 1px solid #8a2be2; outline: none; cursor: pointer; font-family: inherit;">
-                        <option value="doughnut">🍩 Biểu đồ Vòng (Doughnut)</option>
-                        <option value="pie">🍕 Biểu đồ Tròn (Pie)</option>
-                        <option value="bar">📊 Biểu đồ Cột (Bar)</option>
-                        <option value="polarArea">🕸️ Biểu đồ Lưới (Polar Area)</option>
-                    </select>
-                </div>
-            </div>
-
-            <div class="legend-box" id="customLegend">
-            </div>
+        <div class="cashflow-item balance">
+          <div class="cashflow-label">Balance</div>
+          <div class="cashflow-value" id="cashflow-balance"></div>
         </div>
-
-        <div id="cashflow-section" class="cashflow-container">
-            <div class="cashflow-item income">
-                <div class="cashflow-label">Income</div>
-                <div class="cashflow-value" id="cashflow-income"></div>
-            </div>
-            <div class="cashflow-item expenses">
-                <div class="cashflow-label">Expenses</div>
-                <div class="cashflow-value" id="cashflow-expenses"></div>
-            </div>
-            <div class="cashflow-item balance">
-                <div class="cashflow-label">Balance</div>
-                <div class="cashflow-value" id="cashflow-balance"></div>
-            </div>
-        </div>
+      </div>
     </div>
 
     <script src="/static/functions.js"></script>
     <script>
-        let currentCurrency = 'usd';
-        let startDate = 1;
-        let pieChart = null;
-        let currentChartType = 'doughnut';
-        let currentDate = new Date();
-        let allExpenses = [];
-        let disabledCategories = new Set();
-        let categoryColors = {};
-        let allTags = new Set();
-        let selectedTags = new Set();
+      let currentCurrency = "usd";
+      let startDate = 1;
+      let pieChart = null;
+      let currentChartType = "doughnut";
+      let currentDate = new Date();
+      let allExpenses = [];
+      let disabledCategories = new Set();
+      let categoryColors = {};
+      let allTags = new Set();
+      let selectedTags = new Set();
 
-        // =========================================
-        // LOGIC LỌC GIAI ĐOẠN (TUẦN/THÁNG/NĂM)
-        // =========================================
-        let currentPeriodType = 'month';
+      // =========================================
+      // LOGIC LỌC GIAI ĐOẠN (TUẦN/THÁNG/NĂM)
+      // =========================================
+      let currentPeriodType = "month";
 
-        function getPeriodBoundsOverride(date, period) {
-            const localDate = new Date(date);
-            
-            if (period === 'all') {
-                return { start: new Date('1970-01-01'), end: new Date('2099-12-31') };
-            }
-            if (period === 'year') {
-                const year = localDate.getFullYear();
-                return { start: new Date(year, 0, 1), end: new Date(year, 11, 31, 23, 59, 59, 999) };
-            }
-            if (period === 'week') {
-                const day = localDate.getDay() || 7; // Chuyển Chủ Nhật (0) thành (7)
-                const startLocal = new Date(localDate);
-                startLocal.setDate(localDate.getDate() - day + 1); // Lùi về Thứ 2
-                startLocal.setHours(0, 0, 0, 0);
-                
-                const endLocal = new Date(startLocal);
-                endLocal.setDate(startLocal.getDate() + 6); // Tới Chủ Nhật
-                endLocal.setHours(23, 59, 59, 999);
-                return { start: startLocal, end: endLocal };
-            }
-            // Mặc định gọi hàm tính Tháng từ file functions.js
-            return getMonthBounds(date); 
+      function getPeriodBoundsOverride(date, period) {
+        const localDate = new Date(date);
+
+        if (period === "all") {
+          return { start: new Date("1970-01-01"), end: new Date("2099-12-31") };
         }
-
-        function getFilteredExpensesOverride(expenses) {
-            const { start, end } = getPeriodBoundsOverride(currentDate, currentPeriodType);
-            return expenses.filter(exp => {
-                // THÊM CHỮ 'Z' ĐỂ BỘ LỌC ĐỌC CHÍNH XÁC GIỜ VN
-                let safeDateString = exp.date;
-                if (!safeDateString.endsWith('Z')) safeDateString += 'Z';
-                
-                const expDate = new Date(safeDateString);
-                return expDate >= start && expDate <= end;
-            }).sort((a, b) => new Date(b.date) - new Date(a.date));
+        if (period === "year") {
+          const year = localDate.getFullYear();
+          return {
+            start: new Date(year, 0, 1),
+            end: new Date(year, 11, 31, 23, 59, 59, 999),
+          };
         }
+        if (period === "week") {
+          const day = localDate.getDay() || 7; // Chuyển Chủ Nhật (0) thành (7)
+          const startLocal = new Date(localDate);
+          startLocal.setDate(localDate.getDate() - day + 1); // Lùi về Thứ 2
+          startLocal.setHours(0, 0, 0, 0);
 
-        function updatePeriodDisplayOverride() {
-            const label = document.getElementById('currentPeriodLabel');
-            const btnPrev = document.getElementById('prevPeriod');
-            const btnNext = document.getElementById('nextPeriod');
-            if (!label) return;
-            
-            if (currentPeriodType === 'all') {
-                label.textContent = "Toàn bộ lịch sử";
-                btnPrev.style.visibility = 'hidden';
-                btnNext.style.visibility = 'hidden';
-            } else {
-                btnPrev.style.visibility = 'visible';
-                btnNext.style.visibility = 'visible';
-                
-                if (currentPeriodType === 'year') {
-                    label.textContent = `Năm ${currentDate.getFullYear()}`;
-                } else if (currentPeriodType === 'week') {
-                    const { start, end } = getPeriodBoundsOverride(currentDate, 'week');
-                    const startStr = `${String(start.getDate()).padStart(2, '0')}/${String(start.getMonth()+1).padStart(2, '0')}`;
-                    const endStr = `${String(end.getDate()).padStart(2, '0')}/${String(end.getMonth()+1).padStart(2, '0')}`;
-                    label.textContent = `Tuần: ${startStr} - ${endStr}`;
-                } else {
-                    label.textContent = formatMonth(currentDate);
-                }
-            }
+          const endLocal = new Date(startLocal);
+          endLocal.setDate(startLocal.getDate() + 6); // Tới Chủ Nhật
+          endLocal.setHours(23, 59, 59, 999);
+          return { start: startLocal, end: endLocal };
         }
+        // Mặc định gọi hàm tính Tháng từ file functions.js
+        return getMonthBounds(date);
+      }
 
-        // Bắt sự kiện đổi Giai đoạn
-        document.getElementById('periodSelect').addEventListener('change', (e) => {
-            currentPeriodType = e.target.value;
-            currentDate = new Date(); // Reset về hiện tại mỗi khi đổi bộ lọc
-            updatePeriodDisplayOverride();
-            updateChartAndLegend();
+      function getFilteredExpensesOverride(expenses) {
+        const { start, end } = getPeriodBoundsOverride(
+          currentDate,
+          currentPeriodType,
+        );
+        return expenses
+          .filter((exp) => {
+            // THÊM CHỮ 'Z' ĐỂ BỘ LỌC ĐỌC CHÍNH XÁC GIỜ VN
+            let safeDateString = exp.date;
+            if (!safeDateString.endsWith("Z")) safeDateString += "Z";
+
+            const expDate = new Date(safeDateString);
+            return expDate >= start && expDate <= end;
+          })
+          .sort((a, b) => new Date(b.date) - new Date(a.date));
+      }
+
+      function updatePeriodDisplayOverride() {
+        const label = document.getElementById("currentPeriodLabel");
+        const btnPrev = document.getElementById("prevPeriod");
+        const btnNext = document.getElementById("nextPeriod");
+        if (!label) return;
+
+        if (currentPeriodType === "all") {
+          label.textContent = "Toàn bộ lịch sử";
+          btnPrev.style.visibility = "hidden";
+          btnNext.style.visibility = "hidden";
+        } else {
+          btnPrev.style.visibility = "visible";
+          btnNext.style.visibility = "visible";
+
+          if (currentPeriodType === "year") {
+            label.textContent = `Năm ${currentDate.getFullYear()}`;
+          } else if (currentPeriodType === "week") {
+            const { start, end } = getPeriodBoundsOverride(currentDate, "week");
+            const startStr = `${String(start.getDate()).padStart(2, "0")}/${String(start.getMonth() + 1).padStart(2, "0")}`;
+            const endStr = `${String(end.getDate()).padStart(2, "0")}/${String(end.getMonth() + 1).padStart(2, "0")}`;
+            label.textContent = `Tuần: ${startStr} - ${endStr}`;
+          } else {
+            label.textContent = formatMonth(currentDate);
+          }
+        }
+      }
+
+      // Bắt sự kiện đổi Giai đoạn
+      document
+        .getElementById("periodSelect")
+        .addEventListener("change", (e) => {
+          currentPeriodType = e.target.value;
+          currentDate = new Date(); // Reset về hiện tại mỗi khi đổi bộ lọc
+          updatePeriodDisplayOverride();
+          updateChartAndLegend();
         });
 
-        document.getElementById('prevPeriod').addEventListener('click', () => {
-            if (currentPeriodType === 'month') {
-                currentDate.setMonth(currentDate.getMonth() - 1);
-            } else if (currentPeriodType === 'year') {
-                currentDate.setFullYear(currentDate.getFullYear() - 1);
-            } else if (currentPeriodType === 'week') {
-                currentDate.setDate(currentDate.getDate() - 7);
-            }
-            updatePeriodDisplayOverride();
-            updateChartAndLegend();
+      document.getElementById("prevPeriod").addEventListener("click", () => {
+        if (currentPeriodType === "month") {
+          currentDate.setMonth(currentDate.getMonth() - 1);
+        } else if (currentPeriodType === "year") {
+          currentDate.setFullYear(currentDate.getFullYear() - 1);
+        } else if (currentPeriodType === "week") {
+          currentDate.setDate(currentDate.getDate() - 7);
+        }
+        updatePeriodDisplayOverride();
+        updateChartAndLegend();
+      });
+
+      document.getElementById("nextPeriod").addEventListener("click", () => {
+        if (currentPeriodType === "month") {
+          currentDate.setMonth(currentDate.getMonth() + 1);
+        } else if (currentPeriodType === "year") {
+          currentDate.setFullYear(currentDate.getFullYear() + 1);
+        } else if (currentPeriodType === "week") {
+          currentDate.setDate(currentDate.getDate() + 7);
+        }
+        updatePeriodDisplayOverride();
+        updateChartAndLegend();
+      });
+      // =========================================
+
+      function assignCategoryColors(categories) {
+        categories.forEach((category, index) => {
+          if (!categoryColors[category]) {
+            categoryColors[category] =
+              colorPalette[index % colorPalette.length];
+          }
         });
+      }
 
-        document.getElementById('nextPeriod').addEventListener('click', () => {
-            if (currentPeriodType === 'month') {
-                currentDate.setMonth(currentDate.getMonth() + 1);
-            } else if (currentPeriodType === 'year') {
-                currentDate.setFullYear(currentDate.getFullYear() + 1);
-            } else if (currentPeriodType === 'week') {
-                currentDate.setDate(currentDate.getDate() + 7);
-            }
-            updatePeriodDisplayOverride();
-            updateChartAndLegend();
+      function calculateCategoryBreakdown(expenses) {
+        const categoryTotals = {};
+        let totalAmount = 0;
+        expenses.forEach((exp) => {
+          if (exp.amount < 0 && !disabledCategories.has(exp.category)) {
+            const amount = Math.abs(exp.amount);
+            categoryTotals[exp.category] =
+              (categoryTotals[exp.category] || 0) + amount;
+            totalAmount += amount;
+          }
         });
-        // =========================================
+        return Object.entries(categoryTotals)
+          .map(([category, total]) => ({
+            category,
+            total,
+            percentage: totalAmount > 0 ? (total / totalAmount) * 100 : 0,
+          }))
+          .sort((a, b) => b.total - a.total);
+      }
 
-        function assignCategoryColors(categories) {
-            categories.forEach((category, index) => {
-                if (!categoryColors[category]) {
-                    categoryColors[category] = colorPalette[index % colorPalette.length];
-                }
-            });
+      function calculateIncome(expenses) {
+        return expenses
+          .filter((exp) => exp.amount > 0)
+          .reduce((sum, exp) => sum + exp.amount, 0);
+      }
+
+      function calculateExpenses(expenses) {
+        return expenses
+          .filter((exp) => exp.amount < 0)
+          .reduce((sum, exp) => sum + Math.abs(exp.amount), 0);
+      }
+
+      function updateChartAndLegend() {
+        // SỬ DỤNG HÀM LỌC GIAI ĐOẠN MỚI
+        const periodExpenses = getFilteredExpensesOverride(allExpenses);
+
+        const chartWrapper = document.getElementById("chartLeftWrapper");
+        const legendBox = document.getElementById("customLegend");
+        const cashflowSection = document.getElementById("cashflow-section");
+        const noDataMessage = document.getElementById("noDataMessage");
+        const hasExpenses = periodExpenses.some((e) => e.amount < 0);
+
+        if (!hasExpenses) {
+          if (pieChart) {
+            pieChart.destroy();
+            pieChart = null;
+          }
+          chartWrapper.style.display = "none";
+          legendBox.style.display = "none";
+          cashflowSection.style.display = "none";
+          noDataMessage.style.display = "block";
+        } else {
+          chartWrapper.style.display = "flex";
+          legendBox.style.display = "flex";
+          cashflowSection.style.display = "flex";
+          noDataMessage.style.display = "none";
+
+          const categoryData = calculateCategoryBreakdown(periodExpenses);
+          updateCashflow(periodExpenses);
+          createPieChart(categoryData);
+          updateLegend(categoryData);
         }
+      }
 
-        function calculateCategoryBreakdown(expenses) {
-            const categoryTotals = {};
-            let totalAmount = 0;
-            expenses.forEach(exp => {
-                if (exp.amount < 0 && !disabledCategories.has(exp.category)) {
-                    const amount = Math.abs(exp.amount);
-                    categoryTotals[exp.category] = (categoryTotals[exp.category] || 0) + amount;
-                    totalAmount += amount;
-                }
-            });
-            return Object.entries(categoryTotals)
-                .map(([category, total]) => ({
-                    category,
-                    total,
-                    percentage: totalAmount > 0 ? (total / totalAmount) * 100 : 0
-                }))
-                .sort((a, b) => b.total - a.total);
+      function updateCashflow(expenses) {
+        const income = calculateIncome(expenses);
+        const expenseTotal = calculateExpenses(expenses);
+        const balance = income - expenseTotal;
+
+        document.getElementById("cashflow-income").textContent =
+          formatCurrency(income);
+        document.getElementById("cashflow-expenses").textContent =
+          formatCurrency(expenseTotal);
+        document.getElementById("cashflow-balance").textContent =
+          formatCurrency(balance);
+
+        const balanceElement = document.getElementById("cashflow-balance");
+        if (balance >= 0) {
+          balanceElement.classList.add("positive");
+          balanceElement.classList.remove("negative");
+        } else {
+          balanceElement.classList.add("negative");
+          balanceElement.classList.remove("positive");
         }
+      }
 
-        function calculateIncome(expenses) {
-            return expenses
-                .filter(exp => exp.amount > 0)
-                .reduce((sum, exp) => sum + exp.amount, 0);
-        }
+      function createPieChart(categoryData) {
+        if (pieChart) pieChart.destroy();
 
-        function calculateExpenses(expenses) {
-            return expenses
-                .filter(exp => exp.amount < 0)
-                .reduce((sum, exp) => sum + Math.abs(exp.amount), 0);
-        }
+        const isBarChart = currentChartType === "bar";
 
-        function updateChartAndLegend() {
-            // SỬ DỤNG HÀM LỌC GIAI ĐOẠN MỚI
-            const periodExpenses = getFilteredExpensesOverride(allExpenses);
-            
-            const chartWrapper = document.getElementById('chartLeftWrapper');
-            const legendBox = document.getElementById('customLegend');
-            const cashflowSection = document.getElementById('cashflow-section');
-            const noDataMessage = document.getElementById('noDataMessage');
-            const hasExpenses = periodExpenses.some(e => e.amount < 0);
-            
-            if (!hasExpenses) {
-                if (pieChart) {
-                    pieChart.destroy();
-                    pieChart = null;
-                }
-                chartWrapper.style.display = 'none'; 
-                legendBox.style.display = 'none';
-                cashflowSection.style.display = 'none';
-                noDataMessage.style.display = 'block';
-            } else {
-                chartWrapper.style.display = 'flex'; 
-                legendBox.style.display = 'flex';
-                cashflowSection.style.display = 'flex';
-                noDataMessage.style.display = 'none';
-
-                const categoryData = calculateCategoryBreakdown(periodExpenses);
-                updateCashflow(periodExpenses);
-                createPieChart(categoryData);
-                updateLegend(categoryData);
-            }
-        }
-
-        function updateCashflow(expenses) {
-            const income = calculateIncome(expenses);
-            const expenseTotal = calculateExpenses(expenses);
-            const balance = income - expenseTotal;
-
-            document.getElementById('cashflow-income').textContent = formatCurrency(income);
-            document.getElementById('cashflow-expenses').textContent = formatCurrency(expenseTotal);
-            document.getElementById('cashflow-balance').textContent = formatCurrency(balance);
-
-            const balanceElement = document.getElementById('cashflow-balance');
-            if (balance >= 0) {
-                balanceElement.classList.add('positive');
-                balanceElement.classList.remove('negative');
-            } else {
-                balanceElement.classList.add('negative');
-                balanceElement.classList.remove('positive');
-            }
-        }
-
-        function createPieChart(categoryData) {
-            if (pieChart) pieChart.destroy();
-            
-            const isBarChart = currentChartType === 'bar';
-
-            let chartOptions = {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        callbacks: {
-                            label: (context) => {
-                                const value = context.raw;
-                                const total = context.dataset.data.reduce((sum, val) => sum + val, 0);
-                                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
-                                return `${context.label}: ${formatCurrency(value)} (${percentage}%)`;
-                            }
-                        }
-                    }
-                }
-            };
-
-            if (isBarChart) {
-                chartOptions.scales = {
-                    y: { beginAtZero: true, grid: { color: '#333' }, ticks: { color: '#a0a0b0' } },
-                    x: { grid: { display: false }, ticks: { color: '#a0a0b0' } }
-                };
-            }
-
-            pieChart = new Chart('categoryPieChart', {
-                type: currentChartType,
-                data: {
-                    labels: categoryData.map(c => c.category),
-                    datasets: [{
-                        label: 'Tổng chi', 
-                        data: categoryData.map(c => c.total),
-                        backgroundColor: categoryData.map(c => categoryColors[c.category] || '#8a2be2'),
-                        borderColor: '#1a1a1a',
-                        borderWidth: 1,
-                        borderRadius: isBarChart ? 6 : 0 
-                    }]
+        let chartOptions = {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (context) => {
+                  const value = context.raw;
+                  const total = context.dataset.data.reduce(
+                    (sum, val) => sum + val,
+                    0,
+                  );
+                  const percentage =
+                    total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                  return `${context.label}: ${formatCurrency(value)} (${percentage}%)`;
                 },
-                options: chartOptions
-            });
+              },
+            },
+          },
+        };
+
+        if (isBarChart) {
+          chartOptions.scales = {
+            y: {
+              beginAtZero: true,
+              grid: { color: "#333" },
+              ticks: { color: "#a0a0b0" },
+            },
+            x: { grid: { display: false }, ticks: { color: "#a0a0b0" } },
+          };
         }
 
-        function updateLegend(categoryData) {
-            const legendContainer = document.getElementById('customLegend');
-            legendContainer.innerHTML = '';
-            
-            const periodExpenses = getFilteredExpensesOverride(allExpenses);
-            const currentPeriodCategories = [...new Set(periodExpenses
-                .filter(exp => exp.amount < 0)
-                .map(exp => exp.category))];
-            const categoryMap = new Map(categoryData.map(cat => [cat.category, cat]));
+        pieChart = new Chart("categoryPieChart", {
+          type: currentChartType,
+          data: {
+            labels: categoryData.map((c) => c.category),
+            datasets: [
+              {
+                label: "Tổng chi",
+                data: categoryData.map((c) => c.total),
+                backgroundColor: categoryData.map(
+                  (c) => categoryColors[c.category] || "#8a2be2",
+                ),
+                borderColor: "#1a1a1a",
+                borderWidth: 1,
+                borderRadius: isBarChart ? 6 : 0,
+              },
+            ],
+          },
+          options: chartOptions,
+        });
+      }
 
-            currentPeriodCategories.sort((a, b) => {
-                const dataA = categoryMap.get(a);
-                const dataB = categoryMap.get(b);
-                if (dataA && dataB) return dataB.total - dataA.total;
-                if (dataA) return -1;
-                if (dataB) return 1;
-                return a.localeCompare(b);
-            }).forEach(category => {
-                const item = document.createElement('div');
-                item.className = `legend-item${disabledCategories.has(category) ? ' disabled' : ''}`;
-                const color = categoryColors[category];
-                const categoryDataItem = categoryMap.get(category);
-                const percentage = categoryDataItem ? ` (${categoryDataItem.percentage.toFixed(1)}%)` : '';
-                const amount = categoryDataItem ? formatCurrency(categoryDataItem.total) : '';
-                item.innerHTML = `
+      function updateLegend(categoryData) {
+        const legendContainer = document.getElementById("customLegend");
+        legendContainer.innerHTML = "";
+
+        const periodExpenses = getFilteredExpensesOverride(allExpenses);
+        const currentPeriodCategories = [
+          ...new Set(
+            periodExpenses
+              .filter((exp) => exp.amount < 0)
+              .map((exp) => exp.category),
+          ),
+        ];
+        const categoryMap = new Map(
+          categoryData.map((cat) => [cat.category, cat]),
+        );
+
+        currentPeriodCategories
+          .sort((a, b) => {
+            const dataA = categoryMap.get(a);
+            const dataB = categoryMap.get(b);
+            if (dataA && dataB) return dataB.total - dataA.total;
+            if (dataA) return -1;
+            if (dataB) return 1;
+            return a.localeCompare(b);
+          })
+          .forEach((category) => {
+            const item = document.createElement("div");
+            item.className = `legend-item${disabledCategories.has(category) ? " disabled" : ""}`;
+            const color = categoryColors[category];
+            const categoryDataItem = categoryMap.get(category);
+            const percentage = categoryDataItem
+              ? ` (${categoryDataItem.percentage.toFixed(1)}%)`
+              : "";
+            const amount = categoryDataItem
+              ? formatCurrency(categoryDataItem.total)
+              : "";
+            item.innerHTML = `
                             <div class="color-box" style="background-color: ${color}"></div>
                             <div class="legend-text">
                                 <span>${category}${percentage}</span>
                                 <span class="amount">${amount}</span>
                             </div>
                         `;
-                item.addEventListener('click', () => toggleCategory(category));
-                legendContainer.appendChild(item);
-            });
+            item.addEventListener("click", () => toggleCategory(category));
+            legendContainer.appendChild(item);
+          });
 
-            const activeTotalExpenses = periodExpenses
-                .filter(exp => exp.amount < 0 && !disabledCategories.has(exp.category))
-                .reduce((sum, exp) => sum + Math.abs(exp.amount), 0);
+        const activeTotalExpenses = periodExpenses
+          .filter(
+            (exp) => exp.amount < 0 && !disabledCategories.has(exp.category),
+          )
+          .reduce((sum, exp) => sum + Math.abs(exp.amount), 0);
 
-            const totalsHtml = `
+        const totalsHtml = `
                         <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border);">
                             <div style="display: flex; justify-content: space-between; align-items: center;">
                                 <span>Tổng cộng:</span>
@@ -472,413 +660,608 @@
                             </div>
                         </div>
                     `;
-            legendContainer.insertAdjacentHTML('beforeend', totalsHtml);
-        }
+        legendContainer.insertAdjacentHTML("beforeend", totalsHtml);
+      }
 
-        function toggleCategory(category) {
-            if (disabledCategories.has(category)) {
-                disabledCategories.delete(category);
-            } else {
-                disabledCategories.add(category);
+      function toggleCategory(category) {
+        if (disabledCategories.has(category)) {
+          disabledCategories.delete(category);
+        } else {
+          disabledCategories.add(category);
+        }
+        updateChartAndLegend();
+      }
+
+      async function initialize() {
+        try {
+          const configResponse = await fetch("/api/config");
+          if (!configResponse.ok)
+            throw new Error("Failed to fetch configuration");
+          const config = await configResponse.json();
+          const categorySelect = document.getElementById("category");
+          categorySelect.innerHTML = config.categories
+            .map((cat) => `<option value="${cat}">${cat}</option>`)
+            .join("");
+          currentCurrency = config.currency;
+          startDate = config.startDate;
+
+          const response = await fetch("/api/expenses/");
+          if (!response.ok) throw new Error("Failed to fetch data");
+          const data = await response.json();
+          allExpenses = Array.isArray(data)
+            ? data
+            : data && Array.isArray(data.expenses)
+              ? data.expenses
+              : [];
+
+          allTags.clear();
+          allExpenses.forEach((exp) => {
+            if (exp.tags) {
+              exp.tags.forEach((tag) => allTags.add(tag));
             }
-            updateChartAndLegend();
+          });
+
+          const uniqueCategories = [
+            ...new Set(allExpenses.map((exp) => exp.category)),
+          ];
+          assignCategoryColors(uniqueCategories);
+
+          // Gọi khởi tạo giao diện
+          updatePeriodDisplayOverride();
+          updateChartAndLegend();
+          setupTagInput();
+        } catch (error) {
+          console.error("Failed to initialize dashboard:", error);
         }
+      }
 
-        async function initialize() {
-            try {
-                const configResponse = await fetch('/api/config');
-                if (!configResponse.ok) throw new Error('Failed to fetch configuration');
-                const config = await configResponse.json();
-                const categorySelect = document.getElementById('category');
-                categorySelect.innerHTML = config.categories.map(cat =>
-                    `<option value="${cat}">${cat}</option>`
-                ).join('');
-                currentCurrency = config.currency;
-                startDate = config.startDate;
+      Chart.defaults.color = "#b3b3b3";
+      Chart.defaults.borderColor = "#606060";
+      Chart.defaults.font.family =
+        '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
 
-                const response = await fetch('/api/expenses/');
-                if (!response.ok) throw new Error('Failed to fetch data');
-                const data = await response.json();
-                allExpenses = Array.isArray(data) ? data : (data && Array.isArray(data.expenses) ? data.expenses : []);
+      function setupTagInput() {
+        const container = document.getElementById("tags-input-container");
+        const input = document.getElementById("tags-input");
+        const dropdown = document.getElementById("tags-dropdown");
+        const selectedContainer = document.getElementById("selected-tags");
+        const formGroup = container.parentElement;
 
-                allTags.clear();
-                allExpenses.forEach(exp => {
-                    if (exp.tags) {
-                        exp.tags.forEach(tag => allTags.add(tag));
-                    }
-                });
-
-                const uniqueCategories = [...new Set(allExpenses.map(exp => exp.category))];
-                assignCategoryColors(uniqueCategories);
-                
-                // Gọi khởi tạo giao diện
-                updatePeriodDisplayOverride();
-                updateChartAndLegend();
-                setupTagInput();
-            } catch (error) {
-                console.error('Failed to initialize dashboard:', error);
-            }
-        }
-
-        Chart.defaults.color = '#b3b3b3';
-        Chart.defaults.borderColor = '#606060';
-        Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-
-        function setupTagInput() {
-            const container = document.getElementById('tags-input-container');
-            const input = document.getElementById('tags-input');
-            const dropdown = document.getElementById('tags-dropdown');
-            const selectedContainer = document.getElementById('selected-tags');
-            const formGroup = container.parentElement;
-
-            const addTag = (tag) => {
-                tag = tag.trim();
-                if (tag && !selectedTags.has(tag)) {
-                    selectedTags.add(tag);
-                    const pill = document.createElement('div');
-                    pill.className = 'tag-pill';
-                    pill.textContent = tag;
-                    const removeBtn = document.createElement('span');
-                    removeBtn.className = 'remove-tag';
-                    removeBtn.textContent = '×';
-                    removeBtn.onclick = () => {
-                        selectedTags.delete(tag);
-                        pill.remove();
-                    };
-                    pill.appendChild(removeBtn);
-                    selectedContainer.appendChild(pill);
-                }
-                input.value = '';
-                dropdown.style.display = 'none';
+        const addTag = (tag) => {
+          tag = tag.trim();
+          if (tag && !selectedTags.has(tag)) {
+            selectedTags.add(tag);
+            const pill = document.createElement("div");
+            pill.className = "tag-pill";
+            pill.textContent = tag;
+            const removeBtn = document.createElement("span");
+            removeBtn.className = "remove-tag";
+            removeBtn.textContent = "×";
+            removeBtn.onclick = () => {
+              selectedTags.delete(tag);
+              pill.remove();
             };
+            pill.appendChild(removeBtn);
+            selectedContainer.appendChild(pill);
+          }
+          input.value = "";
+          dropdown.style.display = "none";
+        };
 
-            input.addEventListener('focus', () => {
-                dropdown.innerHTML = '';
-                const availableTags = [...allTags].filter(tag => !selectedTags.has(tag));
-                if (availableTags.length > 0) {
-                    availableTags.forEach(tag => {
-                        const item = document.createElement('div');
-                        item.textContent = tag;
-                        item.onclick = () => addTag(tag);
-                        dropdown.appendChild(item);
-                    });
-                    dropdown.style.display = 'block';
-                }
+        input.addEventListener("focus", () => {
+          dropdown.innerHTML = "";
+          const availableTags = [...allTags].filter(
+            (tag) => !selectedTags.has(tag),
+          );
+          if (availableTags.length > 0) {
+            availableTags.forEach((tag) => {
+              const item = document.createElement("div");
+              item.textContent = tag;
+              item.onclick = () => addTag(tag);
+              dropdown.appendChild(item);
             });
-
-            input.addEventListener('input', () => {
-                const value = input.value.trim().toLowerCase();
-                dropdown.innerHTML = '';
-                const filteredTags = [...allTags].filter(tag => tag.toLowerCase().includes(value) && !selectedTags.has(tag));
-
-                if (value && ![...allTags].map(t => t.toLowerCase()).includes(value)) {
-                    const newItem = document.createElement('div');
-                    newItem.textContent = `+ Create "${input.value.trim()}"`;
-                    newItem.className = 'new-tag';
-                    newItem.onclick = () => addTag(input.value.trim());
-                    dropdown.appendChild(newItem);
-                }
-
-                filteredTags.forEach(tag => {
-                    const item = document.createElement('div');
-                    item.textContent = tag;
-                    item.onclick = () => addTag(tag);
-                    dropdown.appendChild(item);
-                });
-
-                dropdown.style.display = dropdown.children.length > 0 ? 'block' : 'none';
-            });
-
-            input.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    if (input.value.trim()) {
-                        addTag(input.value.trim());
-                    }
-                }
-            });
-
-            container.addEventListener('click', () => input.focus());
-            document.addEventListener('click', (e) => {
-                if (!formGroup.contains(e.target)) {
-                    dropdown.style.display = 'none';
-                }
-            });
-        }
-
-        document.getElementById('toggleExpenseFormBtn').addEventListener('click', function () {
-            const formContainer = document.getElementById('addExpenseContainer');
-            const isHidden = formContainer.style.display === 'none' || formContainer.style.display === '';
-
-            if (isHidden) {
-                formContainer.style.display = 'block';
-                this.innerHTML = '<i class="fa-solid fa-times"></i> Close';
-            } else {
-                formContainer.style.display = 'none';
-                this.innerHTML = '<i class="fa-solid fa-plus"></i> Add Expense';
-            }
+            dropdown.style.display = "block";
+          }
         });
-        
-        function showCustomConfirm(message) {
-            return new Promise((resolve) => {
-                const modal = document.getElementById('customConfirmModal');
-                const msgEl = document.getElementById('confirmMessage');
-                const btnCancel = document.getElementById('btnConfirmCancel');
-                const btnProceed = document.getElementById('btnConfirmProceed');
 
-                msgEl.textContent = message;
-                modal.style.display = 'flex';
+        input.addEventListener("input", () => {
+          const value = input.value.trim().toLowerCase();
+          dropdown.innerHTML = "";
+          const filteredTags = [...allTags].filter(
+            (tag) =>
+              tag.toLowerCase().includes(value) && !selectedTags.has(tag),
+          );
 
-                const cleanup = () => {
-                    modal.style.display = 'none';
-                    btnCancel.removeEventListener('click', onCancel);
-                    btnProceed.removeEventListener('click', onProceed);
-                };
+          if (
+            value &&
+            ![...allTags].map((t) => t.toLowerCase()).includes(value)
+          ) {
+            const newItem = document.createElement("div");
+            newItem.textContent = `+ Create "${input.value.trim()}"`;
+            newItem.className = "new-tag";
+            newItem.onclick = () => addTag(input.value.trim());
+            dropdown.appendChild(newItem);
+          }
 
-                const onCancel = () => { cleanup(); resolve(false); }; 
-                const onProceed = () => { cleanup(); resolve(true); };  
+          filteredTags.forEach((tag) => {
+            const item = document.createElement("div");
+            item.textContent = tag;
+            item.onclick = () => addTag(tag);
+            dropdown.appendChild(item);
+          });
 
-                btnCancel.addEventListener('click', onCancel);
-                btnProceed.addEventListener('click', onProceed);
-            });
-        }
+          dropdown.style.display =
+            dropdown.children.length > 0 ? "block" : "none";
+        });
 
-            document.getElementById('expenseForm').addEventListener('submit', async (e) => {
+        input.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") {
             e.preventDefault();
-            const isGain = document.getElementById('reportGain').checked;
-            
-            // Lấy số tiền người dùng nhập trên màn hình (Ví dụ: 100 USD)
-            let rawAmount = parseFloat(document.getElementById('amount').value);
-            const selectedCategory = document.getElementById('category').value;
-
-            // 1. Tính toán tỷ giá để đổi ra tiền VND
-            let rate = 1;
-            if (typeof exchangeRatesToVND !== 'undefined') {
-                rate = exchangeRatesToVND[currentCurrency] || 1;
+            if (input.value.trim()) {
+              addTag(input.value.trim());
             }
-            let amountInVND = rawAmount * rate; // Đây là số tiền thực tế hệ thống dùng để so sánh
-
-            // ==========================================
-            // 🚦 KIỂM TRA BẤT THƯỜNG (SIÊU CHUẨN XÁC)
-            // ==========================================
-            if (!isGain && selectedCategory) {
-                // Lọc các giao dịch cũ CÙNG DANH MỤC
-                const categoryExpenses = allExpenses.filter(exp => exp.amount < 0 && exp.category === selectedCategory);
-                let categoryAverageVND = 0;
-                
-                if (categoryExpenses.length > 0) {
-                    const totalCategory = categoryExpenses.reduce((sum, exp) => sum + Math.abs(exp.amount), 0);
-                    categoryAverageVND = totalCategory / categoryExpenses.length;
-                }
-
-                // Cố định mốc tối thiểu là 50 USD quy ra VND (Khoảng 1.270.000đ)
-                const minAlertAmountVND = 50 * exchangeRatesToVND['usd'];
-
-                // [MÁY ĐO DEBUG] - Nhấn F12 trên web để xem các con số này
-                console.log(`--- KIỂM TRA TỰ ĐỘNG ---`);
-                console.log(`Danh mục: ${selectedCategory}`);
-                console.log(`Số tiền nhập (VND): ${amountInVND}`);
-                console.log(`Trung bình danh mục (VND): ${categoryAverageVND}`);
-                
-                // Thuật toán: Có dữ liệu cũ + Gấp 3 lần trung bình + Lớn hơn mức tối thiểu (50$)
-                if (categoryAverageVND > 0 && amountInVND > (categoryAverageVND * 3) && amountInVND > minAlertAmountVND) {
-                    const confirmMsg = `Số tiền bạn định lưu (${formatCurrency(amountInVND)}) lớn hơn GẤP NHIỀU LẦN so với mức chi tiêu trung bình của danh mục "${selectedCategory}" (${formatCurrency(categoryAverageVND)}).\n\nBạn có chắc chắn thông tin này là chính xác và muốn lưu không?`;
-                    
-                    const userConfirmed = await showCustomConfirm(confirmMsg);
-                    if (!userConfirmed) {
-                        return; // Hủy lưu nếu bấm nút Hủy
-                    }
-                }
-            }
-            // ==========================================
-
-            // Chuyển thành số âm nếu là chi tiêu để lưu vào Database
-            let finalAmountToSave = amountInVND;
-            if (!isGain) {
-                finalAmountToSave *= -1;
-            }
-            
-            const formData = {
-                name: document.getElementById('name').value,
-                category: selectedCategory,
-                amount: finalAmountToSave,
-                date: getISODateWithLocalTime(document.getElementById('date').value),
-                tags: Array.from(selectedTags)
-            };
-            
-            try {
-                const response = await fetch('/api/expenses/', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(formData)
-                });
-
-                if (response.ok) {
-                    if(window.showToast) showToast("Đã thêm giao dịch thành công!", "success");
-                    document.getElementById('expenseForm').reset();
-                    document.getElementById('selected-tags').innerHTML = '';
-                    selectedTags.clear();
-                    await initialize();
-                    const today = new Date();
-                    const year = today.getFullYear();
-                    const month = String(today.getMonth() + 1).padStart(2, '0');
-                    const day = String(today.getDate()).padStart(2, '0');
-                    document.getElementById('date').value = `${year}-${month}-${day}`;
-                } else {
-                    const error = await response.json();
-                    if(window.showToast) showToast(`Lỗi: ${error.error || 'Không thể thêm giao dịch'}`, "error");
-                }
-            } catch (error) {
-                console.error('Error adding expense:', error);
-                if(window.showToast) showToast("Lỗi: Không thể kết nối đến máy chủ", "error");
-            }
-        });
-        
-        document.addEventListener('DOMContentLoaded', initialize);
-
-        document.getElementById('name').addEventListener('click', (e) => {
-            if (e.target.value === '-') {
-                e.target.value = '';
-            }
+          }
         });
 
-        // --- HÀM XỬ LÝ NHẬP LIỆU BẰNG AI ---
-        // --- HÀM XỬ LÝ NHẬP LIỆU BẰNG AI (ĐÃ FIX LỖI KẸT NÚT) ---
-        // --- HÀM XỬ LÝ NHẬP LIỆU BẰNG AI (ĐÃ FIX LỖI TỶ GIÁ 0 ĐÔ) ---
-        async function sendToAI() {
-            const inputField = document.getElementById('aiInput');
-            const btn = document.getElementById('aiBtn');
-            const text = inputField.value.trim();
+        container.addEventListener("click", () => input.focus());
+        document.addEventListener("click", (e) => {
+          if (!formGroup.contains(e.target)) {
+            dropdown.style.display = "none";
+          }
+        });
+      }
 
-            if (!text) {
-                if(window.showToast) showToast('Vui lòng nhập chi tiêu của bạn!', 'error');
-                return;
+      document
+        .getElementById("toggleExpenseFormBtn")
+        .addEventListener("click", function () {
+          const formContainer = document.getElementById("addExpenseContainer");
+          const isHidden =
+            formContainer.style.display === "none" ||
+            formContainer.style.display === "";
+
+          if (isHidden) {
+            formContainer.style.display = "block";
+            this.innerHTML = '<i class="fa-solid fa-times"></i> Close';
+          } else {
+            formContainer.style.display = "none";
+            this.innerHTML = '<i class="fa-solid fa-plus"></i> Add Expense';
+          }
+        });
+
+      function showCustomConfirm(message) {
+        return new Promise((resolve) => {
+          const modal = document.getElementById("customConfirmModal");
+          const msgEl = document.getElementById("confirmMessage");
+          const btnCancel = document.getElementById("btnConfirmCancel");
+          const btnProceed = document.getElementById("btnConfirmProceed");
+
+          msgEl.textContent = message;
+          modal.style.display = "flex";
+
+          const cleanup = () => {
+            modal.style.display = "none";
+            btnCancel.removeEventListener("click", onCancel);
+            btnProceed.removeEventListener("click", onProceed);
+          };
+
+          const onCancel = () => {
+            cleanup();
+            resolve(false);
+          };
+          const onProceed = () => {
+            cleanup();
+            resolve(true);
+          };
+
+          btnCancel.addEventListener("click", onCancel);
+          btnProceed.addEventListener("click", onProceed);
+        });
+      }
+
+      document
+        .getElementById("expenseForm")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const isGain = document.getElementById("reportGain").checked;
+
+          // Lấy số tiền người dùng nhập trên màn hình (Ví dụ: 100 USD)
+          let rawAmount = parseFloat(document.getElementById("amount").value);
+          const selectedCategory = document.getElementById("category").value;
+
+          // 1. Tính toán tỷ giá để đổi ra tiền VND
+          let rate = 1;
+          if (typeof exchangeRatesToVND !== "undefined") {
+            rate = exchangeRatesToVND[currentCurrency] || 1;
+          }
+          let amountInVND = rawAmount * rate; // Đây là số tiền thực tế hệ thống dùng để so sánh
+
+          // ==========================================
+          // 🚦 KIỂM TRA BẤT THƯỜNG (SIÊU CHUẨN XÁC)
+          // ==========================================
+          if (!isGain && selectedCategory) {
+            // Lọc các giao dịch cũ CÙNG DANH MỤC
+            const categoryExpenses = allExpenses.filter(
+              (exp) => exp.amount < 0 && exp.category === selectedCategory,
+            );
+            let categoryAverageVND = 0;
+
+            if (categoryExpenses.length > 0) {
+              const totalCategory = categoryExpenses.reduce(
+                (sum, exp) => sum + Math.abs(exp.amount),
+                0,
+              );
+              categoryAverageVND = totalCategory / categoryExpenses.length;
             }
 
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang nghĩ...';
-            btn.disabled = true;
+            // Cố định mốc tối thiểu là 50 USD quy ra VND (Khoảng 1.270.000đ)
+            const minAlertAmountVND = 50 * exchangeRatesToVND["usd"];
 
-            try {
-                const res = await fetch('/api/ai/parse-expense', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ text: text })
-                });
+            // [MÁY ĐO DEBUG] - Nhấn F12 trên web để xem các con số này
+            console.log(`--- KIỂM TRA TỰ ĐỘNG ---`);
+            console.log(`Danh mục: ${selectedCategory}`);
+            console.log(`Số tiền nhập (VND): ${amountInVND}`);
+            console.log(`Trung bình danh mục (VND): ${categoryAverageVND}`);
 
-                if (res.ok) {
-                    const data = await res.json();
-                    const parsedTxn = data.transaction;
+            // Thuật toán: Có dữ liệu cũ + Gấp 3 lần trung bình + Lớn hơn mức tối thiểu (50$)
+            if (
+              categoryAverageVND > 0 &&
+              amountInVND > categoryAverageVND * 3 &&
+              amountInVND > minAlertAmountVND
+            ) {
+              const confirmMsg = `Số tiền bạn định lưu (${formatCurrency(amountInVND)}) lớn hơn GẤP NHIỀU LẦN so với mức chi tiêu trung bình của danh mục "${selectedCategory}" (${formatCurrency(categoryAverageVND)}).\n\nBạn có chắc chắn thông tin này là chính xác và muốn lưu không?`;
 
-                    // 1. LẤY TỶ GIÁ (Để đổi số tiền AI đọc được sang VND)
-                    let rate = 1;
-                    if (typeof exchangeRatesToVND !== 'undefined') {
-                        rate = exchangeRatesToVND[currentCurrency] || 1;
-                    }
-                    
-                    let amountAbs = Math.abs(parsedTxn.amount);
-                    let amountInVND = amountAbs * rate; // <-- ĐÂY MỚI LÀ SỐ TIỀN THỰC TẾ ĐỂ LƯU
-
-                    // 2. KIỂM TRA BẤT THƯỜNG
-                    if (parsedTxn.amount < 0) { 
-                        const categoryExpenses = allExpenses.filter(exp => exp.amount < 0 && exp.category === parsedTxn.category);
-                        let categoryAverageVND = 0;
-                        
-                        if (categoryExpenses.length > 0) {
-                            const totalCategory = categoryExpenses.reduce((sum, exp) => sum + Math.abs(exp.amount), 0);
-                            categoryAverageVND = totalCategory / categoryExpenses.length;
-                        }
-
-                        const minAlertAmountVND = 50 * exchangeRatesToVND['usd'];
-
-                        if (categoryAverageVND > 0 && amountInVND > (categoryAverageVND * 3) && amountInVND > minAlertAmountVND) {
-                            const confirmMsg = `Trợ lý AI phát hiện bạn vừa nhập một khoản chi RẤT LỚN!\n\nSố tiền (${formatCurrency(amountInVND)}) lớn hơn GẤP NHIỀU LẦN mức trung bình của danh mục "${parsedTxn.category}" (${formatCurrency(categoryAverageVND)}).\n\nBạn có chắc chắn muốn lưu giao dịch này không?`;
-                            
-                            const userConfirmed = await showCustomConfirm(confirmMsg);
-                            if (!userConfirmed) {
-                                btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Gửi';
-                                btn.disabled = false;
-                                return; 
-                            }
-                        }
-                    }
-
-                    // 3. CHỐT SỐ TIỀN VÀ LƯU VÀO DATABASE
-                    let finalAmountToSave = amountInVND;
-                    if (parsedTxn.amount < 0) {
-                        finalAmountToSave *= -1; // Trả lại dấu âm nếu là khoản chi
-                    }
-
-                    const saveRes = await fetch('/api/expenses/', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            name: parsedTxn.name,
-                            category: parsedTxn.category,
-                            amount: finalAmountToSave, // ĐÃ SỬA: Lưu con số đã nhân tỷ giá (VND)
-                            date: getISODateWithLocalTime(parsedTxn.date),
-                            tags: ["AI Assistant"]
-                        })
-                    });
-
-                    if (saveRes.ok) {
-                        // Lúc thông báo thành công thì hiện số đã format cho đẹp
-                        if(window.showToast) showToast(`Đã lưu: ${parsedTxn.name} (${formatCurrency(amountInVND)})`, "success");
-                        inputField.value = '';
-                        await initialize(); 
-                    } else {
-                        const err = await saveRes.json();
-                        if(window.showToast) showToast(`Lỗi khi lưu: ${err.error || 'Lỗi không xác định'}`, "error");
-                    }
-                } else {
-                    const err = await res.json();
-                    if(window.showToast) showToast(err.detail || 'Có lỗi xảy ra khi AI phân tích.', "error");
-                }
-            } catch (error) {
-                console.error("Lỗi AI:", error); 
-                if(window.showToast) showToast("Lỗi kết nối đến máy chủ AI.", "error");
-            } finally {
-                btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Gửi';
-                btn.disabled = false;
+              const userConfirmed = await showCustomConfirm(confirmMsg);
+              if (!userConfirmed) {
+                return; // Hủy lưu nếu bấm nút Hủy
+              }
             }
+          }
+          // ==========================================
+
+          // Chuyển thành số âm nếu là chi tiêu để lưu vào Database
+          let finalAmountToSave = amountInVND;
+          if (!isGain) {
+            finalAmountToSave *= -1;
+          }
+
+          const formData = {
+            name: document.getElementById("name").value,
+            category: selectedCategory,
+            amount: finalAmountToSave,
+            date: getISODateWithLocalTime(
+              document.getElementById("date").value,
+            ),
+            tags: Array.from(selectedTags),
+          };
+
+          try {
+            const response = await fetch("/api/expenses/", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(formData),
+            });
+
+            if (response.ok) {
+              if (window.showToast)
+                showToast("Đã thêm giao dịch thành công!", "success");
+              document.getElementById("expenseForm").reset();
+              document.getElementById("selected-tags").innerHTML = "";
+              selectedTags.clear();
+              await initialize();
+              const today = new Date();
+              const year = today.getFullYear();
+              const month = String(today.getMonth() + 1).padStart(2, "0");
+              const day = String(today.getDate()).padStart(2, "0");
+              document.getElementById("date").value = `${year}-${month}-${day}`;
+            } else {
+              const error = await response.json();
+              if (window.showToast)
+                showToast(
+                  `Lỗi: ${error.error || "Không thể thêm giao dịch"}`,
+                  "error",
+                );
+            }
+          } catch (error) {
+            console.error("Error adding expense:", error);
+            if (window.showToast)
+              showToast("Lỗi: Không thể kết nối đến máy chủ", "error");
+          }
+        });
+
+      document.addEventListener("DOMContentLoaded", initialize);
+
+      document.getElementById("name").addEventListener("click", (e) => {
+        if (e.target.value === "-") {
+          e.target.value = "";
+        }
+      });
+
+      // --- HÀM XỬ LÝ NHẬP LIỆU BẰNG AI ---
+      // --- HÀM XỬ LÝ NHẬP LIỆU BẰNG AI (ĐÃ FIX LỖI KẸT NÚT) ---
+      // --- HÀM XỬ LÝ NHẬP LIỆU BẰNG AI (ĐÃ FIX LỖI TỶ GIÁ 0 ĐÔ) ---
+      async function sendToAI() {
+        const inputField = document.getElementById("aiInput");
+        const btn = document.getElementById("aiBtn");
+        const text = inputField.value.trim();
+
+        if (!text) {
+          if (window.showToast)
+            showToast("Vui lòng nhập chi tiêu của bạn!", "error");
+          return;
         }
 
-        document.getElementById('aiInput').addEventListener('keypress', function (e) {
-            if (e.key === 'Enter') {
-                sendToAI();
+        btn.innerHTML =
+          '<i class="fa-solid fa-spinner fa-spin"></i> Đang nghĩ...';
+        btn.disabled = true;
+
+        try {
+          const res = await fetch("/api/ai/parse-expense", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: text }),
+          });
+
+          if (res.ok) {
+            const data = await res.json();
+            const parsedTxn = data.transaction;
+
+            // 1. LẤY TỶ GIÁ (Để đổi số tiền AI đọc được sang VND)
+            let rate = 1;
+            if (typeof exchangeRatesToVND !== "undefined") {
+              rate = exchangeRatesToVND[currentCurrency] || 1;
             }
+
+            let amountAbs = Math.abs(parsedTxn.amount);
+            let amountInVND = amountAbs * rate; // <-- ĐÂY MỚI LÀ SỐ TIỀN THỰC TẾ ĐỂ LƯU
+
+            // 2. KIỂM TRA BẤT THƯỜNG
+            if (parsedTxn.amount < 0) {
+              const categoryExpenses = allExpenses.filter(
+                (exp) => exp.amount < 0 && exp.category === parsedTxn.category,
+              );
+              let categoryAverageVND = 0;
+
+              if (categoryExpenses.length > 0) {
+                const totalCategory = categoryExpenses.reduce(
+                  (sum, exp) => sum + Math.abs(exp.amount),
+                  0,
+                );
+                categoryAverageVND = totalCategory / categoryExpenses.length;
+              }
+
+              const minAlertAmountVND = 50 * exchangeRatesToVND["usd"];
+
+              if (
+                categoryAverageVND > 0 &&
+                amountInVND > categoryAverageVND * 3 &&
+                amountInVND > minAlertAmountVND
+              ) {
+                const confirmMsg = `Trợ lý AI phát hiện bạn vừa nhập một khoản chi RẤT LỚN!\n\nSố tiền (${formatCurrency(amountInVND)}) lớn hơn GẤP NHIỀU LẦN mức trung bình của danh mục "${parsedTxn.category}" (${formatCurrency(categoryAverageVND)}).\n\nBạn có chắc chắn muốn lưu giao dịch này không?`;
+
+                const userConfirmed = await showCustomConfirm(confirmMsg);
+                if (!userConfirmed) {
+                  btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Gửi';
+                  btn.disabled = false;
+                  return;
+                }
+              }
+            }
+
+            // 3. CHỐT SỐ TIỀN VÀ LƯU VÀO DATABASE
+            let finalAmountToSave = amountInVND;
+            if (parsedTxn.amount < 0) {
+              finalAmountToSave *= -1; // Trả lại dấu âm nếu là khoản chi
+            }
+
+            const saveRes = await fetch("/api/expenses/", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                name: parsedTxn.name,
+                category: parsedTxn.category,
+                amount: finalAmountToSave, // ĐÃ SỬA: Lưu con số đã nhân tỷ giá (VND)
+                date: getISODateWithLocalTime(parsedTxn.date),
+                tags: ["AI Assistant"],
+              }),
+            });
+
+            if (saveRes.ok) {
+              // Lúc thông báo thành công thì hiện số đã format cho đẹp
+              if (window.showToast)
+                showToast(
+                  `Đã lưu: ${parsedTxn.name} (${formatCurrency(amountInVND)})`,
+                  "success",
+                );
+              inputField.value = "";
+              await initialize();
+            } else {
+              const err = await saveRes.json();
+              if (window.showToast)
+                showToast(
+                  `Lỗi khi lưu: ${err.error || "Lỗi không xác định"}`,
+                  "error",
+                );
+            }
+          } else {
+            const err = await res.json();
+            if (window.showToast)
+              showToast(
+                err.detail || "Có lỗi xảy ra khi AI phân tích.",
+                "error",
+              );
+          }
+        } catch (error) {
+          console.error("Lỗi AI:", error);
+          if (window.showToast)
+            showToast("Lỗi kết nối đến máy chủ AI.", "error");
+        } finally {
+          btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Gửi';
+          btn.disabled = false;
+        }
+      }
+
+      document
+        .getElementById("aiInput")
+        .addEventListener("keypress", function (e) {
+          if (e.key === "Enter") {
+            sendToAI();
+          }
         });
 
-        document.getElementById('chartTypeSelect').addEventListener('change', (e) => {
-            currentChartType = e.target.value;
-            updateChartAndLegend();
+      document
+        .getElementById("chartTypeSelect")
+        .addEventListener("change", (e) => {
+          currentChartType = e.target.value;
+          updateChartAndLegend();
         });
-
     </script>
     <script src="/static/chatbot.js"></script>
-    <div id="aiModal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); align-items: center; justify-content: center;">
-        <div style="background: linear-gradient(145deg, #1e1e2d, #2a2a40); border: 2px solid #8a2be2; border-radius: 12px; width: 90%; max-width: 500px; max-height: 80vh; overflow-y: auto; padding: 20px; box-shadow: 0 0 20px rgba(138,43,226,0.4); position: relative;">
-            <button onclick="closeAiModal()" style="position: absolute; right: 15px; top: 15px; background: none; border: none; color: #ff4d4d; font-size: 20px; cursor: pointer;"><i class="fa-solid fa-xmark"></i></button>
-            <h3 style="color: #d4a5ff; margin-top: 0; margin-bottom: 15px; text-align: center;"><i class="fa-solid fa-wand-magic-sparkles"></i> Báo Cáo Từ Cú Mèo</h3>
+    <div
+      id="aiModal"
+      style="
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.7);
+        align-items: center;
+        justify-content: center;
+      "
+    >
+      <div
+        style="
+          background: linear-gradient(145deg, #1e1e2d, #2a2a40);
+          border: 2px solid #8a2be2;
+          border-radius: 12px;
+          width: 90%;
+          max-width: 500px;
+          max-height: 80vh;
+          overflow-y: auto;
+          padding: 20px;
+          box-shadow: 0 0 20px rgba(138, 43, 226, 0.4);
+          position: relative;
+        "
+      >
+        <button
+          onclick="closeAiModal()"
+          style="
+            position: absolute;
+            right: 15px;
+            top: 15px;
+            background: none;
+            border: none;
+            color: #ff4d4d;
+            font-size: 20px;
+            cursor: pointer;
+          "
+        >
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+        <h3
+          style="
+            color: #d4a5ff;
+            margin-top: 0;
+            margin-bottom: 15px;
+            text-align: center;
+          "
+        >
+          <i class="fa-solid fa-wand-magic-sparkles"></i> Báo Cáo Từ Cú Mèo
+        </h3>
 
-            <div id="aiLoading" style="display:none; color: #a0a0b0; font-style: italic; text-align: center;">
-                <i class="fa-solid fa-spinner fa-spin" style="font-size: 24px; margin-bottom: 10px;"></i><br>
-                Cú Mèo đang đọc hồ sơ...
-            </div>
+        <div
+          id="aiLoading"
+          style="
+            display: none;
+            color: #a0a0b0;
+            font-style: italic;
+            text-align: center;
+          "
+        >
+          <i
+            class="fa-solid fa-spinner fa-spin"
+            style="font-size: 24px; margin-bottom: 10px"
+          ></i
+          ><br />
+          Cú Mèo đang đọc hồ sơ...
+        </div>
 
-            <div id="aiContent" style="line-height: 1.6; color: #e0e0e0;"></div>
-        </div>
+        <div id="aiContent" style="line-height: 1.6; color: #e0e0e0"></div>
+      </div>
     </div>
-    <div id="customConfirmModal" style="display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); align-items: center; justify-content: center;">
-        <div style="background: linear-gradient(145deg, #2a1e2d, #402a30); border: 2px solid #ff4d4d; border-radius: 12px; width: 90%; max-width: 450px; padding: 25px; box-shadow: 0 0 25px rgba(255, 77, 77, 0.4); text-align: center;">
-            <h3 style="color: #ff4d4d; margin-top: 0; margin-bottom: 15px;">
-                <i class="fa-solid fa-triangle-exclamation fa-beat"></i> Cảnh Báo
-            </h3>
-            <p id="confirmMessage" style="color: #e0e0e0; line-height: 1.6; margin-bottom: 25px; white-space: pre-line; font-size: 15px;"></p>
-            <div style="display: flex; gap: 15px; justify-content: center;">
-                <button id="btnConfirmCancel" style="padding: 10px 20px; background-color: #4a4a60; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">Hủy bỏ</button>
-                <button id="btnConfirmProceed" style="padding: 10px 20px; background-color: #ff4d4d; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">Vẫn Lưu</button>
-            </div>
+    <div
+      id="customConfirmModal"
+      style="
+        display: none;
+        position: fixed;
+        z-index: 2000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.8);
+        align-items: center;
+        justify-content: center;
+      "
+    >
+      <div
+        style="
+          background: linear-gradient(145deg, #2a1e2d, #402a30);
+          border: 2px solid #ff4d4d;
+          border-radius: 12px;
+          width: 90%;
+          max-width: 450px;
+          padding: 25px;
+          box-shadow: 0 0 25px rgba(255, 77, 77, 0.4);
+          text-align: center;
+        "
+      >
+        <h3 style="color: #ff4d4d; margin-top: 0; margin-bottom: 15px">
+          <i class="fa-solid fa-triangle-exclamation fa-beat"></i> Cảnh Báo
+        </h3>
+        <p
+          id="confirmMessage"
+          style="
+            color: #e0e0e0;
+            line-height: 1.6;
+            margin-bottom: 25px;
+            white-space: pre-line;
+            font-size: 15px;
+          "
+        ></p>
+        <div style="display: flex; gap: 15px; justify-content: center">
+          <button
+            id="btnConfirmCancel"
+            style="
+              padding: 10px 20px;
+              background-color: #4a4a60;
+              color: white;
+              border: none;
+              border-radius: 6px;
+              cursor: pointer;
+              font-weight: bold;
+            "
+          >
+            Hủy bỏ
+          </button>
+          <button
+            id="btnConfirmProceed"
+            style="
+              padding: 10px 20px;
+              background-color: #ff4d4d;
+              color: white;
+              border: none;
+              border-radius: 6px;
+              cursor: pointer;
+              font-weight: bold;
+            "
+          >
+            Vẫn Lưu
+          </button>
         </div>
+      </div>
     </div>
-</body>
+  </body>
 </html>
