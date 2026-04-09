@@ -100,7 +100,7 @@ window.sendChatMessage = async function() {
     const loadingId = 'loading-' + Date.now();
     messagesContainer.innerHTML += `
         <div id="${loadingId}" style="align-self: flex-start; max-width: 80%; background-color: #2a2a40; padding: 12px; border-radius: 0 15px 15px 15px; color: #a0a0b0; font-size: 14px;">
-            <i class="fa-solid fa-ellipsis fa-fade"></i> Cú Mèo đang suy nghĩ...
+            <i class="fa-solid fa-ellipsis fa-fade"></i> Cú Mèo đang tính toán và ghi chép...
         </div>
     `;
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
@@ -130,14 +130,24 @@ window.sendChatMessage = async function() {
                     ${formattedReply}
                 </div>
             `;
+
+            // TÍNH NĂNG MỚI: TỰ ĐỘNG REFRESH BẢNG (Nếu Cú Mèo vừa lưu dữ liệu ngầm)
+            // Nếu bạn đang mở trang Table, giao dịch mới sẽ lập tức xuất hiện!
+            if (typeof initialize === "function") {
+                await initialize();
+            }
+
         } else {
-            messagesContainer.innerHTML += `<div style="align-self: flex-start; max-width: 80%; background-color: #3f1d1d; border: 1px solid #ff4d4d; padding: 12px; border-radius: 0 15px 15px 15px; color: #ff4d4d; font-size: 14px;">❌ Lỗi kết nối AI.</div>`;
+            // Hiển thị chính xác lỗi từ máy chủ để dễ bắt bệnh
+            const errData = await res.json();
+            messagesContainer.innerHTML += `<div style="align-self: flex-start; max-width: 80%; background-color: #3f1d1d; border: 1px solid #ff4d4d; padding: 12px; border-radius: 0 15px 15px 15px; color: #ff4d4d; font-size: 14px;">❌ Lỗi AI: ${errData.detail || 'Xin lỗi, tôi chưa hiểu rõ!'}</div>`;
         }
     } catch (error) {
         document.getElementById(loadingId).remove();
-        messagesContainer.innerHTML += `<div style="align-self: flex-start; background-color: #3f1d1d; padding: 12px; border-radius: 0 15px 15px 15px; color: #ff4d4d; font-size: 14px;">Lỗi mạng.</div>`;
+        messagesContainer.innerHTML += `<div style="align-self: flex-start; background-color: #3f1d1d; padding: 12px; border-radius: 0 15px 15px 15px; color: #ff4d4d; font-size: 14px;">❌ Lỗi mạng hoặc máy chủ phản hồi quá chậm.</div>`;
     } finally {
         sendBtn.disabled = false;
+        input.focus(); // Trả lại con trỏ chuột vào ô nhập
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }
 }

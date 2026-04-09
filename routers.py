@@ -18,6 +18,10 @@ from database import get_db
 
 from google import genai
 from google.genai import types
+import json
+import uuid
+import requests
+from datetime import datetime
 
 # ---------------------------------------------------------
 # ROUTER CHO GIAO DỊCH THÔNG THƯỜNG (EXPENSES)
@@ -272,10 +276,10 @@ def parse_expense_from_text(req: AIRequest, db: Session = Depends(get_db), curre
         raise HTTPException(status_code=400, detail=f"{str(e)}")
 
 # ---------------------------------------------------------
-# 2. API CHATBOT TRUY VẤN DỮ LIỆU CÓ TRÍ NHỚ (RAG + MEMORY)
+# 2. API CHATBOT TRUY VẤN DỮ LIỆU CÓ TRÍ NHỚ (RAG + MEMORY + AUTO SAVE)
 # ---------------------------------------------------------
 
-# Schema mới cho API Chatbot 
+# Schema cho API Chatbot 
 class ChatRequest(BaseModel):
     message: str
     history: list = [] # Mảng chứa lịch sử trò chuyện: [{"user": "...", "ai": "..."}, ...]
@@ -286,10 +290,13 @@ def chat_with_data(req: ChatRequest, db: Session = Depends(get_db), current_user
     if not api_key:
         raise HTTPException(status_code=500, detail="Chưa cấu hình GEMINI_API_KEY")
 
-    # BƯỚC 1: Rút trích dữ liệu của riêng người dùng này từ Database
+    # BƯỚC 1: Lấy danh mục của user (để AI biết phân loại nếu người dùng muốn lưu)
+    user_config = db.query(models.UserConfig).filter(models.UserConfig.user_id == current_user.id).first()
+    categories_str = ", ".join(user_config.categories) if user_config and user_config.categories else "Food, Transport, Shopping, Bills, Entertainment"
+
+    # BƯỚC 2: Rút trích dữ liệu của riêng người dùng này từ Database (RAG)
     transactions = db.query(models.Transaction).filter(models.Transaction.user_id == current_user.id).all()
     
-    # BƯỚC 2: Ráp dữ liệu Database thành chuỗi văn bản cho AI đọc
     data_context = "DANH SÁCH GIAO DỊCH CỦA NGƯỜI DÙNG:\n"
     data_context += "Ngày | Tên giao dịch | Số tiền | Danh mục\n"
     data_context += "-" * 50 + "\n"
@@ -308,7 +315,7 @@ def chat_with_data(req: ChatRequest, db: Session = Depends(get_db), current_user
             history_text += f"Người dùng hỏi: {turn.get('user', '')}\nCú Mèo trả lời: {turn.get('ai', '')}\n"
         history_text += "-" * 50 + "\n"
 
-    # BƯỚC 4: Kỹ thuật Prompt Engineering định hình Chatbot (Nhồi Context + History)
+    # BƯỚC 4: KẾT HỢP PROMPT (Giữ Logic Cũ + Ép Format JSON Mới)
     today_str = datetime.now().strftime("%Y-%m-%d")
     prompt = f"""
     Bạn là "Cú Mèo" - một chuyên gia tư vấn tài chính cá nhân thông minh, tận tâm và vui tính của ứng dụng ExpenseOwl.
@@ -321,19 +328,34 @@ def chat_with_data(req: ChatRequest, db: Session = Depends(get_db), current_user
     
     CÂU HỎI MỚI NHẤT CỦA NGƯỜI DÙNG: "{req.message}"
     
-    NHIỆM VỤ CỦA BẠN:
-    1. Trả lời trực tiếp, chính xác câu hỏi MỚI NHẤT của người dùng.
-    2. QUAN TRỌNG: Nếu câu hỏi mới nhất của người dùng ám chỉ đến một thông tin cũ (Ví dụ: "Khoản đó là khoản nào?", "Nó diễn ra khi nào?"), hãy dựa vào LỊCH SỬ TRÒ CHUYỆN ở trên để hiểu "khoản đó", "nó" là gì.
-    3. Nếu cần tính toán (tổng chi, tổng thu, tìm món đắt nhất...), hãy tự tính toán từ DỮ LIỆU TÀI CHÍNH và đưa ra con số cuối cùng (tính nhẩm cẩn thận).
-    4. Trả lời bằng tiếng Việt, giọng điệu thân thiện, tự nhiên. Định dạng Markdown: Dùng in đậm (**chữ**) cho các con số quan trọng.
-    5. Trả lời ngắn gọn, súc tích, không dài dòng giải thích quá trình tính toán trừ khi được hỏi.
-    6. Nếu người dùng hỏi ngoài lề (không liên quan tài chính), hãy khéo léo nhắc họ quay lại chủ đề.
+    NHIỆM VỤ CỦA BẠN LÀ TRẢ VỀ DUY NHẤT MỘT KHỐI JSON HỢP LỆ (Không chứa dấu markdown ``` hay văn bản nào bên ngoài JSON).
+    Cấu trúc JSON bắt buộc:
+    {{
+        "reply": "Câu trả lời của bạn gửi cho người dùng",
+        "action": "save" hoặc "chat",
+        "data": {{
+            "name": "Tên khoản tiền (chỉ có khi action là save)",
+            "amount": Số tiền (số ÂM nếu chi, số DƯƠNG nếu thu. Chỉ có khi action là save),
+            "category": "Chọn 1 trong các danh mục: {categories_str} (chỉ có khi action là save)",
+            "date": "YYYY-MM-DD (chỉ có khi action là save)"
+        }}
+    }}
+
+    QUY TẮC CHO TRƯỜNG "reply" (Giữ nguyên phong cách của bạn):
+    1. Trả lời trực tiếp, chính xác. Dùng tiếng Việt, giọng điệu thân thiện. Dùng in đậm (**chữ**) cho các con số.
+    2. Nếu câu hỏi ám chỉ thông tin cũ ("Khoản đó là khoản nào?"), dựa vào LỊCH SỬ TRÒ CHUYỆN để trả lời.
+    3. Tự tính toán (tổng chi, tổng thu...) cẩn thận từ DỮ LIỆU TÀI CHÍNH nếu được hỏi.
+    
+    QUY TẮC CHO TRƯỜNG "action" VÀ "data":
+    1. Nếu người dùng chỉ hỏi đáp, tra cứu, tính toán, hoặc thông tin CHƯA ĐỦ để lưu (VD: "nay tiêu 10k" nhưng chưa nói tiêu vào việc gì) -> action: "chat", data: null.
+    2. Nếu người dùng CUNG CẤP ĐỦ thông tin (số tiền VÀ mục đích, ví dụ: "tôi tiêu 10k cho đồ ăn vặt" hoặc nối tiếp lịch sử "cho đồ ăn vặt") -> action: "save", điền đầy đủ phần "data".
     """
     
     # BƯỚC 5: Gọi Gemini 2.5 Flash
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
     payload = {
-        "contents": [{"parts": [{"text": prompt}]}]
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {"temperature": 0.2} # Giảm độ sáng tạo để JSON không bị lỗi format
     }
     
     try:
@@ -341,10 +363,33 @@ def chat_with_data(req: ChatRequest, db: Session = Depends(get_db), current_user
         response.raise_for_status() 
         
         result_data = response.json()
-        ai_reply = result_data["candidates"][0]["content"]["parts"][0]["text"]
+        ai_text = result_data["candidates"][0]["content"]["parts"][0]["text"]
         
-        return {"reply": ai_reply}
+        # BƯỚC 6: Xử lý chuỗi JSON và Lưu Database
+        clean_text = ai_text.strip().replace("```json", "").replace("```", "")
+        result_json = json.loads(clean_text)
         
+        # LƯU VÀO DATABASE NẾU AI RA LỆNH "save"
+        if result_json.get("action") == "save" and result_json.get("data"):
+            data = result_json["data"]
+            parsed_date = datetime.strptime(data["date"], "%Y-%m-%d").date()
+            
+            new_transaction = models.Transaction(
+                id=str(uuid.uuid4()),
+                name=data["name"],
+                amount=data["amount"],
+                category=data["category"],
+                date=parsed_date,
+                tags=["AI Chatbot"],
+                user_id=current_user.id
+            )
+            db.add(new_transaction)
+            db.commit()
+            
+        return {"reply": result_json["reply"]}
+        
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Lỗi định dạng: Cú Mèo đang bị bối rối, bạn vui lòng nhập lại nhé!")
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Lỗi Chatbot AI: {str(e)}")
 
