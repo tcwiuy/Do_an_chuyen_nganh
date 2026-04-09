@@ -9,7 +9,8 @@ sqlalchemy==2.0.25
 psycopg2-binary==2.9.9
 
 # --- Security & Authentication ---
-passlib[bcrypt]
+bcrypt==4.0.1
+passlib
 PyJWT
 
 # --- Template Engine (Frontend) ---
@@ -21,6 +22,7 @@ python-dotenv
 # --- AI Integration (Google Gemini SDK & HTTP) ---
 requests
 google-generativeai
+google-genai
 protobuf
 grpcio
 grpcio-status

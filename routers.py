@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException
+from click import prompt
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 import uuid
@@ -7,16 +8,22 @@ import requests
 import os
 from datetime import datetime
 import json
+import base64
 from pydantic import BaseModel
+from dotenv import load_dotenv
+load_dotenv()
 
 import models, schemas, auth
 from database import get_db
 
+from google import genai
+from google.genai import types
 
 # ---------------------------------------------------------
 # ROUTER CHO GIAO DỊCH THÔNG THƯỜNG (EXPENSES)
 # ---------------------------------------------------------
 router = APIRouter(prefix="/api/expenses", tags=["Expenses"])
+client = genai.Client()
 
 @router.get("/", response_model=List[schemas.TransactionResponse])
 def get_transactions(db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
@@ -32,7 +39,7 @@ def create_transaction(transaction: schemas.TransactionCreate, db: Session = Dep
         amount=transaction.amount,
         category=transaction.category,
         date=transaction.date,
-        tags=transaction.tags,
+        tags=["Manual"],
         user_id=current_user.id # LƯU VÀO ID THẬT
     )
     db.add(db_transaction)
@@ -190,7 +197,7 @@ class ChatRequest(BaseModel):
     message: str
     history: list = []
 
-# 1. API NHẬP LIỆU BẰNG NGÔN NGỮ TỰ NHIÊN 
+
 # 1. API NHẬP LIỆU BẰNG NGÔN NGỮ TỰ NHIÊN 
 @ai_router.post("/parse-expense")
 def parse_expense_from_text(req: AIRequest, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
@@ -489,3 +496,246 @@ def edit_categories(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# =============================================================
+# ROUTER OCR - QUÉT HÓA ĐƠN 
+# =============================================================
+@router.post("/api/scan-receipt")
+async def scan_receipt(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    """
+    Bước 1: OCR hóa đơn bằng Gemini Vision → trả về data để user review.
+    KHÔNG tự lưu DB. Frontend hiển thị để user xác nhận rồi mới gọi /confirm.
+    """
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="Chưa cấu hình GEMINI_API_KEY trong file .env")
+
+    # Lấy danh mục của user hiện tại
+    user_config = db.query(models.UserConfig).filter(
+        models.UserConfig.user_id == current_user.id
+    ).first()
+
+    if user_config and user_config.categories:
+        categories_str = ", ".join(user_config.categories)
+    else:
+        categories_str = "Food, Transport, Shopping, Bills, Entertainment"
+
+    today_str = datetime.now().strftime("%Y-%m-%d")
+
+    # Kiểm tra MIME type hợp lệ
+    content_type = file.content_type or "image/jpeg"
+    allowed_types = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif", "image/heic"]
+    if content_type not in allowed_types:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Định dạng không hỗ trợ: {content_type}. Dùng JPG, PNG hoặc WebP."
+        )
+
+    try:
+        image_data = await file.read()
+
+        # Kiểm tra dung lượng (tối đa 10MB)
+        if len(image_data) > 10 * 1024 * 1024:
+            raise HTTPException(status_code=400, detail="File quá lớn! Tối đa 10MB.")
+
+        image_base64 = base64.b64encode(image_data).decode("utf-8")
+
+        prompt = f"""Hôm nay là {today_str}.
+Phân tích hóa đơn trong ảnh và trích xuất thông tin tài chính.
+Danh mục hợp lệ của người dùng: {categories_str}
+
+Trả về CHỈ một JSON object thuần túy (không có markdown, không có backtick ```):
+{{
+    "name": "Tên cửa hàng hoặc mô tả ngắn (tối đa 60 ký tự)",
+    "category": "Chọn ĐÚNG MỘT danh mục từ danh sách: {categories_str}",
+    "amount": số_âm_đại_diện_chi_tiêu (ví dụ -54000, vì đây là khoản chi),
+    "date": "YYYY-MM-DD (ngày trên hóa đơn, nếu không thấy dùng {today_str})",
+    "tags": ["OCR"],
+    "notes": "ghi chú ngắn nếu cần hoặc chuỗi rỗng"
+}}
+
+Quy tắc quan trọng:
+- amount PHẢI là số ÂM (khoản chi tiêu). Ví dụ tổng 54.000đ → amount = -54000
+- Nếu là phiếu hoàn tiền/refund thì amount mới là số DƯƠNG
+- Nếu không đọc được số tiền, đặt amount = -1
+- Đơn vị là VND (Việt Nam Đồng), không cần dấu phẩy hay chấm phân cách"""
+
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+        payload = {
+            "contents": [{
+                "parts": [
+                    {"text": prompt},
+                    {
+                        "inline_data": {
+                            "mime_type": content_type,
+                            "data": image_base64
+                        }
+                    }
+                ]
+            }],
+            "generationConfig": {
+                "temperature": 0.1,
+                "maxOutputTokens": 600
+            }
+        }
+
+        response = requests.post(
+            url,
+            json=payload,
+            headers={"Content-Type": "application/json"},
+            timeout=30
+        )
+
+        if response.status_code == 503:
+            raise HTTPException(
+                status_code=503,
+                detail="Máy chủ Gemini đang quá tải. Vui lòng thử lại sau 1 phút!"
+            )
+
+        response.raise_for_status()
+        result_data = response.json()
+
+        # Kiểm tra response có candidates không
+        if not result_data.get("candidates"):
+            raise HTTPException(status_code=422, detail="AI không thể đọc được hóa đơn này. Thử ảnh rõ hơn.")
+
+        ai_text = result_data["candidates"][0]["content"]["parts"][0]["text"]
+
+        # Làm sạch markdown nếu Gemini trả về có backtick
+        clean_text = ai_text.strip()
+        if clean_text.startswith("```"):
+            lines = clean_text.split("\n")
+            # Bỏ dòng đầu (```json) và dòng cuối (```)
+            inner = []
+            for line in lines[1:]:
+                if line.strip() == "```":
+                    break
+                inner.append(line)
+            clean_text = "\n".join(inner).strip()
+        clean_text = clean_text.replace("```json", "").replace("```", "").strip()
+
+        extracted_data = json.loads(clean_text)
+
+        # Validate và đảm bảo đủ fields
+        name = str(extracted_data.get("name", "Hóa đơn")).strip()[:100]
+        amount = float(extracted_data.get("amount", -1))
+        date_str = str(extracted_data.get("date", today_str)).strip()
+        category = str(extracted_data.get("category", categories_str.split(",")[0])).strip()
+        tags = extracted_data.get("tags", [])
+        if not isinstance(tags, list):
+            tags = []
+        if "OCR" not in tags:
+            tags.append("OCR")
+        notes = str(extracted_data.get("notes", "")).strip()
+
+        # Validate ngày
+        try:
+            datetime.strptime(date_str, "%Y-%m-%d")
+        except ValueError:
+            date_str = today_str
+
+        return {
+            "status": "success",
+            "data": {
+                "name": name,
+                "amount": amount,
+                "date": date_str,
+                "category": category,
+                "tags": tags,
+                "notes": notes
+            },
+            "message": "Phân tích hóa đơn thành công! Vui lòng kiểm tra và xác nhận."
+        }
+
+    except HTTPException:
+        raise
+    except json.JSONDecodeError:
+        raise HTTPException(
+            status_code=422,
+            detail="AI trả về dữ liệu không hợp lệ. Thử chụp lại ảnh rõ hơn."
+        )
+    except requests.exceptions.Timeout:
+        raise HTTPException(status_code=504, detail="Gemini API timeout. Vui lòng thử lại!")
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=502, detail=f"Lỗi kết nối Gemini: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Lỗi xử lý hóa đơn: {str(e)}")
+
+
+@router.post("/api/scan-receipt/confirm")
+async def confirm_scan_receipt(
+    transaction_data: dict,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    """
+    Bước 2: Lưu giao dịch đã được user xác nhận vào database.
+    """
+    try:
+        # Parse và validate ngày
+        date_str = str(transaction_data.get("date", "")).strip()
+        try:
+            parsed_date = datetime.strptime(date_str, "%Y-%m-%d")
+        except (ValueError, AttributeError):
+            parsed_date = datetime.now()
+
+        # Validate amount
+        try:
+            amount = float(transaction_data.get("amount", 0))
+        except (ValueError, TypeError):
+            raise HTTPException(status_code=400, detail="Số tiền không hợp lệ")
+
+        if amount == 0:
+            raise HTTPException(status_code=400, detail="Số tiền không được bằng 0")
+
+        # Validate name
+        name = str(transaction_data.get("name", "Hóa đơn")).strip()
+        if len(name) < 1:
+            name = "Hóa đơn"
+
+        # Validate category
+        category = str(transaction_data.get("category", "Shopping")).strip()
+
+        # Tags
+        tags = transaction_data.get("tags", ["OCR"])
+        if not isinstance(tags, list):
+            tags = [str(tags)] if tags else ["OCR"]
+
+        new_id = str(uuid.uuid4())
+        db_transaction = models.Transaction(
+            id=new_id,
+            name=name[:255],
+            amount=amount,
+            category=category,
+            date=parsed_date,
+            tags=tags,
+            user_id=current_user.id
+        )
+
+        db.add(db_transaction)
+        db.commit()
+        db.refresh(db_transaction)
+
+        return {
+            "status": "success",
+            "message": f"Đã lưu: {db_transaction.name} ({abs(db_transaction.amount):,.0f} VND)",
+            "transaction": {
+                "id": db_transaction.id,
+                "name": db_transaction.name,
+                "amount": db_transaction.amount,
+                "category": db_transaction.category,
+                "date": db_transaction.date.isoformat(),
+                "tags": db_transaction.tags
+            }
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Lỗi lưu giao dịch: {str(e)}")
