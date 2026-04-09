@@ -67,8 +67,9 @@
         <div class="table-controls" style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
             <button id="toggleExpenseFormBtn" class="nav-button"><i class="fa-solid fa-plus"></i> Add Expense</button>
             <button id="btnAnalyze" class="nav-button" onclick="analyzeTrends()" style="background-color: #8a2be2; border: 1px solid #d4a5ff;">
-                <i class="fa-solid fa-wand-magic-sparkles"></i> Phân Tích AI
-            </button>
+                <i class="fa-solid fa-wand-magic-sparkles"></i> Phân Tích AI</button>
+            <button onclick="OCRScanner.open(function(){ initialize(); })" class="nav-button"><i class="fa-solid fa-plus"></i> Scan Receipt</button>
+                <script src="/static/ocr_scanner.js"></script>
         </div>
 
         <div id="addExpenseContainer" style="display: none;">
