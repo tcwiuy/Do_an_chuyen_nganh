@@ -227,23 +227,35 @@ function escapeHTML(str) {
 const originalFetch = window.fetch;
 window.fetch = async (...args) => {
     let [resource, config] = args;
-    
-    // Tự động gắn Token vào tất cả API (trừ đăng nhập)
+
     if (typeof resource === 'string' && resource.startsWith('/api/') && !resource.includes('/auth/')) {
         config = config || {};
-        config.headers = {
-            ...config.headers,
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-        };
+
+        const token = localStorage.getItem('token');
+
+        if (token) {
+            config.headers = {
+                ...config.headers,
+                'Authorization': `Bearer ${token}`
+            };
+        }
+
         args[1] = config;
     }
-    
-    const response = await originalFetch(...args);
-    
-    if (response.status === 401) {
-        logout(); // Đăng xuất nếu token hết hạn
+
+    try {
+        const response = await originalFetch(...args);
+
+        if (response.status === 401) {
+            logout();
+        }
+
+        return response;
+
+    } catch (err) {
+        console.error("FETCH ERROR:", err);
+        throw err;
     }
-    return response;
 };
 
 // =========================================
