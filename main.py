@@ -4,7 +4,10 @@ from fastapi.templating import Jinja2Templates
 import models
 from database import engine
 from routers import router as expenses_router, recurring_router, auth_router, ai_router
+from routers import config_router
 import routers
+from dotenv import load_dotenv
+load_dotenv()
 
 # Tạo bảng trong CSDL
 models.Base.metadata.create_all(bind=engine)
@@ -22,7 +25,7 @@ app.include_router(expenses_router)
 app.include_router(recurring_router)
 app.include_router(auth_router)
 app.include_router(ai_router)
-app.include_router(routers.config_router)
+app.include_router(routers.config_router, prefix="") 
 
 # ---------------------------------------------------------
 # ROUTER CHO GIAO DIỆN (FRONTEND)
