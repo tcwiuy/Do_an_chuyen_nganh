@@ -642,46 +642,69 @@
             });
         }
 
-        document.getElementById('expenseForm').addEventListener('submit', async (e) => {
+            document.getElementById('expenseForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const isGain = document.getElementById('reportGain').checked;
-            let amount = parseFloat(document.getElementById('amount').value);
+            
+            // Lấy số tiền người dùng nhập trên màn hình (Ví dụ: 100 USD)
+            let rawAmount = parseFloat(document.getElementById('amount').value);
             const selectedCategory = document.getElementById('category').value;
 
+            // 1. Tính toán tỷ giá để đổi ra tiền VND
+            let rate = 1;
             if (typeof exchangeRatesToVND !== 'undefined') {
-                const rate = exchangeRatesToVND[currentCurrency] || 1;
-                amount = amount * rate; 
+                rate = exchangeRatesToVND[currentCurrency] || 1;
             }
+            let amountInVND = rawAmount * rate; // Đây là số tiền thực tế hệ thống dùng để so sánh
 
+            // ==========================================
+            // 🚦 KIỂM TRA BẤT THƯỜNG (SIÊU CHUẨN XÁC)
+            // ==========================================
             if (!isGain && selectedCategory) {
+                // Lọc các giao dịch cũ CÙNG DANH MỤC
                 const categoryExpenses = allExpenses.filter(exp => exp.amount < 0 && exp.category === selectedCategory);
-                let categoryAverage = 0;
+                let categoryAverageVND = 0;
                 
                 if (categoryExpenses.length > 0) {
                     const totalCategory = categoryExpenses.reduce((sum, exp) => sum + Math.abs(exp.amount), 0);
-                    categoryAverage = totalCategory / categoryExpenses.length;
+                    categoryAverageVND = totalCategory / categoryExpenses.length;
                 }
 
-                if (categoryAverage > 0 && amount > (categoryAverage * 3) && amount > 50) {
-                    const confirmMsg = `Số tiền bạn định lưu (${formatCurrency(amount)}) lớn hơn GẤP NHIỀU LẦN so với mức chi tiêu trung bình của danh mục "${selectedCategory}" (${formatCurrency(categoryAverage)}).\n\nBạn có chắc chắn thông tin này là chính xác và muốn lưu không?`;
+                // Cố định mốc tối thiểu là 50 USD quy ra VND (Khoảng 1.270.000đ)
+                const minAlertAmountVND = 50 * exchangeRatesToVND['usd'];
+
+                // [MÁY ĐO DEBUG] - Nhấn F12 trên web để xem các con số này
+                console.log(`--- KIỂM TRA TỰ ĐỘNG ---`);
+                console.log(`Danh mục: ${selectedCategory}`);
+                console.log(`Số tiền nhập (VND): ${amountInVND}`);
+                console.log(`Trung bình danh mục (VND): ${categoryAverageVND}`);
+                
+                // Thuật toán: Có dữ liệu cũ + Gấp 3 lần trung bình + Lớn hơn mức tối thiểu (50$)
+                if (categoryAverageVND > 0 && amountInVND > (categoryAverageVND * 3) && amountInVND > minAlertAmountVND) {
+                    const confirmMsg = `Số tiền bạn định lưu (${formatCurrency(amountInVND)}) lớn hơn GẤP NHIỀU LẦN so với mức chi tiêu trung bình của danh mục "${selectedCategory}" (${formatCurrency(categoryAverageVND)}).\n\nBạn có chắc chắn thông tin này là chính xác và muốn lưu không?`;
                     
                     const userConfirmed = await showCustomConfirm(confirmMsg);
-                    
                     if (!userConfirmed) {
-                        return; 
+                        return; // Hủy lưu nếu bấm nút Hủy
                     }
                 }
             }
+            // ==========================================
+
+            // Chuyển thành số âm nếu là chi tiêu để lưu vào Database
+            let finalAmountToSave = amountInVND;
             if (!isGain) {
-                amount *= -1;
+                finalAmountToSave *= -1;
             }
+            
             const formData = {
                 name: document.getElementById('name').value,
-                category: document.getElementById('category').value,
-                amount: amount,
+                category: selectedCategory,
+                amount: finalAmountToSave,
                 date: getISODateWithLocalTime(document.getElementById('date').value),
                 tags: Array.from(selectedTags)
             };
+            
             try {
                 const response = await fetch('/api/expenses/', {
                     method: 'POST',
@@ -691,7 +714,6 @@
 
                 if (response.ok) {
                     if(window.showToast) showToast("Đã thêm giao dịch thành công!", "success");
-
                     document.getElementById('expenseForm').reset();
                     document.getElementById('selected-tags').innerHTML = '';
                     selectedTags.clear();
@@ -719,6 +741,9 @@
             }
         });
 
+        // --- HÀM XỬ LÝ NHẬP LIỆU BẰNG AI ---
+        // --- HÀM XỬ LÝ NHẬP LIỆU BẰNG AI (ĐÃ FIX LỖI KẸT NÚT) ---
+        // --- HÀM XỬ LÝ NHẬP LIỆU BẰNG AI (ĐÃ FIX LỖI TỶ GIÁ 0 ĐÔ) ---
         async function sendToAI() {
             const inputField = document.getElementById('aiInput');
             const btn = document.getElementById('aiBtn');
@@ -741,14 +766,74 @@
 
                 if (res.ok) {
                     const data = await res.json();
-                    if(window.showToast) showToast(`Đã lưu: ${data.transaction.name} (${Math.abs(data.transaction.amount).toLocaleString('vi-VN')} đ)`, "success");
-                    inputField.value = '';
-                    await initialize();
+                    const parsedTxn = data.transaction;
+
+                    // 1. LẤY TỶ GIÁ (Để đổi số tiền AI đọc được sang VND)
+                    let rate = 1;
+                    if (typeof exchangeRatesToVND !== 'undefined') {
+                        rate = exchangeRatesToVND[currentCurrency] || 1;
+                    }
+                    
+                    let amountAbs = Math.abs(parsedTxn.amount);
+                    let amountInVND = amountAbs * rate; // <-- ĐÂY MỚI LÀ SỐ TIỀN THỰC TẾ ĐỂ LƯU
+
+                    // 2. KIỂM TRA BẤT THƯỜNG
+                    if (parsedTxn.amount < 0) { 
+                        const categoryExpenses = allExpenses.filter(exp => exp.amount < 0 && exp.category === parsedTxn.category);
+                        let categoryAverageVND = 0;
+                        
+                        if (categoryExpenses.length > 0) {
+                            const totalCategory = categoryExpenses.reduce((sum, exp) => sum + Math.abs(exp.amount), 0);
+                            categoryAverageVND = totalCategory / categoryExpenses.length;
+                        }
+
+                        const minAlertAmountVND = 50 * exchangeRatesToVND['usd'];
+
+                        if (categoryAverageVND > 0 && amountInVND > (categoryAverageVND * 3) && amountInVND > minAlertAmountVND) {
+                            const confirmMsg = `Trợ lý AI phát hiện bạn vừa nhập một khoản chi RẤT LỚN!\n\nSố tiền (${formatCurrency(amountInVND)}) lớn hơn GẤP NHIỀU LẦN mức trung bình của danh mục "${parsedTxn.category}" (${formatCurrency(categoryAverageVND)}).\n\nBạn có chắc chắn muốn lưu giao dịch này không?`;
+                            
+                            const userConfirmed = await showCustomConfirm(confirmMsg);
+                            if (!userConfirmed) {
+                                btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Gửi';
+                                btn.disabled = false;
+                                return; 
+                            }
+                        }
+                    }
+
+                    // 3. CHỐT SỐ TIỀN VÀ LƯU VÀO DATABASE
+                    let finalAmountToSave = amountInVND;
+                    if (parsedTxn.amount < 0) {
+                        finalAmountToSave *= -1; // Trả lại dấu âm nếu là khoản chi
+                    }
+
+                    const saveRes = await fetch('/api/expenses/', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            name: parsedTxn.name,
+                            category: parsedTxn.category,
+                            amount: finalAmountToSave, // ĐÃ SỬA: Lưu con số đã nhân tỷ giá (VND)
+                            date: getISODateWithLocalTime(parsedTxn.date),
+                            tags: ["AI Assistant"]
+                        })
+                    });
+
+                    if (saveRes.ok) {
+                        // Lúc thông báo thành công thì hiện số đã format cho đẹp
+                        if(window.showToast) showToast(`Đã lưu: ${parsedTxn.name} (${formatCurrency(amountInVND)})`, "success");
+                        inputField.value = '';
+                        await initialize(); 
+                    } else {
+                        const err = await saveRes.json();
+                        if(window.showToast) showToast(`Lỗi khi lưu: ${err.error || 'Lỗi không xác định'}`, "error");
+                    }
                 } else {
                     const err = await res.json();
                     if(window.showToast) showToast(err.detail || 'Có lỗi xảy ra khi AI phân tích.', "error");
                 }
             } catch (error) {
+                console.error("Lỗi AI:", error); 
                 if(window.showToast) showToast("Lỗi kết nối đến máy chủ AI.", "error");
             } finally {
                 btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Gửi';

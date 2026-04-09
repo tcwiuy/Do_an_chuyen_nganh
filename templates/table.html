@@ -95,6 +95,18 @@
             </div>
         </div>
     </div>
+    <div id="customConfirmModal" style="display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); align-items: center; justify-content: center;">
+        <div style="background: linear-gradient(145deg, #2a1e2d, #402a30); border: 2px solid #ff4d4d; border-radius: 12px; width: 90%; max-width: 450px; padding: 25px; box-shadow: 0 0 25px rgba(255, 77, 77, 0.4); text-align: center;">
+            <h3 style="color: #ff4d4d; margin-top: 0; margin-bottom: 15px;">
+                <i class="fa-solid fa-triangle-exclamation fa-beat"></i> Cảnh Báo
+            </h3>
+            <p id="confirmMessage" style="color: #e0e0e0; line-height: 1.6; margin-bottom: 25px; white-space: pre-line; font-size: 15px;"></p>
+            <div style="display: flex; gap: 15px; justify-content: center;">
+                <button id="btnConfirmCancel" style="padding: 10px 20px; background-color: #4a4a60; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">Hủy bỏ</button>
+                <button id="btnConfirmProceed" style="padding: 10px 20px; background-color: #ff4d4d; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">Vẫn Lưu</button>
+            </div>
+        </div>
+    </div>
 
     <script src="/static/functions.js"></script>
     <script>
@@ -351,17 +363,85 @@
 
         document.getElementById('deleteModal').addEventListener('click', (e) => { if (e.target.className === 'modal active') closeDeleteModal(); });
 
+        // Hàm hiển thị Popup
+        function showCustomConfirm(message) {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('customConfirmModal');
+                const msgEl = document.getElementById('confirmMessage');
+                const btnCancel = document.getElementById('btnConfirmCancel');
+                const btnProceed = document.getElementById('btnConfirmProceed');
+
+                msgEl.textContent = message;
+                modal.style.display = 'flex';
+
+                const cleanup = () => {
+                    modal.style.display = 'none';
+                    btnCancel.removeEventListener('click', onCancel);
+                    btnProceed.removeEventListener('click', onProceed);
+                };
+
+                const onCancel = () => { cleanup(); resolve(false); }; 
+                const onProceed = () => { cleanup(); resolve(true); };  
+
+                btnCancel.addEventListener('click', onCancel);
+                btnProceed.addEventListener('click', onProceed);
+            });
+        }
+
+        // Bắt sự kiện lưu Form (Thêm mới & Cập nhật)
         document.getElementById('expenseForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const form = e.target;
-            const editId = form.dataset.editId;
-            let amount = parseFloat(document.getElementById('amount').value);
-            if (typeof exchangeRatesToVND !== 'undefined') { amount = amount * (exchangeRatesToVND[currentCurrency] || 1); }
-            if (!document.getElementById('reportGain').checked) amount *= -1;
+            const editId = form.dataset.editId; // Dùng để nhận biết xem là Thêm mới hay Chỉnh sửa
+            const isGain = document.getElementById('reportGain').checked;
+            
+            let rawAmount = parseFloat(document.getElementById('amount').value);
+            const selectedCategory = document.getElementById('category').value;
+
+            // 1. Tính tỷ giá ra VND
+            let rate = 1;
+            if (typeof exchangeRatesToVND !== 'undefined') {
+                rate = exchangeRatesToVND[currentCurrency] || 1;
+            }
+            let amountInVND = rawAmount * rate;
+
+            // ==========================================
+            // 🚦 KIỂM TRA BẤT THƯỜNG (Có fix Kịch Bản 3)
+            // ==========================================
+            if (!isGain && selectedCategory) {
+                const categoryExpenses = allExpenses.filter(exp => exp.amount < 0 && exp.category === selectedCategory);
+                let categoryAverageVND = 0;
+                
+                if (categoryExpenses.length > 0) {
+                    const totalCategory = categoryExpenses.reduce((sum, exp) => sum + Math.abs(exp.amount), 0);
+                    categoryAverageVND = totalCategory / categoryExpenses.length;
+                }
+
+                // Cố định mốc tối thiểu là 50 USD quy ra VND (~1.27 triệu)
+                const minAlertAmountVND = 50 * exchangeRatesToVND['usd']; 
+
+                if (categoryAverageVND > 0 && amountInVND > (categoryAverageVND * 3) && amountInVND > minAlertAmountVND) {
+                    const confirmMsg = `Số tiền bạn định lưu (${formatCurrency(amountInVND)}) lớn hơn GẤP NHIỀU LẦN so với mức chi tiêu trung bình của danh mục "${selectedCategory}" (${formatCurrency(categoryAverageVND)}).\n\nBạn có chắc chắn thông tin này là chính xác và muốn lưu không?`;
+                    
+                    const userConfirmed = await showCustomConfirm(confirmMsg);
+                    if (!userConfirmed) {
+                        return; // Ngừng chạy nếu Hủy bỏ
+                    }
+                }
+            }
+            // ==========================================
+
+            let finalAmountToSave = amountInVND;
+            if (!isGain) {
+                finalAmountToSave *= -1;
+            }
 
             const formData = {
-                name: document.getElementById('name').value, category: document.getElementById('category').value,
-                amount: amount, date: getISODateWithLocalTime(document.getElementById('date').value), tags: Array.from(selectedTags)
+                name: document.getElementById('name').value, 
+                category: selectedCategory,
+                amount: finalAmountToSave, 
+                date: getISODateWithLocalTime(document.getElementById('date').value), 
+                tags: Array.from(selectedTags)
             };
 
             try {
@@ -370,12 +450,17 @@
                 submitBtn.disabled = true;
 
                 const response = await fetch(editId ? `/api/expenses/${editId}` : '/api/expenses/', {
-                    method: editId ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData)
+                    method: editId ? 'PUT' : 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify(formData)
                 });
                 
                 if (response.ok) {
                     if(window.showToast) showToast(editId ? 'Đã cập nhật giao dịch!' : 'Đã thêm giao dịch mới!', "success");
-                    form.reset(); document.getElementById('selected-tags').innerHTML = ''; selectedTags.clear(); delete form.dataset.editId;
+                    form.reset(); 
+                    document.getElementById('selected-tags').innerHTML = ''; 
+                    selectedTags.clear(); 
+                    delete form.dataset.editId;
                     await initialize();
                     const td = new Date();
                     document.getElementById('date').value = `${td.getFullYear()}-${String(td.getMonth() + 1).padStart(2, '0')}-${String(td.getDate()).padStart(2, '0')}`;
@@ -387,7 +472,8 @@
                 if(window.showToast) showToast("Lỗi kết nối máy chủ!", "error");
             } finally {
                 const submitBtn = form.querySelector('button[type="submit"]');
-                submitBtn.innerHTML = 'Add Expense'; submitBtn.disabled = false;
+                submitBtn.innerHTML = 'Add Expense'; 
+                submitBtn.disabled = false;
             }
         });
         

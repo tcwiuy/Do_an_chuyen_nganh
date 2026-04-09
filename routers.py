@@ -241,29 +241,24 @@ def parse_expense_from_text(req: AIRequest, db: Session = Depends(get_db), curre
         clean_text = ai_text.strip().replace("```json", "").replace("```", "")
         data = json.loads(clean_text)
         
+        # Ép kiểu chuỗi chữ thành kiểu Ngày tháng (Date Object)
         parsed_date = datetime.strptime(data["date"], "%Y-%m-%d").date()
         
-        new_id = str(uuid.uuid4())
-        db_transaction = models.Transaction(
-            id=new_id,
-            name=data["name"],
-            amount=data["amount"],
-            category=data["category"],
-            date=parsed_date,
-            tags=["AI Assistant"],
-            user_id=current_user.id
-        )
-        db.add(db_transaction)
-        db.commit()
-        db.refresh(db_transaction)
+        # ========================================================
+        # SỬA Ở ĐÂY: KHÔNG LƯU VÀO DB NỮA, CHỈ TRẢ VỀ DỮ LIỆU JSON
+        # ========================================================
+        return {
+            "message": "AI đã phân tích thành công!", 
+            "transaction": {
+                "name": data["name"],
+                "amount": data["amount"],
+                "category": data["category"],
+                "date": parsed_date.isoformat() # Trả về dạng YYYY-MM-DD
+            }
+        }
         
-        return {"message": "AI đã phân tích và lưu thành công!", "transaction": db_transaction}
-        
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=400, detail="AI trả về dữ liệu không hợp lệ. Vui lòng thử lại.")
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"{str(e)}")
-
+        raise HTTPException(status_code=400, detail=f"Lỗi AI: {str(e)}")
 # ---------------------------------------------------------
 # 2. API CHATBOT TRUY VẤN DỮ LIỆU CÓ TRÍ NHỚ (RAG + MEMORY)
 # ---------------------------------------------------------
