@@ -1,6 +1,7 @@
 from pydantic import BaseModel, field_validator, Field
 from datetime import datetime, date # Đã sửa lại import cho chuẩn
 from typing import List, Optional
+from pydantic import BaseModel, ConfigDict
 
 # --- SCHEMAS CHO GIAO DỊCH THÔNG THƯỜNG ---
 class TransactionBase(BaseModel):
@@ -39,12 +40,12 @@ class TransactionBase(BaseModel):
 class TransactionCreate(TransactionBase):
     pass
 
+# Ở các class TransactionResponse, RecurringTransactionResponse, UserResponse
 class TransactionResponse(TransactionBase):
     id: str
-    user_id: int
-
-    class Config:
-        from_attributes = True
+    
+    # Xóa "class Config:" đi và thay bằng 1 dòng này:
+    model_config = ConfigDict(from_attributes=True)
 
 # --- SCHEMAS CHO GIAO DỊCH ĐỊNH KỲ ---
 class RecurringTransactionBase(BaseModel):
