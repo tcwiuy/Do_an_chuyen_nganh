@@ -142,7 +142,6 @@ window.sendChatMessage = async function() {
             const detail = errorData.detail || 'Lỗi kết nối AI.';
             messagesContainer.innerHTML += `<div style="align-self: flex-start; max-width: 80%; background-color: #3f1d1d; border: 1px solid #ff4d4d; padding: 12px; border-radius: 0 15px 15px 15px; color: #ff4d4d; font-size: 14px;">❌ ${detail}</div>`;
         }
-        }
     } catch (error) {
         document.getElementById(loadingId).remove();
         messagesContainer.innerHTML += `<div style="align-self: flex-start; background-color: #3f1d1d; padding: 12px; border-radius: 0 15px 15px 15px; color: #ff4d4d; font-size: 14px;">❌ Lỗi mạng hoặc máy chủ phản hồi quá chậm.</div>`;

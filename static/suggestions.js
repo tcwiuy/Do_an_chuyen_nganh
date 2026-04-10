@@ -99,5 +99,5 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.addEventListener('click', loadSuggestions);
     }
 
-    loadSuggestions();
+    //loadSuggestions();
 });

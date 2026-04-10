@@ -84,21 +84,25 @@ def call_gemini_with_backoff(url, payload, headers=None, timeout=30, retries=3):
 
 
 def _handle_gemini_http_status(response):
-    if response.status_code == 429:
-        raise HTTPException(
-            status_code=429,
-            detail="Đã vượt giới hạn gọi AI tạm thời (quota/rate limit). Vui lòng thử lại sau ít phút."
-        )
-    if response.status_code == 503:
-        raise HTTPException(
-            status_code=503,
-            detail="Máy chủ Gemini đang quá tải. Vui lòng thử lại sau 1 phút!"
-        )
     if response.status_code >= 400:
-        raise HTTPException(
-            status_code=502,
-            detail="Không thể kết nối Gemini lúc này. Vui lòng thử lại sau."
-        )
+        # 1. Bắt Google khai ra toàn bộ thông tin
+        error_msg = response.text
+        
+        # 2. In ra Terminal của VS Code để bạn đọc được
+        print("\n" + "="*40)
+        print("🚨 GOOGLE API ERROR 🚨")
+        print(f"URL ĐANG GỌI: {response.url}")
+        print(f"MÃ LỖI HTTP: {response.status_code}")
+        print(f"CHI TIẾT: {error_msg}")
+        print("="*40 + "\n")
+        
+        # 3. Trả lỗi về cho Frontend
+        if response.status_code == 429:
+            raise HTTPException(status_code=429, detail="Đã vượt giới hạn gọi AI. Vui lòng thử lại sau.")
+        elif response.status_code == 503:
+            raise HTTPException(status_code=503, detail=f"Lỗi 503: {error_msg}")
+        else:
+            raise HTTPException(status_code=502, detail=f"Lỗi từ Google ({response.status_code}): {error_msg}")
 
 # ---------------------------------------------------------
 # ROUTER CHO GIAO DỊCH THÔNG THƯỜNG (EXPENSES)

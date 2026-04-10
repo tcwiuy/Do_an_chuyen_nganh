@@ -35,26 +35,26 @@ app.include_router(routers.config_router, prefix="")
 @app.get("/login")
 def render_login(request: Request):
     # Trả về trang login.html
-    return templates.TemplateResponse("login.html", {"request": request})
+    return templates.TemplateResponse(request=request, name="login.html")
 
 @app.get("/")
 def render_dashboard(request: Request):
     # Trả về trang index.html
-    return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse(request=request, name="index.html")
 
 @app.get("/table")
 def render_table(request: Request):
-    # Trả về trang table.html
-    return templates.TemplateResponse("table.html", {"request": request})
+    return templates.TemplateResponse(request=request, name="table.html")
 
 @app.get("/settings")
 def render_settings(request: Request):
     # Trả về trang settings.html
-    return templates.TemplateResponse("settings.html", {"request": request})
+    return templates.TemplateResponse(request=request, name="settings.html")
+
 @app.get("/suggestions")
 def render_suggestions(request: Request):
     # Trả về trang suggestions.html
-    return templates.TemplateResponse("suggestions.html", {"request": request})
+    return templates.TemplateResponse(request=request, name="suggestions.html")
 
 # MOCK API CONFIG (Thêm vào main.py)
 @app.get("/api/config")
