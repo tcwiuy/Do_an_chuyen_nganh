@@ -446,47 +446,44 @@ def chat_with_data(req: ChatRequest, db: Session = Depends(get_db), current_user
         
         result_data = response.json()
         ai_text = result_data["candidates"][0]["content"]["parts"][0]["text"]
-        
-<<<<<<< HEAD
-        # BƯỚC 6: Xử lý chuỗi JSON và Lưu Database
-        clean_text = ai_text.strip().replace("```json", "").replace("```", "")
-        result_json = json.loads(clean_text)
-        
-        # LƯU VÀO DATABASE NẾU AI RA LỆNH "save"
-        if result_json.get("action") == "save" and result_json.get("data"):
-            data = result_json["data"]
-            parsed_date = datetime.strptime(data["date"], "%Y-%m-%d").date()
-            
-            new_transaction = models.Transaction(
-                id=str(uuid.uuid4()),
-                name=data["name"],
-                amount=data["amount"],
-                category=data["category"],
-                date=parsed_date,
-                tags=["AI Chatbot"],
-                user_id=current_user.id
-            )
-            db.add(new_transaction)
-            db.commit()
-            
-        return {"reply": result_json["reply"]}
-        
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=400, detail="Lỗi định dạng: Cú Mèo đang bị bối rối, bạn vui lòng nhập lại nhé!")
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Lỗi Chatbot AI: {str(e)}")
-=======
-        return {"reply": ai_reply}
 
-    except HTTPException:
-        raise
-    except requests.exceptions.Timeout:
-        raise HTTPException(status_code=504, detail="Gemini API timeout. Vui lòng thử lại!")
-    except requests.exceptions.RequestException:
-        raise HTTPException(status_code=502, detail="Không thể kết nối Gemini lúc này. Vui lòng thử lại sau.")
-    except Exception:
-        raise HTTPException(status_code=500, detail="Lỗi Chatbot AI.")
->>>>>>> 20637eb (chore: remove temporary test scripts and clean imports in routers.py)
+        # BƯỚC 6: Xử lý chuỗi JSON (AI trả về cấu trúc action/chat/save) và Lưu Database nếu cần
+        try:
+            clean_text = ai_text.strip().replace("```json", "").replace("```", "")
+            result_json = json.loads(clean_text)
+
+            # LƯU VÀO DATABASE NẾU AI RA LỆNH "save"
+            if result_json.get("action") == "save" and result_json.get("data"):
+                data = result_json["data"]
+                try:
+                    parsed_date = datetime.strptime(data.get("date", today_str), "%Y-%m-%d").date()
+                except Exception:
+                    parsed_date = datetime.now()
+
+                new_transaction = models.Transaction(
+                    id=str(uuid.uuid4()),
+                    name=str(data.get("name", "Giao dịch"))[:255],
+                    amount=float(data.get("amount", 0)),
+                    category=str(data.get("category", "Other")),
+                    date=parsed_date,
+                    tags=["AI Chatbot"],
+                    user_id=current_user.id
+                )
+                db.add(new_transaction)
+                db.commit()
+
+            return {"reply": result_json.get("reply", ai_text)}
+
+        except json.JSONDecodeError:
+            raise HTTPException(status_code=400, detail="AI trả về dữ liệu không hợp lệ. Vui lòng thử lại.")
+        except HTTPException:
+            raise
+        except requests.exceptions.Timeout:
+            raise HTTPException(status_code=504, detail="Gemini API timeout. Vui lòng thử lại!")
+        except requests.exceptions.RequestException:
+            raise HTTPException(status_code=502, detail="Không thể kết nối Gemini lúc này. Vui lòng thử lại sau.")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Lỗi Chatbot AI: {str(e)}")
 
 # ---------------------------------------------------------
 # 3. API PHÂN TÍCH XU HƯỚNG VÀ PHÁT HIỆN BẤT THƯỜNG

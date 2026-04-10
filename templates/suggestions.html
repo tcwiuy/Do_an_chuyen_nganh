@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="/static/style.css">
+    <script>
+        (function() {
+            const theme = localStorage.getItem('theme') || 'system';
+            if (theme === 'light') {
+                document.documentElement.setAttribute('data-theme', 'light');
+            } else if (theme === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            }
+        })();
+    </script>
+    <title>ExpenseOwl AI Suggestions</title>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="nav-bar">
+                <a href="/" class="view-button" data-tooltip="Dashboard">
+                    <i class="fa-solid fa-chart-pie"></i>
+                </a>
+                <a href="/table" class="view-button" data-tooltip="Table View">
+                    <i class="fa-solid fa-table"></i>
+                </a>
+                <a href="/suggestions" class="view-button active" data-tooltip="AI Suggestions">
+                    <i class="fa-solid fa-lightbulb"></i>
+                </a>
+                <a href="/settings" class="view-button" data-tooltip="Settings">
+                    <i class="fa-solid fa-gear"></i>
+                </a>
+                <a href="javascript:void(0)" class="view-button" onclick="logout()" data-tooltip="Logout" style="margin-left: auto; color: #ff4d4d;">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                </a>
+            </div>
+        </header>
+
+        <div class="form-container" style="margin-bottom: 20px;">
+            <h2 style="text-align: center; color: #d4a5ff; margin-top: 0;">
+                <i class="fa-solid fa-lightbulb"></i> Gợi ý chi tiêu thông minh
+            </h2>
+            <p style="text-align: center; color: #a0a0b0; margin-bottom: 16px;">
+                AI sẽ phân tích lịch sử giao dịch cá nhân để gợi ý cách tiết kiệm thực tế.
+            </p>
+
+            <div style="display: flex; gap: 10px; align-items: center; justify-content: center; flex-wrap: wrap;">
+                <label for="monthWindow" style="color: var(--text-secondary);">Phân tích trong:</label>
+                <select id="monthWindow" style="padding: 8px 12px; border-radius: 8px; border: 1px solid #8a2be2; background: #151521; color: #e0e0e0;">
+                    <option value="1">1 tháng gần nhất</option>
+                    <option value="3" selected>3 tháng gần nhất</option>
+                    <option value="6">6 tháng gần nhất</option>
+                    <option value="12">12 tháng gần nhất</option>
+                </select>
+                <button id="btnGenerateSuggestions" class="nav-button" style="background-color: #8a2be2; border: 1px solid #d4a5ff;">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i> Tạo gợi ý
+                </button>
+            </div>
+        </div>
+
+        <div id="suggestionsLoading" class="form-container" style="display: none; text-align: center; color: #a0a0b0;">
+            <i class="fa-solid fa-spinner fa-spin" style="font-size: 22px;"></i>
+            <p>AI đang phân tích dòng tiền của bạn...</p>
+        </div>
+
+        <div id="suggestionsSummary" class="form-container" style="display: none;"></div>
+
+        <div id="suggestionsList" style="display: grid; gap: 12px;"></div>
+    </div>
+
+    <script src="/static/functions.js"></script>
+    <script src="/static/suggestions.js"></script>
+</body>
+</html>

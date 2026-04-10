@@ -333,9 +333,8 @@ async function analyzeTrends() {
             signal: aiAbortController.signal
         });
 
-        if (!response.ok) throw new Error('Lỗi khi gọi API');
-
         const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || 'Lỗi khi gọi API');
         
         let formattedReply = data.reply
             .replace(/### (.*?)\n/g, '<h3 style="color:#d4a5ff; margin-top: 15px; margin-bottom:5px;">$1</h3>')
@@ -348,7 +347,7 @@ async function analyzeTrends() {
         if (error.name === 'AbortError') {
             console.log('Tiến trình AI đã bị ngắt vì người dùng đóng cửa sổ.');
         } else {
-            contentBox.innerHTML = '<span style="color:#ff4d4d;">Lỗi: Không thể kết nối với Cú Mèo lúc này. Hãy thử lại sau!</span>';
+            contentBox.innerHTML = `<span style="color:#ff4d4d;">Lỗi: ${error.message || 'Không thể kết nối với Cú Mèo lúc này. Hãy thử lại sau!'}</span>`;
         }
     } finally {
         loadingText.style.display = 'none';

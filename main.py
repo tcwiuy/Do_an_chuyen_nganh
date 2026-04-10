@@ -51,5 +51,17 @@ def render_table(request: Request):
 def render_settings(request: Request):
     # Trả về trang settings.html
     return templates.TemplateResponse("settings.html", {"request": request})
+@app.get("/suggestions")
+def render_suggestions(request: Request):
+    # Trả về trang suggestions.html
+    return templates.TemplateResponse("suggestions.html", {"request": request})
 
+# MOCK API CONFIG (Thêm vào main.py)
+@app.get("/api/config")
+def get_config():
+    return {
+        "categories": ["Food", "Transport", "Shopping", "Bills", "Entertainment"],
+        "currency": "usd",
+        "startDate": 1
+    }
 
