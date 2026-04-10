@@ -1,11 +1,11 @@
-from click import prompt
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from typing import List
 import uuid
 from fastapi.security import OAuth2PasswordRequestForm
 import requests
 import os
+import time
 from datetime import datetime
 import json
 import base64
@@ -18,10 +18,87 @@ from database import get_db
 
 from google import genai
 from google.genai import types
-import json
-import uuid
-import requests
-from datetime import datetime
+ 
+# Simple in-memory TTL cache for AI responses to reduce repeated GPT calls
+import random
+import threading
+
+_ai_cache = {}
+_ai_cache_lock = threading.Lock()
+
+
+def _cache_get(key):
+    with _ai_cache_lock:
+        item = _ai_cache.get(key)
+        if not item:
+            return None
+        expires_at, value = item
+        if time.time() > expires_at:
+            del _ai_cache[key]
+            return None
+        return value
+
+
+def _cache_set(key, value, ttl_seconds=1800):
+    with _ai_cache_lock:
+        _ai_cache[key] = (time.time() + ttl_seconds, value)
+
+
+def call_gemini_with_backoff(url, payload, headers=None, timeout=30, retries=3):
+    last_error = None
+    headers = headers or {"Content-Type": "application/json"}
+    for attempt in range(retries):
+        try:
+            response = requests.post(url, json=payload, headers=headers, timeout=timeout)
+
+            # Handle transient rate-limit / overload with backoff
+            if response.status_code == 429 or response.status_code == 503:
+                # honor Retry-After if provided
+                ra = response.headers.get("Retry-After")
+                try:
+                    sleep_for = float(ra) if ra is not None else (2 ** attempt) + random.random()
+                except Exception:
+                    sleep_for = (2 ** attempt) + random.random()
+                if response.status_code == 429:
+                    last_error = "Đã vượt giới hạn gọi AI tạm thời (quota/rate limit). Vui lòng thử lại sau ít phút."
+                else:
+                    last_error = "Máy chủ Gemini đang quá tải. Vui lòng thử lại sau 1 phút!"
+                time.sleep(min(sleep_for, 30))
+                continue
+
+            if response.status_code >= 400:
+                # Non-transient error: raise with existing handler
+                _handle_gemini_http_status(response)
+
+            return response
+
+        except requests.exceptions.Timeout:
+            last_error = "Gemini API timeout. Vui lòng thử lại."
+            time.sleep((2 ** attempt) + random.random())
+        except requests.exceptions.RequestException:
+            last_error = "Không thể kết nối Gemini lúc này. Vui lòng thử lại sau."
+            time.sleep((2 ** attempt) + random.random())
+
+    # after retries
+    raise HTTPException(status_code=502, detail=last_error or "Không thể liên hệ Gemini lúc này.")
+
+
+def _handle_gemini_http_status(response):
+    if response.status_code == 429:
+        raise HTTPException(
+            status_code=429,
+            detail="Đã vượt giới hạn gọi AI tạm thời (quota/rate limit). Vui lòng thử lại sau ít phút."
+        )
+    if response.status_code == 503:
+        raise HTTPException(
+            status_code=503,
+            detail="Máy chủ Gemini đang quá tải. Vui lòng thử lại sau 1 phút!"
+        )
+    if response.status_code >= 400:
+        raise HTTPException(
+            status_code=502,
+            detail="Không thể kết nối Gemini lúc này. Vui lòng thử lại sau."
+        )
 
 # ---------------------------------------------------------
 # ROUTER CHO GIAO DỊCH THÔNG THƯỜNG (EXPENSES)
@@ -202,6 +279,10 @@ class ChatRequest(BaseModel):
     history: list = []
 
 
+class SpendingSuggestionRequest(BaseModel):
+    month_window: int = 3
+
+
 # 1. API NHẬP LIỆU BẰNG NGÔN NGỮ TỰ NHIÊN 
 @ai_router.post("/parse-expense")
 def parse_expense_from_text(req: AIRequest, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
@@ -239,12 +320,7 @@ def parse_expense_from_text(req: AIRequest, db: Session = Depends(get_db), curre
     
     try:
         response = requests.post(url, json=payload, headers={"Content-Type": "application/json"})
-        
-        # Bắt lỗi 503 từ Google để báo tiếng Việt cho người dùng
-        if response.status_code == 503:
-            raise Exception("Máy chủ Google Gemini đang quá tải. Vui lòng thử lại sau 1 phút!")
-            
-        response.raise_for_status() 
+        _handle_gemini_http_status(response)
         
         result_data = response.json()
         ai_text = result_data["candidates"][0]["content"]["parts"][0]["text"]
@@ -270,10 +346,16 @@ def parse_expense_from_text(req: AIRequest, db: Session = Depends(get_db), curre
         
         return {"message": "AI đã phân tích và lưu thành công!", "transaction": db_transaction}
         
+    except HTTPException:
+        raise
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="AI trả về dữ liệu không hợp lệ. Vui lòng thử lại.")
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"{str(e)}")
+    except requests.exceptions.Timeout:
+        raise HTTPException(status_code=504, detail="Gemini API timeout. Vui lòng thử lại!")
+    except requests.exceptions.RequestException:
+        raise HTTPException(status_code=502, detail="Không thể kết nối Gemini lúc này. Vui lòng thử lại sau.")
+    except Exception:
+        raise HTTPException(status_code=500, detail="Lỗi AI khi phân tích giao dịch.")
 
 # ---------------------------------------------------------
 # 2. API CHATBOT TRUY VẤN DỮ LIỆU CÓ TRÍ NHỚ (RAG + MEMORY + AUTO SAVE)
@@ -360,11 +442,12 @@ def chat_with_data(req: ChatRequest, db: Session = Depends(get_db), current_user
     
     try:
         response = requests.post(url, json=payload, headers={"Content-Type": "application/json"})
-        response.raise_for_status() 
+        _handle_gemini_http_status(response)
         
         result_data = response.json()
         ai_text = result_data["candidates"][0]["content"]["parts"][0]["text"]
         
+<<<<<<< HEAD
         # BƯỚC 6: Xử lý chuỗi JSON và Lưu Database
         clean_text = ai_text.strip().replace("```json", "").replace("```", "")
         result_json = json.loads(clean_text)
@@ -392,6 +475,18 @@ def chat_with_data(req: ChatRequest, db: Session = Depends(get_db), current_user
         raise HTTPException(status_code=400, detail="Lỗi định dạng: Cú Mèo đang bị bối rối, bạn vui lòng nhập lại nhé!")
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Lỗi Chatbot AI: {str(e)}")
+=======
+        return {"reply": ai_reply}
+
+    except HTTPException:
+        raise
+    except requests.exceptions.Timeout:
+        raise HTTPException(status_code=504, detail="Gemini API timeout. Vui lòng thử lại!")
+    except requests.exceptions.RequestException:
+        raise HTTPException(status_code=502, detail="Không thể kết nối Gemini lúc này. Vui lòng thử lại sau.")
+    except Exception:
+        raise HTTPException(status_code=500, detail="Lỗi Chatbot AI.")
+>>>>>>> 20637eb (chore: remove temporary test scripts and clean imports in routers.py)
 
 # ---------------------------------------------------------
 # 3. API PHÂN TÍCH XU HƯỚNG VÀ PHÁT HIỆN BẤT THƯỜNG
@@ -439,12 +534,145 @@ def analyze_trends_and_anomalies(db: Session = Depends(get_db), current_user: mo
     
     try:
         response = requests.post(url, json=payload, headers={"Content-Type": "application/json"})
-        response.raise_for_status() 
+        _handle_gemini_http_status(response)
         result_data = response.json()
         ai_reply = result_data["candidates"][0]["content"]["parts"][0]["text"]
         return {"reply": ai_reply}
+    except HTTPException:
+        raise
+    except requests.exceptions.Timeout:
+        raise HTTPException(status_code=504, detail="Gemini API timeout. Vui lòng thử lại!")
+    except requests.exceptions.RequestException:
+        raise HTTPException(status_code=502, detail="Không thể kết nối Gemini lúc này. Vui lòng thử lại sau.")
+    except Exception:
+        raise HTTPException(status_code=500, detail="Lỗi AI phân tích.")
+
+
+@ai_router.post("/spending-suggestions")
+def get_spending_suggestions(
+    req: SpendingSuggestionRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="Chưa cấu hình GEMINI_API_KEY")
+
+    month_window = max(1, min(req.month_window or 3, 12))
+    transactions = db.query(models.Transaction).filter(models.Transaction.user_id == current_user.id).all()
+    if not transactions:
+        return {
+            "summary": "Bạn chưa có dữ liệu giao dịch để phân tích.",
+            "suggestions": [],
+            "month_window": month_window
+        }
+
+    user_config = db.query(models.UserConfig).filter(models.UserConfig.user_id == current_user.id).first()
+    if user_config and user_config.categories:
+        categories_str = ", ".join(user_config.categories)
+    else:
+        categories_str = "Food, Transport, Shopping, Bills, Entertainment, Thu nhập"
+
+    expense_rows = []
+    income_rows = []
+    for t in transactions:
+        row = f"{t.date.strftime('%Y-%m-%d')} | {t.name} | {t.amount} | {t.category}"
+        if t.amount < 0:
+            expense_rows.append(row)
+        else:
+            income_rows.append(row)
+
+    data_context = "LỊCH SỬ DÒNG TIỀN CỦA NGƯỜI DÙNG (đơn vị VND):\n"
+    data_context += "Ngày | Mô tả | Số tiền | Danh mục\n"
+    data_context += "-" * 50 + "\n"
+    for row in expense_rows + income_rows:
+        data_context += row + "\n"
+
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    prompt = f"""
+Bạn là chuyên gia tối ưu chi tiêu cho ứng dụng ExpenseOwl.
+Hôm nay là {today_str}.
+Yêu cầu: phân tích dữ liệu người dùng trong {month_window} tháng gần nhất (nếu dữ liệu dài hơn thì ưu tiên gần đây).
+
+Danh mục hợp lệ của người dùng: {categories_str}
+
+{data_context}
+
+Hãy trả về DUY NHẤT JSON hợp lệ theo schema sau (không markdown, không thêm text khác):
+{{
+  "summary": "Tóm tắt nhanh 1-2 câu về mô hình chi tiêu",
+  "suggestions": [
+    {{
+      "title": "Tiêu đề ngắn gọn",
+      "reason": "Vì sao đề xuất này phù hợp với dữ liệu",
+      "action": "Hành động cụ thể user có thể làm ngay tuần này",
+      "estimated_saving_vnd": 0,
+      "priority": "high | medium | low",
+      "category": "1 danh mục trong danh sách"
+    }}
+  ]
+}}
+
+Ràng buộc:
+- Trả về tối đa 5 gợi ý, ưu tiên tính thực tế.
+- estimated_saving_vnd là số nguyên >= 0.
+- Không bịa dữ liệu ngoài bảng giao dịch.
+"""
+
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+    payload = {"contents": [{"parts": [{"text": prompt}]}]}
+
+    # Build a cache key based on user, window and simple snapshot of transactions
+    try:
+        txn_count = len(transactions)
+        last_date = max([t.date for t in transactions]).strftime("%Y-%m-%d") if transactions else ""
+    except Exception:
+        txn_count = len(transactions)
+        last_date = ""
+
+    cache_key = f"spending:{current_user.id}:{month_window}:{txn_count}:{last_date}"
+    cached = _cache_get(cache_key)
+    if cached:
+        return cached
+
+    # Call Gemini with exponential backoff and caching to avoid hitting quota repeatedly
+    try:
+        response = call_gemini_with_backoff(url, payload, headers={"Content-Type": "application/json"}, timeout=30, retries=3)
+        result_data = response.json()
+        ai_text = result_data["candidates"][0]["content"]["parts"][0]["text"]
+        clean_text = ai_text.strip().replace("```json", "").replace("```", "")
+        parsed = json.loads(clean_text)
+
+        suggestions = parsed.get("suggestions", [])
+        normalized = []
+        for item in suggestions[:5]:
+            if not isinstance(item, dict):
+                continue
+            normalized.append({
+                "title": str(item.get("title", "Gợi ý"))[:120],
+                "reason": str(item.get("reason", ""))[:500],
+                "action": str(item.get("action", ""))[:500],
+                "estimated_saving_vnd": max(0, int(item.get("estimated_saving_vnd", 0) or 0)),
+                "priority": str(item.get("priority", "medium")).lower(),
+                "category": str(item.get("category", "Khác"))[:80],
+            })
+
+        result = {
+            "summary": str(parsed.get("summary", ""))[:600],
+            "suggestions": normalized,
+            "month_window": month_window
+        }
+
+        # Cache the result for 30 minutes to reduce repeated API calls
+        _cache_set(cache_key, result, ttl_seconds=30 * 60)
+        return result
+
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=502, detail="AI trả về dữ liệu không hợp lệ. Vui lòng thử lại.")
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Lỗi AI phân tích: {str(e)}")
+        raise HTTPException(status_code=502, detail=str(e) or "Không thể tạo gợi ý chi tiêu lúc này.")
     
 
 # ---------------------------------------------------------
@@ -636,13 +864,7 @@ Quy tắc quan trọng:
             timeout=30
         )
 
-        if response.status_code == 503:
-            raise HTTPException(
-                status_code=503,
-                detail="Máy chủ Gemini đang quá tải. Vui lòng thử lại sau 1 phút!"
-            )
-
-        response.raise_for_status()
+        _handle_gemini_http_status(response)
         result_data = response.json()
 
         # Kiểm tra response có candidates không
@@ -706,10 +928,10 @@ Quy tắc quan trọng:
         )
     except requests.exceptions.Timeout:
         raise HTTPException(status_code=504, detail="Gemini API timeout. Vui lòng thử lại!")
-    except requests.exceptions.RequestException as e:
-        raise HTTPException(status_code=502, detail=f"Lỗi kết nối Gemini: {str(e)}")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Lỗi xử lý hóa đơn: {str(e)}")
+    except requests.exceptions.RequestException:
+        raise HTTPException(status_code=502, detail="Không thể kết nối Gemini lúc này. Vui lòng thử lại sau.")
+    except Exception:
+        raise HTTPException(status_code=500, detail="Lỗi xử lý hóa đơn.")
 
 
 @router.post("/api/scan-receipt/confirm")
