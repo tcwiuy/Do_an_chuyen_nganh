@@ -12,6 +12,7 @@ import base64
 from pydantic import BaseModel
 from dotenv import load_dotenv
 load_dotenv()
+import random
 
 import models, schemas, auth
 from database import get_db
@@ -20,12 +21,19 @@ from google import genai
 from google.genai import types
  
 # Simple in-memory TTL cache for AI responses to reduce repeated GPT calls
-import random
 import threading
 
 _ai_cache = {}
 _ai_cache_lock = threading.Lock()
 
+# 🌟 HÀM TỰ ĐỘNG XOAY VÒNG API KEY
+def get_random_api_key():
+    keys_str = os.getenv("GEMINI_API_KEY", "")
+    # Tách các key bằng dấu phẩy và xóa khoảng trắng
+    keys = [k.strip() for k in keys_str.split(",") if k.strip()]
+    if not keys:
+        return None
+    return random.choice(keys)
 
 def _cache_get(key):
     with _ai_cache_lock:
@@ -285,12 +293,16 @@ class ChatRequest(BaseModel):
 
 class SpendingSuggestionRequest(BaseModel):
     month_window: int = 3
+    goal_name: str | None = None
+    goal_amount: float | None = None
+    goal_months: int | None = None
 
 
 # 1. API NHẬP LIỆU BẰNG NGÔN NGỮ TỰ NHIÊN 
 @ai_router.post("/parse-expense")
 def parse_expense_from_text(req: AIRequest, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
-    api_key = os.getenv("GEMINI_API_KEY")
+    # SỬ DỤNG HÀM LẤY KEY RANDOM Ở ĐÂY
+    api_key = get_random_api_key()
     if not api_key:
         raise HTTPException(status_code=500, detail="Chưa cấu hình GEMINI_API_KEY trong file .env")
 
@@ -317,13 +329,13 @@ def parse_expense_from_text(req: AIRequest, db: Session = Depends(get_db), curre
     }}
     """
     
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+    url = f"[https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=](https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=){api_key}"
     payload = {
         "contents": [{"parts": [{"text": prompt}]}]
     }
     
     try:
-        response = requests.post(url, json=payload, headers={"Content-Type": "application/json"})
+        response = call_gemini_with_backoff(url, payload, headers={"Content-Type": "application/json"}, timeout=30, retries=3)
         _handle_gemini_http_status(response)
         
         result_data = response.json()
@@ -354,25 +366,16 @@ def parse_expense_from_text(req: AIRequest, db: Session = Depends(get_db), curre
         raise
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="AI trả về dữ liệu không hợp lệ. Vui lòng thử lại.")
-    except requests.exceptions.Timeout:
-        raise HTTPException(status_code=504, detail="Gemini API timeout. Vui lòng thử lại!")
-    except requests.exceptions.RequestException:
-        raise HTTPException(status_code=502, detail="Không thể kết nối Gemini lúc này. Vui lòng thử lại sau.")
     except Exception:
         raise HTTPException(status_code=500, detail="Lỗi AI khi phân tích giao dịch.")
 
 # ---------------------------------------------------------
 # 2. API CHATBOT TRUY VẤN DỮ LIỆU CÓ TRÍ NHỚ (RAG + MEMORY + AUTO SAVE)
 # ---------------------------------------------------------
-
-# Schema cho API Chatbot 
-class ChatRequest(BaseModel):
-    message: str
-    history: list = [] # Mảng chứa lịch sử trò chuyện: [{"user": "...", "ai": "..."}, ...]
-
 @ai_router.post("/chat")
 def chat_with_data(req: ChatRequest, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
-    api_key = os.getenv("GEMINI_API_KEY")
+    # SỬ DỤNG HÀM LẤY KEY RANDOM Ở ĐÂY
+    api_key = get_random_api_key()
     if not api_key:
         raise HTTPException(status_code=500, detail="Chưa cấu hình GEMINI_API_KEY")
 
@@ -446,17 +449,13 @@ def chat_with_data(req: ChatRequest, db: Session = Depends(get_db), current_user
     
     # Gọi API Gemini và xử lý lỗi kết nối ở khối ngoài
     try:
-        response = requests.post(url, json=payload, headers={"Content-Type": "application/json"}, timeout=30)
+        response = call_gemini_with_backoff(url, payload, headers={"Content-Type": "application/json"}, timeout=30, retries=3)
         _handle_gemini_http_status(response)
 
         result_data = response.json()
         ai_text = result_data["candidates"][0]["content"]["parts"][0]["text"]
     except HTTPException:
         raise
-    except requests.exceptions.Timeout:
-        raise HTTPException(status_code=504, detail="Gemini API timeout. Vui lòng thử lại!")
-    except requests.exceptions.RequestException:
-        raise HTTPException(status_code=502, detail="Không thể kết nối Gemini lúc này. Vui lòng thử lại sau.")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Lỗi Chatbot AI: {str(e)}")
 
@@ -499,7 +498,8 @@ def chat_with_data(req: ChatRequest, db: Session = Depends(get_db), current_user
 # ---------------------------------------------------------
 @ai_router.get("/analyze-trends")
 def analyze_trends_and_anomalies(db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
-    api_key = os.getenv("GEMINI_API_KEY")
+    # SỬ DỤNG HÀM LẤY KEY RANDOM Ở ĐÂY
+    api_key = get_random_api_key()
     if not api_key:
         raise HTTPException(status_code=500, detail="Chưa cấu hình GEMINI_API_KEY")
 
@@ -539,17 +539,13 @@ def analyze_trends_and_anomalies(db: Session = Depends(get_db), current_user: mo
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
     
     try:
-        response = requests.post(url, json=payload, headers={"Content-Type": "application/json"})
+        response = call_gemini_with_backoff(url, payload, headers={"Content-Type": "application/json"}, timeout=30, retries=3)
         _handle_gemini_http_status(response)
         result_data = response.json()
         ai_reply = result_data["candidates"][0]["content"]["parts"][0]["text"]
         return {"reply": ai_reply}
     except HTTPException:
         raise
-    except requests.exceptions.Timeout:
-        raise HTTPException(status_code=504, detail="Gemini API timeout. Vui lòng thử lại!")
-    except requests.exceptions.RequestException:
-        raise HTTPException(status_code=502, detail="Không thể kết nối Gemini lúc này. Vui lòng thử lại sau.")
     except Exception:
         raise HTTPException(status_code=500, detail="Lỗi AI phân tích.")
 
@@ -560,24 +556,24 @@ def get_spending_suggestions(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user)
 ):
-    api_key = os.getenv("GEMINI_API_KEY")
+    # SỬ DỤNG HÀM LẤY KEY RANDOM Ở ĐÂY
+    api_key = get_random_api_key()
     if not api_key:
         raise HTTPException(status_code=500, detail="Chưa cấu hình GEMINI_API_KEY")
 
     month_window = max(1, min(req.month_window or 3, 12))
     transactions = db.query(models.Transaction).filter(models.Transaction.user_id == current_user.id).all()
+    
     if not transactions:
         return {
-            "summary": "Bạn chưa có dữ liệu giao dịch để phân tích.",
-            "suggestions": [],
-            "month_window": month_window
+            "feasibility": "low",
+            "monthly_savings_needed": 0,
+            "overall_strategy": "Bạn chưa có dữ liệu giao dịch nào. Hãy ghi chép chi tiêu để Cú Mèo có thể lập kế hoạch nhé!",
+            "category_plans": []
         }
 
     user_config = db.query(models.UserConfig).filter(models.UserConfig.user_id == current_user.id).first()
-    if user_config and user_config.categories:
-        categories_str = ", ".join(user_config.categories)
-    else:
-        categories_str = "Food, Transport, Shopping, Bills, Entertainment, Thu nhập"
+    categories_str = ", ".join(user_config.categories) if user_config and user_config.categories else "Food, Transport, Shopping, Bills, Entertainment"
 
     expense_rows = []
     income_rows = []
@@ -588,88 +584,67 @@ def get_spending_suggestions(
         else:
             income_rows.append(row)
 
-    data_context = "LỊCH SỬ DÒNG TIỀN CỦA NGƯỜI DÙNG (đơn vị VND):\n"
-    data_context += "Ngày | Mô tả | Số tiền | Danh mục\n"
-    data_context += "-" * 50 + "\n"
-    for row in expense_rows + income_rows:
-        data_context += row + "\n"
+    data_context = "LỊCH SỬ DÒNG TIỀN (VND):\nNgày | Mô tả | Số tiền | Danh mục\n" + "-" * 50 + "\n"
+    data_context += "\n".join(expense_rows + income_rows)
 
-    today_str = datetime.now().strftime("%Y-%m-%d")
+    # Nếu người dùng có nhập mục tiêu
+    goal_context = ""
+    if req.goal_name and req.goal_amount and req.goal_months:
+        goal_context = f"\nMỤC TIÊU CỦA NGƯỜI DÙNG: Tiết kiệm {req.goal_amount} VND trong {req.goal_months} tháng tới cho mục đích '{req.goal_name}'."
+    else:
+        goal_context = "\nMỤC TIÊU: Người dùng chưa nhập mục tiêu cụ thể. Hãy tự đề xuất một kế hoạch cắt giảm hoang phí chung để tối ưu tài chính."
+
     prompt = f"""
-Bạn là chuyên gia tối ưu chi tiêu cho ứng dụng ExpenseOwl.
-Hôm nay là {today_str}.
-Yêu cầu: phân tích dữ liệu người dùng trong {month_window} tháng gần nhất (nếu dữ liệu dài hơn thì ưu tiên gần đây).
-
-Danh mục hợp lệ của người dùng: {categories_str}
-
+Bạn là chuyên gia tài chính của ExpenseOwl. Hôm nay là {datetime.now().strftime("%Y-%m-%d")}.
+Phân tích dữ liệu chi tiêu trong {month_window} tháng qua.
+Danh mục hợp lệ: {categories_str}
+{goal_context}
 {data_context}
 
 Hãy trả về DUY NHẤT JSON hợp lệ theo schema sau (không markdown, không thêm text khác):
 {{
-  "summary": "Tóm tắt nhanh 1-2 câu về mô hình chi tiêu",
-  "suggestions": [
+  "feasibility": "high" hoặc "medium" hoặc "low",
+  "monthly_savings_needed": <Số tiền cần cất đi mỗi tháng để đạt mục tiêu (số nguyên dương)>,
+  "overall_strategy": "Đoạn văn phân tích chiến lược tổng thể để đạt được mục tiêu.",
+  "category_plans": [
     {{
-      "title": "Tiêu đề ngắn gọn",
-      "reason": "Vì sao đề xuất này phù hợp với dữ liệu",
-      "action": "Hành động cụ thể user có thể làm ngay tuần này",
-      "estimated_saving_vnd": 0,
-      "priority": "high | medium | low",
-      "category": "1 danh mục trong danh sách"
+      "category": "Tên danh mục",
+      "current_avg_spend": <Số tiền trung bình mỗi tháng ĐANG tiêu cho mục này (số nguyên dương)>,
+      "target_spend": <Số tiền mục tiêu NÊN tiêu sau khi cắt giảm (số nguyên dương)>,
+      "reduction_amount": <Số tiền cắt giảm được từ mục này (số nguyên dương)>,
+      "how_to_achieve": "1-2 hành động cụ thể để cắt giảm"
     }}
   ]
 }}
-
-Ràng buộc:
-- Trả về tối đa 5 gợi ý, ưu tiên tính thực tế.
-- estimated_saving_vnd là số nguyên >= 0.
-- Không bịa dữ liệu ngoài bảng giao dịch.
-"""
+    """
 
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
-    payload = {"contents": [{"parts": [{"text": prompt}]}]}
+    payload = {
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {"temperature": 0.2}
+    }
 
-    # Build a cache key based on user, window and simple snapshot of transactions
-    try:
-        txn_count = len(transactions)
-        last_date = max([t.date for t in transactions]).strftime("%Y-%m-%d") if transactions else ""
-    except Exception:
-        txn_count = len(transactions)
-        last_date = ""
-
-    cache_key = f"spending:{current_user.id}:{month_window}:{txn_count}:{last_date}"
+    # Cập nhật Cache Key để phân biệt các mục tiêu khác nhau
+    cache_key = f"plan:{current_user.id}:{month_window}:{req.goal_amount}:{req.goal_months}"
     cached = _cache_get(cache_key)
     if cached:
         return cached
 
-    # Call Gemini with exponential backoff and caching to avoid hitting quota repeatedly
     try:
-        response = call_gemini_with_backoff(url, payload, headers={"Content-Type": "application/json"}, timeout=30, retries=3)
+        response = call_gemini_with_backoff(url, payload, headers={"Content-Type": "application/json"}, timeout=60, retries=3)
         result_data = response.json()
         ai_text = result_data["candidates"][0]["content"]["parts"][0]["text"]
+        
         clean_text = ai_text.strip().replace("```json", "").replace("```", "")
         parsed = json.loads(clean_text)
 
-        suggestions = parsed.get("suggestions", [])
-        normalized = []
-        for item in suggestions[:5]:
-            if not isinstance(item, dict):
-                continue
-            normalized.append({
-                "title": str(item.get("title", "Gợi ý"))[:120],
-                "reason": str(item.get("reason", ""))[:500],
-                "action": str(item.get("action", ""))[:500],
-                "estimated_saving_vnd": max(0, int(item.get("estimated_saving_vnd", 0) or 0)),
-                "priority": str(item.get("priority", "medium")).lower(),
-                "category": str(item.get("category", "Khác"))[:80],
-            })
-
         result = {
-            "summary": str(parsed.get("summary", ""))[:600],
-            "suggestions": normalized,
-            "month_window": month_window
+            "feasibility": str(parsed.get("feasibility", "medium")).lower(),
+            "monthly_savings_needed": max(0, int(parsed.get("monthly_savings_needed", 0))),
+            "overall_strategy": str(parsed.get("overall_strategy", "Chưa có chiến lược.")),
+            "category_plans": parsed.get("category_plans", [])
         }
 
-        # Cache the result for 30 minutes to reduce repeated API calls
         _cache_set(cache_key, result, ttl_seconds=30 * 60)
         return result
 
@@ -678,7 +653,7 @@ Ràng buộc:
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=502, detail=str(e) or "Không thể tạo gợi ý chi tiêu lúc này.")
+        raise HTTPException(status_code=502, detail=f"Không thể tạo kế hoạch lúc này: {str(e)}")
     
 
 # ---------------------------------------------------------
@@ -790,7 +765,8 @@ async def scan_receipt(
     Bước 1: OCR hóa đơn bằng Gemini Vision → trả về data để user review.
     KHÔNG tự lưu DB. Frontend hiển thị để user xác nhận rồi mới gọi /confirm.
     """
-    api_key = os.getenv("GEMINI_API_KEY")
+    # SỬ DỤNG HÀM LẤY KEY RANDOM Ở ĐÂY
+    api_key = get_random_api_key()
     if not api_key:
         raise HTTPException(status_code=500, detail="Chưa cấu hình GEMINI_API_KEY trong file .env")
 
@@ -844,7 +820,7 @@ Quy tắc quan trọng:
 - Nếu không đọc được số tiền, đặt amount = -1
 - Đơn vị là VND (Việt Nam Đồng), không cần dấu phẩy hay chấm phân cách"""
 
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+        url = f"[https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=](https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=){api_key}"
         payload = {
             "contents": [{
                 "parts": [
@@ -863,13 +839,7 @@ Quy tắc quan trọng:
             }
         }
 
-        response = requests.post(
-            url,
-            json=payload,
-            headers={"Content-Type": "application/json"},
-            timeout=30
-        )
-
+        response = call_gemini_with_backoff(url, payload, headers={"Content-Type": "application/json"}, timeout=30, retries=3)
         _handle_gemini_http_status(response)
         result_data = response.json()
 
@@ -932,10 +902,6 @@ Quy tắc quan trọng:
             status_code=422,
             detail="AI trả về dữ liệu không hợp lệ. Thử chụp lại ảnh rõ hơn."
         )
-    except requests.exceptions.Timeout:
-        raise HTTPException(status_code=504, detail="Gemini API timeout. Vui lòng thử lại!")
-    except requests.exceptions.RequestException:
-        raise HTTPException(status_code=502, detail="Không thể kết nối Gemini lúc này. Vui lòng thử lại sau.")
     except Exception:
         raise HTTPException(status_code=500, detail="Lỗi xử lý hóa đơn.")
 

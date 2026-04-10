@@ -15,7 +15,7 @@
             }
         })();
     </script>
-    <title>ExpenseOwl AI Suggestions</title>
+    <title>Kế Hoạch Tiết Kiệm - ExpenseOwl</title>
 </head>
 <body>
     <div class="container">
@@ -41,33 +41,40 @@
 
         <div class="form-container" style="margin-bottom: 20px;">
             <h2 style="text-align: center; color: #d4a5ff; margin-top: 0;">
-                <i class="fa-solid fa-lightbulb"></i> Gợi ý chi tiêu thông minh
+                <i class="fa-solid fa-bullseye"></i> Lập Kế Hoạch Tiết Kiệm
             </h2>
             <p style="text-align: center; color: #a0a0b0; margin-bottom: 16px;">
-                AI sẽ phân tích lịch sử giao dịch cá nhân để gợi ý cách tiết kiệm thực tế.
+                Thiết lập mục tiêu để Cú Mèo lập kế hoạch cắt giảm chi tiêu chi tiết cho bạn.
             </p>
 
+            <div style="background-color: #2a2a40; padding: 15px; border-radius: 10px; margin-bottom: 15px;">
+                <h4 style="color: #4ade80; margin-top: 0; margin-bottom: 10px;"><i class="fa-solid fa-flag-checkered"></i> Mục tiêu của bạn</h4>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <input type="text" id="goalName" placeholder="VD: Mua xe máy mới..." style="flex: 1; min-width: 200px; padding: 10px; border-radius: 8px; border: 1px solid #8a2be2; background: #151521; color: #fff; outline: none;">
+                    <input type="number" id="goalAmount" placeholder="Số tiền cần (VND)" style="flex: 1; min-width: 150px; padding: 10px; border-radius: 8px; border: 1px solid #8a2be2; background: #151521; color: #fff; outline: none;">
+                    <input type="number" id="goalMonths" placeholder="Đạt được trong mấy tháng?" style="flex: 1; min-width: 150px; padding: 10px; border-radius: 8px; border: 1px solid #8a2be2; background: #151521; color: #fff; outline: none;">
+                </div>
+            </div>
+
             <div style="display: flex; gap: 10px; align-items: center; justify-content: center; flex-wrap: wrap;">
-                <label for="monthWindow" style="color: var(--text-secondary);">Phân tích trong:</label>
-                <select id="monthWindow" style="padding: 8px 12px; border-radius: 8px; border: 1px solid #8a2be2; background: #151521; color: #e0e0e0;">
-                    <option value="1">1 tháng gần nhất</option>
-                    <option value="3" selected>3 tháng gần nhất</option>
-                    <option value="6">6 tháng gần nhất</option>
-                    <option value="12">12 tháng gần nhất</option>
+                <label for="monthWindow" style="color: var(--text-secondary);">Dựa trên dữ liệu:</label>
+                <select id="monthWindow" style="padding: 10px 12px; border-radius: 8px; border: 1px solid #8a2be2; background: #151521; color: #e0e0e0; outline: none;">
+                    <option value="1">1 tháng qua</option>
+                    <option value="3" selected>3 tháng qua</option>
+                    <option value="6">6 tháng qua</option>
                 </select>
-                <button id="btnGenerateSuggestions" class="nav-button" style="background-color: #8a2be2; border: 1px solid #d4a5ff;">
-                    <i class="fa-solid fa-wand-magic-sparkles"></i> Tạo gợi ý
+                <button id="btnGenerateSuggestions" class="nav-button" style="background-color: #8a2be2; border: 1px solid #d4a5ff; padding: 10px 20px;">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i> Lập kế hoạch
                 </button>
             </div>
         </div>
 
         <div id="suggestionsLoading" class="form-container" style="display: none; text-align: center; color: #a0a0b0;">
             <i class="fa-solid fa-spinner fa-spin" style="font-size: 22px;"></i>
-            <p>AI đang phân tích dòng tiền của bạn...</p>
+            <p>AI đang phân tích và tính toán đường đi nước bước...</p>
         </div>
 
         <div id="suggestionsSummary" class="form-container" style="display: none;"></div>
-
         <div id="suggestionsList" style="display: grid; gap: 12px;"></div>
     </div>
 
