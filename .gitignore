@@ -1,11 +1,16 @@
 # Môi trường ảo Python
 venv/
+.venv/
 env/
 .env
 Lib/
-Scripts/
+# Chỉ bỏ qua các thư mục Scripts sinh ra bởi venv (tránh vô tình ignore thư mục `scripts` của project)
+venv/Scripts/
+.venv/Scripts/
+env/Scripts/
 
 # Mật khẩu & API Keys
+# `.env` chứa khóa — đã được ignore
 .env
 
 # File cache của Python
