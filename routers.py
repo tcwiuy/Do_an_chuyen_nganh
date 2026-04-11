@@ -311,7 +311,7 @@ def parse_expense_from_text(req: AIRequest, db: Session = Depends(get_db), curre
     if user_config and user_config.categories:
         categories_str = ", ".join(user_config.categories)
     else:
-        categories_str = "Food, Transport, Shopping, Bills, Entertainment, Thu nhập"
+        categories_str = "Ăn uống, ĐI lại, Mua sắm, Hóa đơn, Giải trí, Thu nhập"
 
     today_str = datetime.now().strftime("%Y-%m-%d")
     
@@ -381,7 +381,7 @@ def chat_with_data(req: ChatRequest, db: Session = Depends(get_db), current_user
 
     # BƯỚC 1: Lấy danh mục của user (để AI biết phân loại nếu người dùng muốn lưu)
     user_config = db.query(models.UserConfig).filter(models.UserConfig.user_id == current_user.id).first()
-    categories_str = ", ".join(user_config.categories) if user_config and user_config.categories else "Food, Transport, Shopping, Bills, Entertainment"
+    categories_str = ", ".join(user_config.categories) if user_config and user_config.categories else "Ăn uống, ĐI lại, Mua sắm, Hóa đơn, Giải trí, Thu nhập"
 
     # BƯỚC 2: Rút trích dữ liệu của riêng người dùng này từ Database (RAG)
     transactions = db.query(models.Transaction).filter(models.Transaction.user_id == current_user.id).all()
@@ -573,7 +573,7 @@ def get_spending_suggestions(
         }
 
     user_config = db.query(models.UserConfig).filter(models.UserConfig.user_id == current_user.id).first()
-    categories_str = ", ".join(user_config.categories) if user_config and user_config.categories else "Food, Transport, Shopping, Bills, Entertainment"
+    categories_str = ", ".join(user_config.categories) if user_config and user_config.categories else "Ăn uống, ĐI lại, Mua sắm, Hóa đơn, Giải trí, Thu nhập"
 
     expense_rows = []
     income_rows = []
@@ -670,7 +670,7 @@ def get_config(db: Session = Depends(get_db), current_user: models.User = Depend
         return {
             "currency": "usd",
             "startDate": 1,
-            "categories": ["Food", "Transport", "Shopping", "Bills", "Entertainment"]
+            "categories": ["Ăn uống", "Đi lại", "Mua sắm", "Hóa đơn", "Giải trí"]
         }
         
     return {
@@ -778,7 +778,7 @@ async def scan_receipt(
     if user_config and user_config.categories:
         categories_str = ", ".join(user_config.categories)
     else:
-        categories_str = "Food, Transport, Shopping, Bills, Entertainment"
+        categories_str = "Ăn uống, ĐI lại, Mua sắm, Hóa đơn, Giải trí, Thu nhập"
 
     today_str = datetime.now().strftime("%Y-%m-%d")
 

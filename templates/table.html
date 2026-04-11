@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,17 +12,17 @@
             else if (theme === 'dark') { document.documentElement.setAttribute('data-theme', 'dark'); }
         })();
     </script>
-    <title>ExpenseOwl Table</title>
+    <title>Bảng Giao Dịch ExpenseOwl</title>
 </head>
 <body>
     <div class="container">
         <header>
             <div class="nav-bar">
-                <a href="/" class="view-button" data-tooltip="Dashboard"><i class="fa-solid fa-chart-pie"></i></a>
-                <a href="/table" class="view-button active" data-tooltip="Table View"><i class="fa-solid fa-table"></i></a>
-                <a href="/suggestions" class="view-button" data-tooltip="AI Suggestions"><i class="fa-solid fa-lightbulb"></i></a>
-                <a href="/settings" class="view-button" data-tooltip="Settings"><i class="fa-solid fa-gear"></i></a>
-                <a href="javascript:void(0)" class="view-button" onclick="logout()" data-tooltip="Logout" style="margin-left: auto; color: #ff4d4d;"><i class="fa-solid fa-right-from-bracket"></i></a>
+                <a href="/" class="view-button" data-tooltip="Trang Chủ"><i class="fa-solid fa-chart-pie"></i></a>
+                <a href="/table" class="view-button active" data-tooltip="Dạng Bảng"><i class="fa-solid fa-table"></i></a>
+                <a href="/suggestions" class="view-button" data-tooltip="Gợi Ý AI"><i class="fa-solid fa-lightbulb"></i></a>
+                <a href="/settings" class="view-button" data-tooltip="Cài Đặt"><i class="fa-solid fa-gear"></i></a>
+                <a href="javascript:void(0)" class="view-button" onclick="logout()" data-tooltip="Đăng Xuất" style="margin-left: auto; color: #ff4d4d;"><i class="fa-solid fa-right-from-bracket"></i></a>
             </div>
         </header>
 
@@ -34,7 +34,7 @@
         
         <div class="form-container" style="display: flex; gap: 20px; align-items: center; justify-content: center; flex-wrap: wrap; padding: 1rem; margin-bottom: 1rem;">
             <label for="showAllToggle" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; color: var(--text-secondary);">
-                <input type="checkbox" id="showAllToggle" class="styled-checkbox"> Show All Transactions
+                <input type="checkbox" id="showAllToggle" class="styled-checkbox"> Hiển thị toàn bộ giao dịch
             </label>
             <div style="display: flex; align-items: center; gap: 10px;">
                 <i class="fa-solid fa-filter" style="color: var(--text-secondary);"></i>
@@ -42,34 +42,34 @@
                     <option value="all">Tất cả danh mục</option>
                 </select>
             </div>
-            <button onclick="OCRScanner.open(function(){ initialize(); })" class="nav-button"><i class="fa-solid fa-plus"></i> Scan Receipt</button>
+            <button onclick="OCRScanner.open(function(){ initialize(); })" class="nav-button"><i class="fa-solid fa-receipt"></i> Quét Hóa Đơn</button>
             <script src="/static/ocr_scanner.js"></script>
         </div>
 
         <div class="form-container">
             <form id="expenseForm" class="expense-form">
                 <div class="form-group">
-                    <label for="name">Name</label>
+                    <label for="name">Mô tả giao dịch</label>
                     <input type="text" id="name" value="-" required>
                 </div>
                 <div class="form-group">
-                    <label for="category">Category</label>
-                    <select id="category" required><option value="">categories</option></select>
+                    <label for="category">Danh mục</label>
+                    <select id="category" required><option value="">Chọn danh mục</option></select>
                 </div>
                 <div class="form-group">
-                    <label for="tags-input">Tags</label>
+                    <label for="tags-input">Nhãn</label>
                     <div id="tags-input-container" class="tags-input-container">
                         <div id="selected-tags" class="selected-tags"></div>
-                        <input type="text" id="tags-input" placeholder="(Manual)">
+                        <input type="text" id="tags-input" placeholder="(Thêm thủ công)">
                     </div>
                     <div id="tags-dropdown" class="tags-dropdown"></div>
                 </div>
                 <div class="form-group">
-                    <label for="amount">Amount</label>
+                    <label for="amount">Số tiền</label>
                     <input type="number" id="amount" step="0.01" min="0.01" max="9000000000000000" required>
                 </div>
                 <div class="form-group">
-                    <label for="date">Date</label>
+                    <label for="date">Ngày</label>
                     <input type="date" id="date" required>
                     <script>
                         const td = new Date();
@@ -77,10 +77,10 @@
                     </script>
                 </div>
                 <div class="form-group form-group-checkbox">
-                    <label for="reportGain">Report Gain</label>
+                    <label for="reportGain">Khoản thu</label>
                     <input type="checkbox" id="reportGain" class="styled-checkbox">
                 </div>
-                <button type="submit" class="nav-button">Add Expense</button>
+                <button type="submit" class="nav-button">Lưu Giao Dịch</button>
             </form>
             <div id="formMessage" class="form-message"></div>
         </div>
@@ -90,11 +90,11 @@
 
     <div id="deleteModal" class="modal">
         <div class="modal-content">
-            <h3>Delete Expense</h3>
-            <p>Are you sure you want to delete this expense? (cannot be undone)</p>
+            <h3>Xóa Giao Dịch</h3>
+            <p>Bạn có chắc chắn muốn xóa giao dịch này không? (Hành động này không thể hoàn tác)</p>
             <div class="modal-buttons">
-                <button class="modal-button" onclick="closeDeleteModal()">Cancel</button>
-                <button class="modal-button confirm" onclick="confirmDelete()">Delete</button>
+                <button class="modal-button" onclick="closeDeleteModal()">Hủy bỏ</button>
+                <button class="modal-button confirm" onclick="confirmDelete()">Xóa</button>
             </div>
         </div>
     </div>
@@ -115,7 +115,6 @@
     <script>
         let currentCurrency = 'usd', currentDate = new Date(), allExpenses = [], expensesForTable = [], startDate = 1, allTags = new Set(), selectedTags = new Set(), categoryColors = {};
         
-        // Đổi mặc định thành "Không sắp xếp cột nào cả" (null)
         let currentFilterCategory = 'all', currentSortColumn = null, currentSortOrder = null;
 
         function assignCategoryColors(categories) {
@@ -132,14 +131,13 @@
         window.handleSort = function(column) {
             if (currentSortColumn === column) {
                 if (currentSortOrder === 'desc') {
-                    currentSortOrder = 'asc'; // Bấm lần 2: Tăng dần
+                    currentSortOrder = 'asc'; 
                 } else {
-                    currentSortColumn = null; // Bấm lần 3: Hủy sắp xếp, đưa về null
+                    currentSortColumn = null; 
                     currentSortOrder = null;
-                    // Đã bỏ thông báo showToast ở đây theo ý bạn
                 }
             } else {
-                currentSortColumn = column; // Bấm lần 1: Giảm dần
+                currentSortColumn = column; 
                 currentSortOrder = 'desc'; 
             }
             updateTable();
@@ -147,7 +145,7 @@
 
         function createTable(expenses) {
             if (!expenses || expenses.length === 0) {
-                return `<div class="no-data">${document.getElementById('showAllToggle').checked ? 'No transactions found' : 'No expenses recorded for this period'}</div>`;
+                return `<div class="no-data">${document.getElementById('showAllToggle').checked ? 'Không tìm thấy giao dịch nào' : 'Không có giao dịch nào được ghi nhận trong giai đoạn này'}</div>`;
             }
             const hasTags = expenses.some(exp => exp.tags && exp.tags.length > 0);
             
@@ -155,11 +153,11 @@
                 <table class="expense-table" style="width: 100%;">
                     <thead>
                         <tr>
-                            <th style="cursor: pointer; transition: 0.2s;" onclick="handleSort('name')" onmouseover="this.style.color='#d4a5ff'" onmouseout="this.style.color=''">Name ${getSortIcon('name')}</th>
-                            <th>Category</th>
-                            ${hasTags ? '<th class="tags-column">Tags</th>' : ''}
-                            <th style="cursor: pointer; transition: 0.2s;" onclick="handleSort('amount')" onmouseover="this.style.color='#d4a5ff'" onmouseout="this.style.color=''">Amount ${getSortIcon('amount')}</th>
-                            <th style="cursor: pointer; transition: 0.2s;" class="date-header" onclick="handleSort('date')" onmouseover="this.style.color='#d4a5ff'" onmouseout="this.style.color=''">Date ${getSortIcon('date')}</th>
+                            <th style="cursor: pointer; transition: 0.2s;" onclick="handleSort('name')" onmouseover="this.style.color='#d4a5ff'" onmouseout="this.style.color=''">Mô tả ${getSortIcon('name')}</th>
+                            <th>Danh mục</th>
+                            ${hasTags ? '<th class="tags-column">Nhãn</th>' : ''}
+                            <th style="cursor: pointer; transition: 0.2s;" onclick="handleSort('amount')" onmouseover="this.style.color='#d4a5ff'" onmouseout="this.style.color=''">Số tiền ${getSortIcon('amount')}</th>
+                            <th style="cursor: pointer; transition: 0.2s;" class="date-header" onclick="handleSort('date')" onmouseover="this.style.color='#d4a5ff'" onmouseout="this.style.color=''">Ngày ${getSortIcon('date')}</th>
                             <th></th>
                         </tr>
                     </thead>
@@ -195,7 +193,6 @@
             }
 
             filteredList.sort((a, b) => {
-                // Nếu currentSortColumn là null (Không sắp xếp cột nào) -> Ngầm xếp theo ngày mới nhất
                 if (!currentSortColumn) {
                     return new Date(b.date).getTime() - new Date(a.date).getTime();
                 }
@@ -260,7 +257,7 @@
             
             const form = document.getElementById('expenseForm');
             form.dataset.editId = id;
-            form.querySelector('button[type="submit"]').innerHTML = '<i class="fa-solid fa-pen-to-square"></i> Update Expense';
+            form.querySelector('button[type="submit"]').innerHTML = '<i class="fa-solid fa-pen-to-square"></i> Cập nhật Giao Dịch';
             form.scrollIntoView({ behavior: 'smooth' });
         }
 
@@ -295,7 +292,7 @@
                 
                 if(value && ![...allTags].map(t => t.toLowerCase()).includes(value)) {
                     const newItem = document.createElement('div');
-                    newItem.textContent = `+ Create "${input.value.trim()}"`; newItem.className = 'new-tag'; newItem.onclick = () => addTag(input.value.trim()); dropdown.appendChild(newItem);
+                    newItem.textContent = `+ Thêm nhãn "${input.value.trim()}"`; newItem.className = 'new-tag'; newItem.onclick = () => addTag(input.value.trim()); dropdown.appendChild(newItem);
                 }
 
                 filteredTags.forEach(tag => {
@@ -337,8 +334,8 @@
                 updateTable();
                 setupTagInput();
             } catch (error) {
-                console.error('Failed to initialize table:', error);
-                document.getElementById('tableContainer').innerHTML = '<div class="no-data">Failed to load expenses</div>';
+                console.error('Lỗi khi khởi tạo bảng:', error);
+                document.getElementById('tableContainer').innerHTML = '<div class="no-data">Lỗi khi tải danh sách giao dịch</div>';
             }
         }
 
@@ -355,7 +352,7 @@
             if (!expenseToDelete) return;
             try {
                 const response = await fetch(`/api/expenses/${expenseToDelete}`, { method: 'DELETE' });
-                if (!response.ok) throw new Error('Failed to delete expense');
+                if (!response.ok) throw new Error('Lỗi khi xóa giao dịch');
                 if(window.showToast) showToast('Đã xóa giao dịch thành công!', "success");
                 await initialize();
                 closeDeleteModal();
@@ -366,7 +363,6 @@
 
         document.getElementById('deleteModal').addEventListener('click', (e) => { if (e.target.className === 'modal active') closeDeleteModal(); });
 
-        // Hàm hiển thị Popup
         function showCustomConfirm(message) {
             return new Promise((resolve) => {
                 const modal = document.getElementById('customConfirmModal');
@@ -391,26 +387,21 @@
             });
         }
 
-        // Bắt sự kiện lưu Form (Thêm mới & Cập nhật)
         document.getElementById('expenseForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const form = e.target;
-            const editId = form.dataset.editId; // Dùng để nhận biết xem là Thêm mới hay Chỉnh sửa
+            const editId = form.dataset.editId; 
             const isGain = document.getElementById('reportGain').checked;
             
             let rawAmount = parseFloat(document.getElementById('amount').value);
             const selectedCategory = document.getElementById('category').value;
 
-            // 1. Tính tỷ giá ra VND
             let rate = 1;
             if (typeof exchangeRatesToVND !== 'undefined') {
                 rate = exchangeRatesToVND[currentCurrency] || 1;
             }
             let amountInVND = rawAmount * rate;
 
-            // ==========================================
-            // 🚦 KIỂM TRA BẤT THƯỜNG (Có fix Kịch Bản 3)
-            // ==========================================
             if (!isGain && selectedCategory) {
                 const categoryExpenses = allExpenses.filter(exp => exp.amount < 0 && exp.category === selectedCategory);
                 let categoryAverageVND = 0;
@@ -420,7 +411,6 @@
                     categoryAverageVND = totalCategory / categoryExpenses.length;
                 }
 
-                // Cố định mốc tối thiểu là 50 USD quy ra VND (~1.27 triệu)
                 const minAlertAmountVND = 50 * exchangeRatesToVND['usd']; 
 
                 if (categoryAverageVND > 0 && amountInVND > (categoryAverageVND * 3) && amountInVND > minAlertAmountVND) {
@@ -428,11 +418,10 @@
                     
                     const userConfirmed = await showCustomConfirm(confirmMsg);
                     if (!userConfirmed) {
-                        return; // Ngừng chạy nếu Hủy bỏ
+                        return; 
                     }
                 }
             }
-            // ==========================================
 
             let finalAmountToSave = amountInVND;
             if (!isGain) {
@@ -469,13 +458,13 @@
                     document.getElementById('date').value = `${td.getFullYear()}-${String(td.getMonth() + 1).padStart(2, '0')}-${String(td.getDate()).padStart(2, '0')}`;
                 } else {
                     const error = await response.json();
-                    if(window.showToast) showToast(`Lỗi: ${error.error || 'Failed to save'}`, "error");
+                    if(window.showToast) showToast(`Lỗi: ${error.error || 'Không thể lưu'}`, "error");
                 }
             } catch (error) {
                 if(window.showToast) showToast("Lỗi kết nối máy chủ!", "error");
             } finally {
                 const submitBtn = form.querySelector('button[type="submit"]');
-                submitBtn.innerHTML = 'Add Expense'; 
+                submitBtn.innerHTML = 'Lưu Giao Dịch'; 
                 submitBtn.disabled = false;
             }
         });

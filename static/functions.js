@@ -121,7 +121,7 @@ function getUserTimeZone() {
 }
 
 function formatMonth(date) {
-    return date.toLocaleDateString('en-US', {
+    return date.toLocaleDateString('vi-VN', {
         year: 'numeric',
         month: 'long',
         timeZone: getUserTimeZone()

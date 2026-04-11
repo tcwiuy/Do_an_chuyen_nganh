@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="vi">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -33,26 +33,26 @@
         });
       }
     </script>
-    <title>ExpenseOwl Dashboard</title>
+    <title>Trang Chủ ExpenseOwl</title>
     <script src="/static/chart.min.js"></script>
   </head>
   <body>
     <div class="container">
       <header>
       <div class="nav-bar">
-        <a href="/" class="view-button active" data-tooltip="Dashboard">
+        <a href="/" class="view-button active" data-tooltip="Trang Chủ">
           <i class="fa-solid fa-chart-pie"></i>
         </a>
-        <a href="/table" class="view-button" data-tooltip="Table View">
+        <a href="/table" class="view-button" data-tooltip="Dạng Bảng">
           <i class="fa-solid fa-table"></i>
         </a>
-        <a href="/suggestions" class="view-button" data-tooltip="AI Suggestions">
+        <a href="/suggestions" class="view-button" data-tooltip="Gợi Ý AI">
           <i class="fa-solid fa-lightbulb"></i>
         </a>
-        <a href="/settings" class="view-button" data-tooltip="Settings">
+        <a href="/settings" class="view-button" data-tooltip="Cài Đặt">
           <i class="fa-solid fa-gear"></i>
         </a>
-        <a href="javascript:void(0)" class="view-button" onclick="logout()" data-tooltip="Logout" style="margin-left: auto; color: #ff4d4d;">
+        <a href="javascript:void(0)" class="view-button" onclick="logout()" data-tooltip="Đăng Xuất" style="margin-left: auto; color: #ff4d4d;">
           <i class="fa-solid fa-right-from-bracket"></i>
         </a>
       </div>
@@ -121,7 +121,7 @@
         "
       >
         <button id="toggleExpenseFormBtn" class="nav-button">
-          <i class="fa-solid fa-plus"></i> Add Expense
+          <i class="fa-solid fa-plus"></i> Thêm Chi Tiêu
         </button>
         <button
           id="btnAnalyze"
@@ -139,7 +139,7 @@
           "
           class="nav-button"
         >
-          <i class="fa-solid fa-plus"></i> Scan Receipt
+          <i class="fa-solid fa-receipt"></i> Quét Hóa Đơn
         </button>
         <script src="/static/ocr_scanner.js"></script>
       </div>
@@ -192,28 +192,28 @@
         <div class="form-container">
           <form id="expenseForm" class="expense-form">
             <div class="form-group">
-              <label for="name">Name</label>
+              <label for="name">Mô tả giao dịch</label>
               <input type="text" id="name" value="-" required />
             </div>
 
             <div class="form-group">
-              <label for="category">Category</label>
+              <label for="category">Danh mục</label>
               <select id="category" required>
-                <option value="">categories</option>
+                <option value="">Chọn danh mục</option>
               </select>
             </div>
 
             <div class="form-group">
-              <label for="tags-input">Tags</label>
+              <label for="tags-input">Nhãn (Tags)</label>
               <div id="tags-input-container" class="tags-input-container">
                 <div id="selected-tags" class="selected-tags"></div>
-                <input type="text" id="tags-input" placeholder="(Manual)" />
+                <input type="text" id="tags-input" placeholder="(Thêm thủ công)" />
               </div>
               <div id="tags-dropdown" class="tags-dropdown"></div>
             </div>
 
             <div class="form-group">
-              <label for="amount">Amount</label>
+              <label for="amount">Số tiền</label>
               <input
                 type="number"
                 id="amount"
@@ -225,7 +225,7 @@
             </div>
 
             <div class="form-group">
-              <label for="date">Date</label>
+              <label for="date">Ngày</label>
               <input type="date" id="date" required />
               <script>
                 const todayDate = new Date();
@@ -237,11 +237,11 @@
             </div>
 
             <div class="form-group form-group-checkbox">
-              <label for="reportGain">Report Gain</label>
+              <label for="reportGain">Khoản thu (Thu nhập)</label>
               <input type="checkbox" id="reportGain" class="styled-checkbox" />
             </div>
 
-            <button type="submit" class="nav-button">Add Expense</button>
+            <button type="submit" class="nav-button">Lưu Giao Dịch</button>
           </form>
         </div>
       </div>
@@ -252,7 +252,7 @@
           class="no-data"
           style="display: none; width: 100%"
         >
-          No expenses recorded in this period.
+          Không có giao dịch nào được ghi nhận trong giai đoạn này.
         </div>
 
         <div
@@ -290,10 +290,10 @@
                 font-family: inherit;
               "
             >
-              <option value="doughnut">🍩 Biểu đồ Vòng (Doughnut)</option>
-              <option value="pie">🍕 Biểu đồ Tròn (Pie)</option>
-              <option value="bar">📊 Biểu đồ Cột (Bar)</option>
-              <option value="polarArea">🕸️ Biểu đồ Lưới (Polar Area)</option>
+              <option value="doughnut">🍩 Biểu đồ Vòng</option>
+              <option value="pie">🍕 Biểu đồ Tròn</option>
+              <option value="bar">📊 Biểu đồ Cột</option>
+              <option value="polarArea">🕸️ Biểu đồ Lưới</option>
             </select>
           </div>
         </div>
@@ -303,15 +303,15 @@
 
       <div id="cashflow-section" class="cashflow-container">
         <div class="cashflow-item income">
-          <div class="cashflow-label">Income</div>
+          <div class="cashflow-label">Tổng Thu Nhập</div>
           <div class="cashflow-value" id="cashflow-income"></div>
         </div>
         <div class="cashflow-item expenses">
-          <div class="cashflow-label">Expenses</div>
+          <div class="cashflow-label">Tổng Chi Tiêu</div>
           <div class="cashflow-value" id="cashflow-expenses"></div>
         </div>
         <div class="cashflow-item balance">
-          <div class="cashflow-label">Balance</div>
+          <div class="cashflow-label">Số Dư Hiện Tại</div>
           <div class="cashflow-value" id="cashflow-balance"></div>
         </div>
       </div>
@@ -774,7 +774,7 @@
             ![...allTags].map((t) => t.toLowerCase()).includes(value)
           ) {
             const newItem = document.createElement("div");
-            newItem.textContent = `+ Create "${input.value.trim()}"`;
+            newItem.textContent = `+ Thêm nhãn "${input.value.trim()}"`;
             newItem.className = "new-tag";
             newItem.onclick = () => addTag(input.value.trim());
             dropdown.appendChild(newItem);
@@ -818,10 +818,10 @@
 
           if (isHidden) {
             formContainer.style.display = "block";
-            this.innerHTML = '<i class="fa-solid fa-times"></i> Close';
+            this.innerHTML = '<i class="fa-solid fa-times"></i> Đóng';
           } else {
             formContainer.style.display = "none";
-            this.innerHTML = '<i class="fa-solid fa-plus"></i> Add Expense';
+            this.innerHTML = '<i class="fa-solid fa-plus"></i> Thêm Chi Tiêu';
           }
         });
 
@@ -892,12 +892,6 @@
 
             // Cố định mốc tối thiểu là 50 USD quy ra VND (Khoảng 1.270.000đ)
             const minAlertAmountVND = 50 * exchangeRatesToVND["usd"];
-
-            // [MÁY ĐO DEBUG] - Nhấn F12 trên web để xem các con số này
-            console.log(`--- KIỂM TRA TỰ ĐỘNG ---`);
-            console.log(`Danh mục: ${selectedCategory}`);
-            console.log(`Số tiền nhập (VND): ${amountInVND}`);
-            console.log(`Trung bình danh mục (VND): ${categoryAverageVND}`);
 
             // Thuật toán: Có dữ liệu cũ + Gấp 3 lần trung bình + Lớn hơn mức tối thiểu (50$)
             if (
@@ -974,8 +968,6 @@
       });
 
       // --- HÀM XỬ LÝ NHẬP LIỆU BẰNG AI ---
-      // --- HÀM XỬ LÝ NHẬP LIỆU BẰNG AI (ĐÃ FIX LỖI KẸT NÚT) ---
-      // --- HÀM XỬ LÝ NHẬP LIỆU BẰNG AI (ĐÃ FIX LỖI TỶ GIÁ 0 ĐÔ) ---
       async function sendToAI() {
         const inputField = document.getElementById("aiInput");
         const btn = document.getElementById("aiBtn");
@@ -1009,7 +1001,7 @@
             }
 
             let amountAbs = Math.abs(parsedTxn.amount);
-            let amountInVND = amountAbs * rate; // <-- ĐÂY MỚI LÀ SỐ TIỀN THỰC TẾ ĐỂ LƯU
+            let amountInVND = amountAbs * rate; 
 
             // 2. KIỂM TRA BẤT THƯỜNG
             if (parsedTxn.amount < 0) {
@@ -1056,14 +1048,13 @@
               body: JSON.stringify({
                 name: parsedTxn.name,
                 category: parsedTxn.category,
-                amount: finalAmountToSave, // ĐÃ SỬA: Lưu con số đã nhân tỷ giá (VND)
+                amount: finalAmountToSave, 
                 date: getISODateWithLocalTime(parsedTxn.date),
                 tags: ["AI Assistant"],
               }),
             });
 
             if (saveRes.ok) {
-              // Lúc thông báo thành công thì hiện số đã format cho đẹp
               if (window.showToast)
                 showToast(
                   `Đã lưu: ${parsedTxn.name} (${formatCurrency(amountInVND)})`,
@@ -1261,4 +1252,4 @@
       </div>
     </div>
   </body>
-</html>
+</html> 
