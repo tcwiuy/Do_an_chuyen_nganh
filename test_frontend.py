@@ -4,6 +4,8 @@ from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 import time
 from selenium.webdriver.support.ui import Select
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
 def test_frontend_flow():
     """Test kịch bản: Robot tự động Đăng nhập -> Sang trang Table -> Thêm giao dịch mới"""
@@ -79,5 +81,67 @@ def test_frontend_flow():
         time.sleep(2)
         driver.quit()
 
+def test_frontend_advanced():
+    """Test kịch bản: Robot xóa giao dịch và test trang Lập Kế Hoạch AI"""
+    service = Service(ChromeDriverManager().install())
+    driver = webdriver.Chrome(service=service)
+
+    try:
+        # 1. ĐĂNG NHẬP NHANH
+        print("\n🤖 Robot đang đăng nhập để test luồng nâng cao...")
+        driver.get("http://127.0.0.1:8001/login")
+        time.sleep(1)
+        driver.find_element(By.ID, "username").send_keys("a")
+        driver.find_element(By.ID, "password").send_keys("123")
+        driver.find_element(By.XPATH, "//button[@type='submit']").click()
+        time.sleep(2)
+
+        # 2. VÀO BẢNG VÀ XÓA 1 GIAO DỊCH
+        print("🤖 Robot đang test tính năng Xóa có Popup cảnh báo...")
+        driver.get("http://127.0.0.1:8001/table")
+        time.sleep(2)
+        
+        # Tìm nút xóa đầu tiên trong bảng và bấm
+        delete_btns = driver.find_elements(By.CLASS_NAME, "delete-button")
+        if delete_btns:
+            delete_btns[0].click()
+            time.sleep(1) # Đợi modal hiện lên
+            # Bấm nút Confirm Delete màu đỏ
+            driver.find_element(By.XPATH, "//button[contains(@class, 'confirm')]").click()
+            time.sleep(1)
+            print("✅ Frontend: Robot đã test Popup và Xóa thành công!")
+        else:
+            print("⚠️ Bảng trống, bỏ qua bước test xóa.")
+
+        # 3. SANG TRANG GỢI Ý AI VÀ LẬP KẾ HOẠCH
+        print("🤖 Robot đang chuyển sang trang AI Suggestions...")
+        driver.get("http://127.0.0.1:8001/suggestions")
+        time.sleep(2)
+
+        # Điền form mục tiêu
+        driver.find_element(By.ID, "goalName").send_keys("Mua Laptop mới")
+        driver.find_element(By.ID, "goalAmount").send_keys("15000000")
+        driver.find_element(By.ID, "goalMonths").send_keys("6")
+        
+        print("🤖 Robot đang ra lệnh cho AI lập kế hoạch...")
+        driver.find_element(By.ID, "btnGenerateSuggestions").click()
+
+        print("🤖 Robot đang kiên nhẫn đợi AI tính toán (tối đa 60 giây)...")
+        # Sử dụng WebDriverWait để chờ cho đến khi khung kết quả xuất hiện chữ "Chiến lược Tổng thể"
+        wait = WebDriverWait(driver, 60)
+        wait.until(EC.text_to_be_present_in_element((By.ID, "suggestionsSummary"), "Chiến lược Tổng thể"))
+        
+        print("✅ Frontend: Robot đã ép AI lập kế hoạch Mua Laptop thành công rực rỡ!")
+
+        time.sleep(3)
+
+    except Exception as e:
+        print(f"❌ Frontend Test nâng cao thất bại. Lỗi: {e}")
+        
+    finally:
+        print("🤖 Robot đang dọn dẹp...")
+        driver.quit()
+
 if __name__ == "__main__":
-    test_frontend_flow()
+    #test_frontend_flow()
+    test_frontend_advanced()
