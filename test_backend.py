@@ -30,3 +30,66 @@ def test_register_and_login():
     assert res_login.status_code == 200
     assert "access_token" in res_login.json()
     print("\n✅ Backend: Test Đăng ký & Đăng nhập thành công!")
+
+def test_create_and_fetch_expense():
+    # 1. Đăng nhập để lấy "giấy phép" (Token)
+    # Lưu ý: Thay "minh" và "123456" bằng tài khoản test của bạn nhé
+    login_response = client.post("/api/auth/login", data={"username": "a", "password": "123"})
+    assert login_response.status_code == 200, "Đăng nhập thất bại"
+    
+    token = login_response.json().get("access_token")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # 2. Gửi API tạo một khoản chi tiêu mới
+    new_expense = {
+        "name": "Trà sữa trân châu (Test)",
+        "amount": -45000,
+        "category": "Food",
+        "date": "2026-04-15"
+    }
+    create_response = client.post("/api/expenses/", json=new_expense, headers=headers)
+    assert create_response.status_code == 200, "Lỗi API thêm chi tiêu"
+    assert create_response.json()["name"] == "Trà sữa trân châu (Test)"
+
+    # 3. Gửi API lấy danh sách chi tiêu về xem có khoản vừa thêm không
+    get_response = client.get("/api/expenses/", headers=headers)
+    assert get_response.status_code == 200
+    expenses = get_response.json()
+    assert len(expenses) > 0
+    
+    print("\n✅ Backend: Test API Thêm và Đọc chi tiêu thành công!")
+
+def test_ai_chatbot_response():
+    # 1. Đăng nhập để lấy "giấy phép" (Token)
+    # LƯU Ý: Đảm bảo tài khoản "minh" và pass "123456" là đúng nhé
+    login_response = client.post("/api/auth/login", data={"username": "a", "password": "123"})
+    assert login_response.status_code == 200, "Đăng nhập thất bại"
+    
+    token = login_response.json().get("access_token")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # 2. Gửi một tin nhắn bằng ngôn ngữ tự nhiên cho Cú Mèo
+    chat_payload = {
+        "message": "Cú Mèo ơi, hôm nay tôi vừa tiêu 55k để uống trà đào cam sả nhé",
+        "history": []
+    }
+    
+    print("\n🦉 Đang gọi Cú Mèo (Xin đợi vài giây để AI suy nghĩ)...")
+    chat_response = client.post("/api/ai/chat", json=chat_payload, headers=headers)
+    
+    # 3. Kiểm tra xem Cú Mèo có trả lời không
+    assert chat_response.status_code == 200, f"Lỗi gọi AI: {chat_response.text}"
+    reply_data = chat_response.json()
+    
+    assert "reply" in reply_data, "AI không trả về câu trả lời"
+    print(f"✅ Backend: Cú Mèo trả lời thành công: \"{reply_data['reply'][:60]}...\"")
+
+    # 4. Kiểm tra xem Cú Mèo có tự động LƯU khoản 55k đó vào Database không!
+    get_response = client.get("/api/expenses/", headers=headers)
+    expenses = get_response.json()
+    
+    # Tìm xem có giao dịch nào 55k do AI tự lưu không (AI luôn lưu số âm cho chi tiêu)
+    ai_saved_expense = next((exp for exp in expenses if exp["amount"] == -55000), None)
+    
+    assert ai_saved_expense is not None, "Cú Mèo đã trả lời nhưng QUÊN lưu vào Database!"
+    print("✅ Backend: Trí tuệ nhân tạo đã tự động bóc tách và LƯU giao dịch 55,000đ thành công!")
