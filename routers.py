@@ -335,7 +335,7 @@ def parse_expense_from_text(req: AIRequest, db: Session = Depends(get_db), curre
     }
     
     try:
-        response = call_gemini_with_backoff(url, payload, headers={"Content-Type": "application/json"}, timeout=30, retries=3)
+        response = call_gemini_with_backoff(url, payload, headers={"Content-Type": "application/json"}, timeout=90, retries=3)
         _handle_gemini_http_status(response)
         
         result_data = response.json()
