@@ -132,7 +132,7 @@ def create_transaction(transaction: schemas.TransactionCreate, db: Session = Dep
         amount=transaction.amount,
         category=transaction.category,
         date=transaction.date,
-        tags=["Manual"],
+        tags=transaction.tags if transaction.tags else ["Manual"],
         user_id=current_user.id # LƯU VÀO ID THẬT
     )
     db.add(db_transaction)
@@ -460,11 +460,15 @@ def chat_with_data(req: ChatRequest, db: Session = Depends(get_db), current_user
         raise HTTPException(status_code=500, detail=f"Lỗi Chatbot AI: {str(e)}")
 
     # BƯỚC 6: Xử lý chuỗi JSON (AI trả về cấu trúc action/chat/save) và Lưu Database nếu cần
+    # BƯỚC 6: Xử lý chuỗi JSON (AI trả về cấu trúc action/chat/save)
     try:
         clean_text = ai_text.strip().replace("```json", "").replace("```", "")
         result_json = json.loads(clean_text)
 
-        # LƯU VÀO DATABASE NẾU AI RA LỆNH "save"
+        # ==========================================
+        # ĐÃ SỬA: KHÔNG LƯU DB NỮA, CHỈ ĐÓNG GÓI DỮ LIỆU TRẢ VỀ FRONTEND
+        # ==========================================
+        transaction_data = None
         if result_json.get("action") == "save" and result_json.get("data"):
             data = result_json["data"]
             try:
@@ -472,19 +476,19 @@ def chat_with_data(req: ChatRequest, db: Session = Depends(get_db), current_user
             except Exception:
                 parsed_date = datetime.now()
 
-            new_transaction = models.Transaction(
-                id=str(uuid.uuid4()),
-                name=str(data.get("name", "Giao dịch"))[:255],
-                amount=float(data.get("amount", 0)),
-                category=str(data.get("category", "Other")),
-                date=parsed_date,
-                tags=["AI Chatbot"],
-                user_id=current_user.id
-            )
-            db.add(new_transaction)
-            db.commit()
+            transaction_data = {
+                "name": str(data.get("name", "Giao dịch"))[:255],
+                "amount": float(data.get("amount", 0)),
+                "category": str(data.get("category", "Other")),
+                "date": parsed_date.isoformat(),
+                "tags": ["AI Chatbot"]
+            }
 
-        return {"reply": result_json.get("reply", ai_text)}
+        return {
+            "reply": result_json.get("reply", ai_text),
+            "action": result_json.get("action", "chat"),
+            "transaction_data": transaction_data
+        }
 
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="AI trả về dữ liệu không hợp lệ. Vui lòng thử lại.")

@@ -118,23 +118,122 @@ window.sendChatMessage = async function() {
         if (res.ok) {
             const data = await res.json();
             
-            // 3. CẬP NHẬT TRÍ NHỚ VÀ LƯU VÀO TRÌNH DUYỆT
+            // 1. CẬP NHẬT TRÍ NHỚ VÀ LƯU VÀO TRÌNH DUYỆT
             conversationMemory.push({ user: message, ai: data.reply });
             if (conversationMemory.length > 5) conversationMemory.shift(); 
-            sessionStorage.setItem('expenseOwl_memory', JSON.stringify(conversationMemory)); // LƯU!
+            sessionStorage.setItem('expenseOwl_memory', JSON.stringify(conversationMemory));
             
+            // 2. IN CÂU TRẢ LỜI CỦA CÚ MÈO LÊN MÀN HÌNH CHAT
             let formattedReply = data.reply.replace(/\*\*(.*?)\*\*/g, '<b style="color:#d4a5ff;">$1</b>').replace(/\n/g, '<br>');
-
             messagesContainer.innerHTML += `
                 <div style="align-self: flex-start; max-width: 80%; background-color: #2a2a40; padding: 12px; border-radius: 0 15px 15px 15px; color: #ffffff; font-size: 14px; line-height: 1.5;">
                     ${formattedReply}
                 </div>
             `;
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
-            // TÍNH NĂNG MỚI: TỰ ĐỘNG REFRESH BẢNG (Nếu Cú Mèo vừa lưu dữ liệu ngầm)
-            // Nếu bạn đang mở trang Table, giao dịch mới sẽ lập tức xuất hiện!
-            if (typeof initialize === "function") {
-                await initialize();
+            // ==========================================
+            // 🚦 3. KIỂM TRA BẤT THƯỜNG VÀ LƯU GIAO DỊCH (ĐÃ FIX TỶ GIÁ)
+            // ==========================================
+            if (data.action === "save" && data.transaction_data) {
+                const parsedTxn = data.transaction_data;
+                
+                // LƯU Ý QUAN TRỌNG: AI ở Chatbot đã tự động quy đổi tiền ngoại tệ sang VND 
+                // theo lịch sử Database. Do đó parsedTxn.amount lúc này CHẮC CHẮN LÀ VND.
+                let amountInVND = Math.abs(parsedTxn.amount); 
+                
+                // 1. Xác định tỷ giá trên màn hình để "Dịch" ngược lại cho người dùng hiểu
+                let rate = 1;
+                let currencyName = 'VND';
+                if (typeof exchangeRatesToVND !== 'undefined') {
+                    const curr = typeof currentCurrency !== 'undefined' ? currentCurrency : 'usd';
+                    rate = exchangeRatesToVND[curr] || 1;
+                    currencyName = curr.toUpperCase(); 
+                }
+                
+                let finalAmountToSave = parsedTxn.amount; // Giữ nguyên gửi DB (vì DB cũng lưu VND)
+                let shouldSave = true;
+
+                // 2. Kiểm tra bất thường
+                if (parsedTxn.amount < 0) { 
+                    let categoryAverageVND = 0;
+
+                    if (typeof allExpenses !== 'undefined') {
+                        const categoryExpenses = allExpenses.filter(exp => exp.amount < 0 && exp.category === parsedTxn.category);
+                        if (categoryExpenses.length > 0) {
+                            const totalCategory = categoryExpenses.reduce((sum, exp) => sum + Math.abs(exp.amount), 0);
+                            categoryAverageVND = totalCategory / categoryExpenses.length;
+                        }
+                    }
+
+                    // Mốc an toàn cố định 50 USD quy ra tiền Việt
+                    let minAlertAmountVND = 50 * 25400; 
+                    if (typeof exchangeRatesToVND !== 'undefined' && exchangeRatesToVND['usd']) {
+                        minAlertAmountVND = 50 * exchangeRatesToVND['usd'];
+                    }
+
+                    if (categoryAverageVND > 0 && amountInVND > (categoryAverageVND * 3) && amountInVND > minAlertAmountVND) {
+                        
+                        // SỬA Ở ĐÂY: CHIA NGƯỢC LẠI TỶ GIÁ ĐỂ HIỂN THỊ ĐÚNG ĐƠN VỊ LÊN POPUP
+                        let amountDisplay = amountInVND / rate;
+                        let avgDisplay = categoryAverageVND / rate;
+                        
+                        let fmtAmount = amountDisplay.toLocaleString('vi-VN', { maximumFractionDigits: 2 }) + " " + currencyName;
+                        let fmtAvg = avgDisplay.toLocaleString('vi-VN', { maximumFractionDigits: 2 }) + " " + currencyName;
+
+                        const confirmMsg = `Cú Mèo phát hiện khoản chi RẤT LỚN!\n\nSố tiền bạn nhập (${fmtAmount}) lớn hơn GẤP NHIỀU LẦN mức trung bình của danh mục "${parsedTxn.category}" (${fmtAvg}).\n\nBạn có chắc chắn muốn lưu giao dịch này không?`;
+                        
+                        let userConfirmed = false;
+                        if (typeof showCustomConfirm === 'function') {
+                            userConfirmed = await showCustomConfirm(confirmMsg);
+                        } else {
+                            userConfirmed = confirm(confirmMsg);
+                        }
+
+                        if (!userConfirmed) {
+                            shouldSave = false;
+                            
+                            // Tẩy não Cú Mèo
+                            conversationMemory.pop();
+                            sessionStorage.setItem('expenseOwl_memory', JSON.stringify(conversationMemory));
+
+                            messagesContainer.innerHTML += `
+                                <div style="align-self: flex-start; max-width: 80%; background-color: #3f1d1d; border: 1px solid #ff4d4d; padding: 12px; border-radius: 0 15px 15px 15px; color: #ff4d4d; font-size: 14px; line-height: 1.5;">
+                                    ❌ Đã hủy lệnh lưu giao dịch! Cú Mèo cũng đã "quên" khoản tiền này.
+                                </div>
+                            `;
+                            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                        }
+                    }
+                }
+
+                // 3. Gọi API lưu xuống Database
+                if (shouldSave) {
+                    try {
+                        const saveRes = await fetch('/api/expenses/', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                name: parsedTxn.name,
+                                category: parsedTxn.category,
+                                amount: finalAmountToSave, 
+                                date: parsedTxn.date, 
+                                tags: parsedTxn.tags || ["AI Chatbot"]
+                            })
+                        });
+
+                        if (saveRes.ok) {
+                            if(window.showToast) showToast('Cú Mèo đã lưu giao dịch thành công!', 'success');
+                            if (typeof initialize === "function") {
+                                await initialize(); 
+                            }
+                        } else {
+                            if(window.showToast) showToast('Có lỗi xảy ra khi Cú Mèo lưu dữ liệu.', 'error');
+                        }
+                    } catch (e) {
+                        if(window.showToast) showToast('Lỗi kết nối khi lưu giao dịch.', 'error');
+                    }
+                }
             }
 
         } else {
