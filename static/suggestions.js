@@ -1,13 +1,21 @@
-function formatVND(value) {
-    const amount = Number(value || 0);
-    return amount.toLocaleString('vi-VN') + ' VND';
+let currentCurrency = 'usd';
+
+// Hàm mới: AI đã tính toán xong tiền tệ chuẩn, JS chỉ việc gắn ký hiệu mà KHÔNG chia tỷ giá VND nữa.
+function formatDirectCurrency(amount) {
+    if (amount === undefined || amount === null) return '0';
+    const behavior = currencyBehaviors[currentCurrency] || { symbol: "$", useComma: false, useDecimals: true, useSpace: false, right: false };
+    const isNegative = amount < 0;
+    const absAmount = Math.abs(amount);
+    const options = { minimumFractionDigits: behavior.useDecimals ? 2 : 0, maximumFractionDigits: behavior.useDecimals ? 2 : 0 };
+    let formattedAmount = new Intl.NumberFormat(behavior.useComma ? "de-DE" : "en-US", options).format(absAmount);
+    let result = behavior.right ? `${formattedAmount}${behavior.useSpace ? " " : ""}${behavior.symbol}` : `${behavior.symbol}${behavior.useSpace ? " " : ""}${formattedAmount}`;
+    return isNegative ? `-${result}` : result;
 }
 
 function renderSuggestions(data) {
     const summaryEl = document.getElementById('suggestionsSummary');
     const listEl = document.getElementById('suggestionsList');
 
-    // Tóm tắt chiến lược
     summaryEl.style.display = 'block';
     
     let feasibilityHtml = '';
@@ -21,13 +29,12 @@ function renderSuggestions(data) {
             <p style="color: #e0e0e0; line-height: 1.6; margin-bottom: 10px;">${data.overall_strategy || 'Chưa có chiến lược.'}</p>
             <div style="display: flex; justify-content: space-between; flex-wrap: wrap; background: #151521; padding: 15px; border-radius: 8px; border: 1px solid #2a2a40; gap: 10px;">
                 <div><span style="color: #a0a0b0;">Mức độ khả thi:</span> ${feasibilityHtml}</div>
-                <div><span style="color: #a0a0b0;">Tiết kiệm mỗi tháng:</span> <strong style="color: #4ade80; font-size: 16px;">${formatVND(data.monthly_savings_needed)}</strong></div>
+                <div><span style="color: #a0a0b0;">Tiết kiệm mỗi tháng:</span> <strong style="color: #4ade80; font-size: 16px;">${formatDirectCurrency(data.monthly_savings_needed)}</strong></div>
             </div>
         </div>
         <h4 style="color: #ffffff; margin-bottom: 10px;"><i class="fa-solid fa-scissors"></i> Kế hoạch cắt giảm chi tiết</h4>
     `;
 
-    // Danh sách cắt giảm từng mục
     const items = Array.isArray(data.category_plans) ? data.category_plans : [];
     if (!items.length) {
         listEl.innerHTML = `
@@ -44,18 +51,18 @@ function renderSuggestions(data) {
                 <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #3a3a50; padding-bottom: 10px; margin-bottom: 15px;">
                     <h3 style="margin: 0; color: #d4a5ff; font-size: 16px;">${idx + 1}. Cắt giảm: ${item.category || 'Khác'}</h3>
                     <span style="background: rgba(74, 222, 128, 0.1); padding: 6px 12px; border-radius: 6px; color: #4ade80; font-weight: bold; border: 1px solid rgba(74, 222, 128, 0.3);">
-                        Giảm <i class="fa-solid fa-arrow-down"></i> ${formatVND(item.reduction_amount)}
+                        Giảm <i class="fa-solid fa-arrow-down"></i> ${formatDirectCurrency(item.reduction_amount)}
                     </span>
                 </div>
                 
                 <div style="display: flex; gap: 15px; margin-bottom: 15px; flex-wrap: wrap;">
                     <div style="flex: 1; background: #151521; padding: 12px; border-radius: 8px; text-align: center; border: 1px solid #2a2a40;">
                         <div style="color: #a0a0b0; font-size: 12px; margin-bottom: 5px;">Mức tiêu hiện tại (TB/tháng)</div>
-                        <div style="color: #ff6b6b; font-weight: bold; font-size: 15px;">${formatVND(item.current_avg_spend)}</div>
+                        <div style="color: #ff6b6b; font-weight: bold; font-size: 15px;">${formatDirectCurrency(item.current_avg_spend)}</div>
                     </div>
                     <div style="flex: 1; background: #151521; padding: 12px; border-radius: 8px; text-align: center; border: 1px solid #2a2a40;">
                         <div style="color: #a0a0b0; font-size: 12px; margin-bottom: 5px;">Mục tiêu sau khi cắt giảm</div>
-                        <div style="color: #4ade80; font-weight: bold; font-size: 15px;">${formatVND(item.target_spend)}</div>
+                        <div style="color: #4ade80; font-weight: bold; font-size: 15px;">${formatDirectCurrency(item.target_spend)}</div>
                     </div>
                 </div>
 
@@ -73,11 +80,19 @@ async function loadSuggestions() {
     const listEl = document.getElementById('suggestionsList');
     const summaryEl = document.getElementById('suggestionsSummary');
     
-    // Lấy dữ liệu mục tiêu
     const monthWindow = Number(document.getElementById('monthWindow').value || 3);
     const goalName = document.getElementById('goalName').value.trim();
-    const goalAmount = Number(document.getElementById('goalAmount').value) || 0;
+    const goalAmountRaw = Number(document.getElementById('goalAmount').value) || 0;
     const goalMonths = Number(document.getElementById('goalMonths').value) || 0;
+
+    const currentInputData = { monthWindow, goalName, goalAmountRaw, goalMonths };
+    sessionStorage.setItem('ai_suggestion_inputs', JSON.stringify(currentInputData));
+
+    let rate = 1;
+    if (typeof exchangeRatesToVND !== 'undefined') {
+        rate = exchangeRatesToVND[currentCurrency] || 1;
+    }
+    const behavior = currencyBehaviors[currentCurrency] || { symbol: "$" };
 
     btn.disabled = true;
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang lập kế hoạch...';
@@ -92,8 +107,11 @@ async function loadSuggestions() {
             body: JSON.stringify({ 
                 month_window: monthWindow,
                 goal_name: goalName,
-                goal_amount: goalAmount,
-                goal_months: goalMonths
+                goal_amount: goalAmountRaw, 
+                goal_months: goalMonths,
+                currency: currentCurrency,
+                symbol: behavior.symbol,
+                rate: rate
             })
         });
 
@@ -102,6 +120,8 @@ async function loadSuggestions() {
             throw new Error(data.detail || 'Không thể tạo kế hoạch lúc này.');
         }
 
+        sessionStorage.setItem('ai_suggestion_result', JSON.stringify(data));
+        
         renderSuggestions(data);
         if (window.showToast) {
             showToast('Đã lập kế hoạch thành công!', 'success');
@@ -120,7 +140,36 @@ async function loadSuggestions() {
     }
 }
 
+async function initSuggestionsPage() {
+    try {
+        const res = await fetch('/api/config');
+        if (res.ok) {
+            const config = await res.json();
+            currentCurrency = config.currency || 'usd';
+        }
+
+        const savedInputs = sessionStorage.getItem('ai_suggestion_inputs');
+        if (savedInputs) {
+            const inputs = JSON.parse(savedInputs);
+            document.getElementById('monthWindow').value = inputs.monthWindow || 3;
+            document.getElementById('goalName').value = inputs.goalName || '';
+            document.getElementById('goalAmount').value = inputs.goalAmountRaw || '';
+            document.getElementById('goalMonths').value = inputs.goalMonths || '';
+        }
+
+        const savedResult = sessionStorage.getItem('ai_suggestion_result');
+        if (savedResult) {
+            const data = JSON.parse(savedResult);
+            renderSuggestions(data);
+        }
+
+    } catch (e) {
+        console.error('Lỗi tải dữ liệu Suggestion', e);
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+    initSuggestionsPage();
     const btn = document.getElementById('btnGenerateSuggestions');
     if (btn) btn.addEventListener('click', loadSuggestions);
 });
