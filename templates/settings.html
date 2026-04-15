@@ -78,7 +78,6 @@
                     <input type="text" id="newCategory" placeholder="Thêm danh mục mới...">
                     <button id="addCategory" class="nav-button">Thêm</button>
                 </div>
-                <button id="saveCategories" class="nav-button">Lưu Danh Mục</button>
             </div>
         </div>
 
@@ -413,7 +412,10 @@
                 const list = categories;
                 const movedItem = list.splice(fromIndex, 1)[0];
                 list.splice(toIndex, 0, movedItem);
+                
                 renderCategories();
+                // Lưu tự động sau khi kéo thả (không hiện thông báo để tránh rườm rà)
+                saveCategories(false); 
             }
             return false;
         }
@@ -426,6 +428,8 @@
                 categories.push(category);
                 renderCategories();
                 input.value = '';
+                // Lưu tự động và báo thành công
+                saveCategories(true, 'Đã thêm danh mục mới'); 
             } else if (categories.includes(category)) {
                 if(window.showToast) showToast('Danh mục đã tồn tại', "error");
             } else if (!category) {
@@ -434,15 +438,20 @@
         }
 
         function removeCategory(index) {
-            categories.splice(index, 1);
-            renderCategories();
-        }
-
-        async function saveCategories() {
-            if (categories.length === 0) {
-                if(window.showToast) showToast('Cần ít nhất một danh mục', "error");
+            // Chặn không cho xóa nếu chỉ còn 1 danh mục
+            if (categories.length <= 1) {
+                if(window.showToast) showToast('Cần giữ lại ít nhất một danh mục!', "error");
                 return;
             }
+            categories.splice(index, 1);
+            renderCategories();
+            // Lưu tự động và báo thành công
+            saveCategories(true, 'Đã xóa danh mục'); 
+        }
+
+        // Đã cập nhật hàm lưu để hỗ trợ tắt/mở thông báo tùy ngữ cảnh
+        async function saveCategories(showNotification = true, customMsg = 'Đã cập nhật danh mục') {
+            if (categories.length === 0) return;
             try {
                 const response = await fetch('/api/categories/edit', {
                     method: 'POST', 
@@ -450,13 +459,12 @@
                     body: JSON.stringify(categories)
                 });   
                 if (response.ok) {
-                    if(window.showToast) showToast('Đã lưu danh mục thành công', "success");
+                    if(showNotification && window.showToast) showToast(customMsg, "success");
                 } else {
                     const error = await response.json();
-                    if(window.showToast) showToast(`Lỗi khi lưu danh mục: ${error.error}`, "error");
+                    if(window.showToast) showToast(`Lỗi: ${error.error}`, "error");
                 }
             } catch (error) {
-                console.error('Error saving categories:', error);
                 if(window.showToast) showToast('Lỗi khi lưu danh mục', "error");
             }
         }
@@ -898,7 +906,6 @@
 
         // --- Event Listeners ---
         document.getElementById('addCategory').addEventListener('click', addCategory);
-        document.getElementById('saveCategories').addEventListener('click', saveCategories);
         document.getElementById('saveCurrency').addEventListener('click', saveCurrency);
         document.getElementById('saveStartDate').addEventListener('click', saveStartDate);
         document.getElementById('csv-import-file').addEventListener('change', handleCsvImport);
