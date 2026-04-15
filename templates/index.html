@@ -538,63 +538,77 @@
       }
 
       function createPieChart(categoryData) {
-        if (pieChart) pieChart.destroy();
+      if (pieChart) pieChart.destroy();
 
-        const isBarChart = currentChartType === "bar";
+      const isBarChart = currentChartType === "bar";
+      
+      // 1. LẤY TỶ GIÁ ĐỂ QUY ĐỔI DỮ LIỆU BIỂU ĐỒ
+      const rate = (typeof exchangeRatesToVND !== 'undefined') ? (exchangeRatesToVND[currentCurrency] || 1) : 1;
 
-        let chartOptions = {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              callbacks: {
-                label: (context) => {
-                  const value = context.raw;
-                  const total = context.dataset.data.reduce(
-                    (sum, val) => sum + val,
-                    0,
-                  );
-                  const percentage =
-                    total > 0 ? ((value / total) * 100).toFixed(1) : 0;
-                  return `${context.label}: ${formatCurrency(value)} (${percentage}%)`;
-                },
+      let chartOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (context) => {
+                const value = context.raw; // Đây là số đã quy đổi
+                // Tính phần trăm dựa trên tổng số đã quy đổi
+                const total = context.dataset.data.reduce((sum, val) => sum + val, 0);
+                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                
+                // Dùng hàm formatCurrency nhưng vì value đã chia rate rồi, 
+                // ta nhân lại với rate để hàm formatCurrency chia xuống cho chuẩn nhất
+                return `${context.label}: ${formatCurrency(value * rate)} (${percentage}%)`;
               },
             },
           },
+        },
+      };
+
+      // 2. CẤU HÌNH TRỤC Y CHO BIỂU ĐỒ CỘT (FIX LỖI TỈ LỆ)
+      if (isBarChart) {
+        chartOptions.scales = {
+          y: {
+            beginAtZero: true,
+            grid: { color: "rgba(255, 255, 255, 0.05)" },
+            ticks: { 
+              color: "#a0a0b0",
+              callback: function(value) {
+                // Định dạng con số trên trục Y theo tiền tệ đang chọn
+                // value ở đây là con số đã chia tỷ giá (VD: 100 thay vì 2.540.000)
+                return formatCurrency(value * rate);
+              }
+            },
+          },
+          x: { grid: { display: false }, ticks: { color: "#a0a0b0" } },
         };
-
-        if (isBarChart) {
-          chartOptions.scales = {
-            y: {
-              beginAtZero: true,
-              grid: { color: "#333" },
-              ticks: { color: "#a0a0b0" },
-            },
-            x: { grid: { display: false }, ticks: { color: "#a0a0b0" } },
-          };
-        }
-
-        pieChart = new Chart("categoryPieChart", {
-          type: currentChartType,
-          data: {
-            labels: categoryData.map((c) => c.category),
-            datasets: [
-              {
-                label: "Tổng chi",
-                data: categoryData.map((c) => c.total),
-                backgroundColor: categoryData.map(
-                  (c) => categoryColors[c.category] || "#8a2be2",
-                ),
-                borderColor: "#1a1a1a",
-                borderWidth: 1,
-                borderRadius: isBarChart ? 6 : 0,
-              },
-            ],
-          },
-          options: chartOptions,
-        });
       }
+
+      // 3. QUY ĐỔI TOÀN BỘ DATASET SANG TIỀN TỆ MỚI
+      const convertedDataset = categoryData.map((c) => c.total / rate);
+
+      pieChart = new Chart("categoryPieChart", {
+        type: currentChartType,
+        data: {
+          labels: categoryData.map((c) => c.category),
+          datasets: [
+            {
+              label: "Tổng chi",
+              data: convertedDataset, // Dùng dữ liệu đã quy đổi tỉ lệ
+              backgroundColor: categoryData.map(
+                (c) => categoryColors[c.category] || "#8a2be2",
+              ),
+              borderColor: "#1a1a1a",
+              borderWidth: 1,
+              borderRadius: isBarChart ? 6 : 0,
+            },
+          ],
+        },
+        options: chartOptions,
+      });
+    }
 
       function updateLegend(categoryData) {
         const legendContainer = document.getElementById("customLegend");
