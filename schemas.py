@@ -1,3 +1,4 @@
+from datetime import date
 from pydantic import BaseModel, field_validator, Field
 from datetime import datetime, date # Đã sửa lại import cho chuẩn
 from typing import List, Optional

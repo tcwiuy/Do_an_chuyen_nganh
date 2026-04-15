@@ -22,6 +22,12 @@ from google.genai import types
  
 # Simple in-memory TTL cache for AI responses to reduce repeated GPT calls
 import threading
+import csv
+import io
+import uuid
+from datetime import datetime
+from fastapi import UploadFile, File
+from fastapi.responses import StreamingResponse
 
 _ai_cache = {}
 _ai_cache_lock = threading.Lock()
@@ -117,6 +123,95 @@ def _handle_gemini_http_status(response):
 # ---------------------------------------------------------
 router = APIRouter(prefix="/api/expenses", tags=["Expenses"])
 client = genai.Client()
+
+# ==========================================
+# 1. API XUẤT DỮ LIỆU RA FILE CSV
+# ==========================================
+@router.get("/export/csv")
+def export_csv(db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
+    transactions = db.query(models.Transaction).filter(models.Transaction.user_id == current_user.id).order_by(models.Transaction.date.desc()).all()
+    
+    output = io.StringIO()
+    
+    # THÊM ĐÚNG DÒNG NÀY ĐỂ FIX LỖI FONT TIẾNG VIỆT TRÊN EXCEL
+    output.write('\ufeff')
+    
+    writer = csv.writer(output)
+    writer.writerow(["Date", "Name", "Category", "Amount", "Tags"])
+    
+    for t in transactions:
+        tags_str = ",".join(t.tags) if t.tags else ""
+        date_str = t.date.strftime("%Y-%m-%d") if t.date else ""
+        writer.writerow([date_str, t.name, t.category, t.amount, tags_str])
+        
+    output.seek(0)
+    
+    return StreamingResponse(
+        iter([output.getvalue()]), 
+        media_type="text/csv", 
+        headers={"Content-Disposition": "attachment; filename=ExpenseOwl_Data.csv"}
+    )
+
+# ==========================================
+# 2. API NHẬP DỮ LIỆU TỪ FILE CSV
+# ==========================================
+@router.post("/import/csv")
+async def import_csv(file: UploadFile = File(...), db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
+    if not file.filename.endswith('.csv'):
+        return {"error": "Vui lòng tải lên file định dạng .csv"}
+        
+    content = await file.read()
+    decoded_content = content.decode('utf-8-sig').splitlines()
+    reader = csv.DictReader(decoded_content)
+    
+    total_processed = 0
+    imported = 0
+    skipped = 0
+    new_categories_set = set()
+    
+    user_config = db.query(models.UserConfig).filter(models.UserConfig.user_id == current_user.id).first()
+    existing_categories = set(user_config.categories) if user_config and user_config.categories else set(["Ăn uống", "Đi lại", "Mua sắm", "Hóa đơn", "Giải trí"])
+
+    for row in reader:
+        total_processed += 1
+        try:
+            date_obj = datetime.strptime(row.get("Date", "").strip(), "%Y-%m-%d")
+            name = row.get("Name", "-").strip()
+            category = row.get("Category", "Khác").strip()
+            amount = float(row.get("Amount", 0))
+            raw_tags = row.get("Tags", "")
+            tags = [t.strip() for t in raw_tags.split(",")] if raw_tags else []
+
+            new_tx = models.Transaction(
+                id=str(uuid.uuid4()),
+                name=name,
+                amount=amount,
+                category=category,
+                date=date_obj,
+                tags=tags,
+                user_id=current_user.id
+            )
+            db.add(new_tx)
+            
+            if category not in existing_categories:
+                new_categories_set.add(category)
+                existing_categories.add(category)
+                
+            imported += 1
+        except Exception as e:
+            skipped += 1
+
+    if new_categories_set and user_config:
+        user_config.categories = list(existing_categories)
+
+    db.commit()
+
+    return {
+        "total_processed": total_processed,
+        "imported": imported,
+        "skipped": skipped,
+        "new_categories": list(new_categories_set)
+    }
 
 @router.get("/", response_model=List[schemas.TransactionResponse])
 def get_transactions(db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):

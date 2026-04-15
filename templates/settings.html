@@ -113,25 +113,28 @@
             </div>
             <div class="form-container half-width">
                 <h2 align="center">Nhập/Xuất Dữ Liệu</h2>
-                <div class="export-buttons">
-                    <div class="export-options">
-                        <a href="/api/export/csv" id="csv-export-file" class="nav-button" download="expenses.csv">Xuất ra file CSV</a>
-                    </div>
-                    <div class="import-option">
-                        <label for="csv-import-file" class="nav-button">Nhập từ file CSV</label>
+                
+                <div class="export-buttons" style="display: flex; justify-content: center; align-items: center; gap: 15px; margin-bottom: 20px; flex-wrap: wrap;">
+                    
+                    <a href="javascript:void(0)" id="csv-export-file" class="nav-button" style="margin: 0; text-align: center;">
+                        <i class="fa-solid fa-download"></i> Xuất ra file CSV
+                    </a>
+                    
+                    <div>
+                        <label for="csv-import-file" class="nav-button" style="margin: 0; cursor: pointer; display: inline-block; text-align: center;">
+                            <i class="fa-solid fa-file-csv"></i> Nhập từ file CSV
+                        </label>
                         <input type="file" id="csv-import-file" accept=".csv" style="display: none;">
                     </div>
-                    <div class="import-option">
-                        <label for="csv-import-file-old" class="nav-button">Nhập từ ExpenseOwl v3.20-</label>
-                        <input type="file" id="csv-import-file-old" accept=".csv" style="display: none;">
-                    </div>
+
                 </div>
-                <div id="importSummary" class="import-summary" style="display: none;">
-                    <h3>Tổng kết nhập dữ liệu</h3>
-                    <p>Tổng số dòng đã xử lý: <span id="summary-processed"></span></p>
-                    <p>Đã nhập thành công: <span id="summary-imported"></span></p>
-                    <p>Bỏ qua (Lỗi/Trùng lặp): <span id="summary-skipped"></span></p>
-                    <p>Danh mục mới tạo thêm: <span id="summary-new-categories"></span></p>
+
+                <div id="importSummary" class="import-summary" style="display: none; background: #151521; padding: 15px; border-radius: 8px; border: 1px solid #2a2a40;">
+                    <h3 style="color: #4ade80; margin-top: 0;"><i class="fa-solid fa-clipboard-check"></i> Tổng kết nhập dữ liệu</h3>
+                    <p>Tổng số dòng: <strong style="color:#fff;" id="summary-processed"></strong></p>
+                    <p>Thành công: <strong style="color:#4ade80;" id="summary-imported"></strong></p>
+                    <p>Bỏ qua (Lỗi/Trùng): <strong style="color:#ff4d4d;" id="summary-skipped"></strong></p>
+                    <p style="margin-bottom: 0;">Danh mục mới: <strong style="color:#d4a5ff;" id="summary-new-categories"></strong></p>
                 </div>
             </div>
         </div>
@@ -778,7 +781,7 @@
             summaryDiv.style.display = 'none';
 
             try {
-                const response = await fetch('/api/import/csv', {
+                const response = await fetch('/api/expenses/import/csv', {
                     method: 'POST',
                     body: formData
                 });
@@ -805,43 +808,63 @@
             }
         }
 
-        async function handleCsvImportOld(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            const formData = new FormData();
-            formData.append('file', file);
-            const summaryDiv = document.getElementById('importSummary');
+        // ==========================================
+        // XỬ LÝ XUẤT FILE CSV CÓ TOKEN XÁC THỰC
+        // ==========================================
+        document.getElementById('csv-export-file').addEventListener('click', async () => {
+            const btn = document.getElementById('csv-export-file');
+            const originalHTML = btn.innerHTML;
+            
+            // 1. Kiểm tra Token NGAY LẬP TỨC
+            const token = localStorage.getItem('token');
+            if (!token) {
+                if(window.showToast) showToast('Lỗi: Bạn chưa đăng nhập. Vui lòng đăng nhập lại!', 'error');
+                setTimeout(() => window.location.href = '/login', 1500); // Đẩy về trang đăng nhập
+                return; // Ngừng chạy code bên dưới
+            }
 
-            if(window.showToast) showToast('Đang nhập dữ liệu... Vui lòng đợi trong giây lát nếu file lớn.', "success");
-            summaryDiv.style.display = 'none';
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang xuất dữ liệu...';
+            btn.style.pointerEvents = 'none';
 
             try {
-                const response = await fetch('/api/import/csvold', {
-                    method: 'POST',
-                    body: formData
+                // 2. Gọi API kèm Token
+                const response = await fetch('/api/expenses/export/csv', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
                 });
 
-                const result = await response.json();
-
                 if (response.ok) {
-                    if(window.showToast) showToast('Nhập dữ liệu thành công!', "success");
-                    summaryDiv.style.display = 'block';
-                    document.getElementById('summary-processed').textContent = result.total_processed;
-                    document.getElementById('summary-imported').textContent = result.imported;
-                    document.getElementById('summary-skipped').textContent = result.skipped;
-                    document.getElementById('summary-new-categories').textContent = (result.new_categories || []).join(', ') || 'Không có';
+                    // 3. Ép dữ liệu thô thành file CSV
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
                     
-                    await initialize();
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = url;
+                    a.download = 'ExpenseOwl_Data.csv';
+                    document.body.appendChild(a);
+                    a.click();
+                    
+                    window.URL.revokeObjectURL(url);
+                    if(window.showToast) showToast('Xuất dữ liệu thành công!', 'success');
+                } else if (response.status === 401) {
+                    // Lỗi 401: Sai token hoặc token hết hạn
+                    if(window.showToast) showToast('Lỗi: Phiên đăng nhập hết hạn. Đang chuyển hướng...', 'error');
+                    localStorage.removeItem('token'); // Xóa token hỏng
+                    setTimeout(() => window.location.href = '/login', 1500);
                 } else {
-                    if(window.showToast) showToast(`Lỗi: ${result.error || 'Lỗi khi nhập CSV'}`, "error");
+                    if(window.showToast) showToast('Lỗi xử lý từ máy chủ.', 'error');
                 }
             } catch (error) {
-                console.error('Error importing CSV:', error);
-                if(window.showToast) showToast('Lỗi: Đã xảy ra lỗi không xác định khi nhập dữ liệu.', "error");
+                console.error('Lỗi xuất CSV:', error);
+                if(window.showToast) showToast('Lỗi kết nối khi xuất file', 'error');
             } finally {
-                event.target.value = '';
+                btn.innerHTML = originalHTML;
+                btn.style.pointerEvents = 'auto';
             }
-        }
+        });
 
         // --- Initialization ---
         async function initialize() {
@@ -909,7 +932,6 @@
         document.getElementById('saveCurrency').addEventListener('click', saveCurrency);
         document.getElementById('saveStartDate').addEventListener('click', saveStartDate);
         document.getElementById('csv-import-file').addEventListener('change', handleCsvImport);
-        document.getElementById('csv-import-file-old').addEventListener('change', handleCsvImportOld);
         document.getElementById('newCategory').addEventListener('keypress', e => e.key === 'Enter' && addCategory());
 
         document.getElementById('recurringExpenseForm').addEventListener('submit', async (e) => {
