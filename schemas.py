@@ -3,6 +3,7 @@ from datetime import datetime, date # Đã sửa lại import cho chuẩn
 from typing import List, Optional
 from pydantic import BaseModel, ConfigDict
 
+
 # --- SCHEMAS CHO GIAO DỊCH THÔNG THƯỜNG ---
 class TransactionBase(BaseModel):
     name: str
@@ -88,6 +89,10 @@ class RecurringTransactionResponse(RecurringTransactionBase):
 class UserCreate(BaseModel):
     username: str
     password: str
+    full_name: str
+    gender: str
+    dob: date
+    email: str
 
 class UserResponse(BaseModel):
     id: int

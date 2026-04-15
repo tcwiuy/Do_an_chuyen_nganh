@@ -1,16 +1,22 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, JSON
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, JSON, Date
 from sqlalchemy.orm import relationship
 from database import Base
 import datetime
-from sqlalchemy import Column, Integer, String, JSON
 
-# Thêm bảng User (đề bài yêu cầu có đăng nhập)
+# Bảng User (Đã cập nhật thêm thông tin cá nhân)
 class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String, unique=True, index=True)
     hashed_password = Column(String)
+    
+    # --- THÊM 4 CỘT THÔNG TIN MỚI Ở ĐÂY ---
+    full_name = Column(String, nullable=True)
+    gender = Column(String, nullable=True)
+    dob = Column(Date, nullable=True)
+    email = Column(String, unique=True, index=True, nullable=True)
+    # --------------------------------------
     
     # Quan hệ 1-N với bảng Transaction
     transactions = relationship("Transaction", back_populates="owner")
@@ -19,7 +25,7 @@ class User(Base):
 class Transaction(Base):
     __tablename__ = "transactions"
 
-    id = Column(String, primary_key=True, index=True) # Sửa thành primary_key
+    id = Column(String, primary_key=True, index=True)
     name = Column(String, index=True)
     amount = Column(Float)
     category = Column(String, index=True)
@@ -28,8 +34,6 @@ class Transaction(Base):
     
     user_id = Column(Integer, ForeignKey("users.id"))
     owner = relationship("User", back_populates="transactions")
-
-# ... (giữ nguyên code cũ ở trên) ...
 
 # Bảng Giao dịch định kỳ (Recurring Transaction)
 class RecurringTransaction(Base):
@@ -47,6 +51,7 @@ class RecurringTransaction(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     owner = relationship("User")
 
+# Bảng cấu hình cá nhân của người dùng
 class UserConfig(Base):
     __tablename__ = "user_configs"
 

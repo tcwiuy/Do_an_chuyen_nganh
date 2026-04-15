@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 import models
@@ -10,6 +11,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Tạo bảng trong CSDL
+#models.Base.metadata.drop_all(bind=engine)
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="ExpenseOwl Python API")
@@ -31,11 +33,13 @@ app.include_router(routers.config_router, prefix="")
 # ROUTER CHO GIAO DIỆN (FRONTEND)
 # ---------------------------------------------------------
 
-# THÊM ĐOẠN NÀY VÀO MAIN.PY
-@app.get("/login")
-def render_login(request: Request):
-    # Trả về trang login.html
-    return templates.TemplateResponse(request=request, name="login.html")
+@app.get("/login", response_class=HTMLResponse)
+def get_login(request: Request):
+    return templates.TemplateResponse(request=request, name="login.html", context={"request": request})
+
+@app.get("/register", response_class=HTMLResponse)
+def get_register(request: Request):
+    return templates.TemplateResponse(request=request, name="register.html", context={"request": request})
 
 @app.get("/")
 def render_dashboard(request: Request):

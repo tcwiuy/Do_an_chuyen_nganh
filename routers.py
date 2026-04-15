@@ -232,17 +232,27 @@ auth_router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
 @auth_router.post("/register")
 def register_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
-    # Check user tồn tại
+    # 1. Kiểm tra trùng Tên đăng nhập
     existing_user = db.query(models.User).filter(models.User.username == user.username).first()
     if existing_user:
         raise HTTPException(status_code=400, detail="Tên đăng nhập đã tồn tại")
 
-    # Hash password
+    # 2. Kiểm tra trùng Email
+    existing_email = db.query(models.User).filter(models.User.email == user.email).first()
+    if existing_email:
+        raise HTTPException(status_code=400, detail="Email này đã được sử dụng")
+
+    # 3. Mã hóa mật khẩu
     hashed_password = auth.get_password_hash(user.password)
 
+    # 4. Lưu toàn bộ thông tin vào DB
     new_user = models.User(
         username=user.username,
-        hashed_password=hashed_password
+        hashed_password=hashed_password,
+        full_name=user.full_name,
+        gender=user.gender,
+        dob=user.dob,
+        email=user.email
     )
 
     db.add(new_user)
