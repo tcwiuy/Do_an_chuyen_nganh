@@ -982,42 +982,47 @@
       });
 
       // --- HÀM XỬ LÝ NHẬP LIỆU BẰNG AI ---
+      // --- HÀM XỬ LÝ NHẬP LIỆU BẰNG AI ---
       async function sendToAI() {
         const inputField = document.getElementById("aiInput");
         const btn = document.getElementById("aiBtn");
         const text = inputField.value.trim();
 
         if (!text) {
-          if (window.showToast)
-            showToast("Vui lòng nhập chi tiêu của bạn!", "error");
+          if (window.showToast) showToast("Vui lòng nhập chi tiêu của bạn!", "error");
           return;
         }
 
-        btn.innerHTML =
-          '<i class="fa-solid fa-spinner fa-spin"></i> Đang nghĩ...';
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang nghĩ...';
         btn.disabled = true;
 
         try {
+          // 1. GỌI BACKEND ĐỂ AI "DỊCH" CÂU NÓI (Tuyệt đối chưa lưu)
+          const currentRate = (typeof exchangeRatesToVND !== 'undefined') ? (exchangeRatesToVND[currentCurrency] || 1) : 1;
+          
           const res = await fetch("/api/ai/parse-expense", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ text: text }),
+            body: JSON.stringify({ text: text, currency: currentCurrency, rate: currentRate }),
           });
 
           if (res.ok) {
             const data = await res.json();
             const parsedTxn = data.transaction;
 
-            // 1. LẤY TỶ GIÁ (Để đổi số tiền AI đọc được sang VND)
+            // 2. LẤY TỶ GIÁ VÀ QUY ĐỔI SỐ TIỀN HIỂN THỊ
             let rate = 1;
             if (typeof exchangeRatesToVND !== "undefined") {
               rate = exchangeRatesToVND[currentCurrency] || 1;
             }
 
-            let amountAbs = Math.abs(parsedTxn.amount);
-            let amountInVND = amountAbs * rate; 
+            // Backend AI ĐÃ tự động nhân ra VNĐ rồi, nên số tiền này ĐANG LÀ VNĐ
+            let amountInVND = Math.abs(parsedTxn.amount); 
+            
+            // CHIA NGƯỢC LẠI TỶ GIÁ để in ra Popup đúng 100 Euro thay vì 2.750.000
+            let amountDisplay = amountInVND / rate; 
 
-            // 2. KIỂM TRA BẤT THƯỜNG
+            // 3. KIỂM TRA BẤT THƯỜNG
             if (parsedTxn.amount < 0) {
               const categoryExpenses = allExpenses.filter(
                 (exp) => exp.amount < 0 && exp.category === parsedTxn.category,
@@ -1025,35 +1030,34 @@
               let categoryAverageVND = 0;
 
               if (categoryExpenses.length > 0) {
-                const totalCategory = categoryExpenses.reduce(
-                  (sum, exp) => sum + Math.abs(exp.amount),
-                  0,
-                );
+                const totalCategory = categoryExpenses.reduce((sum, exp) => sum + Math.abs(exp.amount), 0);
                 categoryAverageVND = totalCategory / categoryExpenses.length;
               }
 
+              let avgDisplay = categoryAverageVND / rate; // Chia tỷ giá cho trung bình luôn
               const minAlertAmountVND = 50 * exchangeRatesToVND["usd"];
 
-              if (
-                categoryAverageVND > 0 &&
-                amountInVND > categoryAverageVND * 3 &&
-                amountInVND > minAlertAmountVND
-              ) {
-                const confirmMsg = `Trợ lý AI phát hiện bạn vừa nhập một khoản chi RẤT LỚN!\n\nSố tiền (${formatCurrency(amountInVND)}) lớn hơn GẤP NHIỀU LẦN mức trung bình của danh mục "${parsedTxn.category}" (${formatCurrency(categoryAverageVND)}).\n\nBạn có chắc chắn muốn lưu giao dịch này không?`;
+              if (categoryAverageVND > 0 && amountInVND > categoryAverageVND * 3 && amountInVND > minAlertAmountVND) {
+                
+                // Format số tiền (Đã có chữ EUR/USD)
+                let fmtAmount = amountDisplay.toLocaleString('vi-VN', { maximumFractionDigits: 2 }) + " " + currentCurrency.toUpperCase();
+                let fmtAvg = avgDisplay.toLocaleString('vi-VN', { maximumFractionDigits: 2 }) + " " + currentCurrency.toUpperCase();
+
+                const confirmMsg = `Trợ lý AI phát hiện bạn vừa nhập một khoản chi RẤT LỚN!\n\nSố tiền (${fmtAmount}) lớn hơn GẤP NHIỀU LẦN mức trung bình của danh mục "${parsedTxn.category}" (${fmtAvg}).\n\nBạn có chắc chắn muốn lưu giao dịch này không?`;
 
                 const userConfirmed = await showCustomConfirm(confirmMsg);
                 if (!userConfirmed) {
                   btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Gửi';
                   btn.disabled = false;
-                  return;
+                  return; // BẤM HỦY THÌ KẾT THÚC NGAY, KHÔNG LÀM GÌ CẢ
                 }
               }
             }
 
-            // 3. CHỐT SỐ TIỀN VÀ LƯU VÀO DATABASE
+            // 4. NẾU BẤM "VẪN LƯU" (Hoặc bình thường) -> LÚC NÀY MỚI GỌI API ĐỂ LƯU VÀO DB
             let finalAmountToSave = amountInVND;
             if (parsedTxn.amount < 0) {
-              finalAmountToSave *= -1; // Trả lại dấu âm nếu là khoản chi
+              finalAmountToSave *= -1; 
             }
 
             const saveRes = await fetch("/api/expenses/", {
@@ -1069,33 +1073,21 @@
             });
 
             if (saveRes.ok) {
-              if (window.showToast)
-                showToast(
-                  `Đã lưu: ${parsedTxn.name} (${formatCurrency(amountInVND)})`,
-                  "success",
-                );
+              let fmtSaved = amountDisplay.toLocaleString('vi-VN', { maximumFractionDigits: 2 }) + " " + currentCurrency.toUpperCase();
+              if (window.showToast) showToast(`Đã lưu: ${parsedTxn.name} (${fmtSaved})`, "success");
               inputField.value = "";
               await initialize();
             } else {
               const err = await saveRes.json();
-              if (window.showToast)
-                showToast(
-                  `Lỗi khi lưu: ${err.error || "Lỗi không xác định"}`,
-                  "error",
-                );
+              if (window.showToast) showToast(`Lỗi khi lưu: ${err.error || "Lỗi không xác định"}`, "error");
             }
           } else {
             const err = await res.json();
-            if (window.showToast)
-              showToast(
-                err.detail || "Có lỗi xảy ra khi AI phân tích.",
-                "error",
-              );
+            if (window.showToast) showToast(err.detail || "Có lỗi xảy ra khi AI phân tích.", "error");
           }
         } catch (error) {
           console.error("Lỗi AI:", error);
-          if (window.showToast)
-            showToast("Lỗi kết nối đến máy chủ AI.", "error");
+          if (window.showToast) showToast("Lỗi kết nối đến máy chủ AI.", "error");
         } finally {
           btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Gửi';
           btn.disabled = false;

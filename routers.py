@@ -389,11 +389,15 @@ ai_router = APIRouter(prefix="/api/ai", tags=["AI Integration"])
 # Schema cho API Nhập liệu 
 class AIRequest(BaseModel):
     text: str
+    currency: str = "vnd"
+    rate: float = 1.0
 
 # Schema mới cho API Chatbot
 class ChatRequest(BaseModel):
     message: str
     history: list = []
+    currency: str = "vnd"
+    rate: float = 1.0
 
 
 class SpendingSuggestionRequest(BaseModel):
@@ -409,7 +413,6 @@ class SpendingSuggestionRequest(BaseModel):
 # 1. API NHẬP LIỆU BẰNG NGÔN NGỮ TỰ NHIÊN 
 @ai_router.post("/parse-expense")
 def parse_expense_from_text(req: AIRequest, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
-    # SỬ DỤNG HÀM LẤY KEY RANDOM Ở ĐÂY
     api_key = get_random_api_key()
     if not api_key:
         raise HTTPException(status_code=500, detail="Chưa cấu hình GEMINI_API_KEY trong file .env")
@@ -419,28 +422,34 @@ def parse_expense_from_text(req: AIRequest, db: Session = Depends(get_db), curre
     if user_config and user_config.categories:
         categories_str = ", ".join(user_config.categories)
     else:
-        categories_str = "Ăn uống, ĐI lại, Mua sắm, Hóa đơn, Giải trí, Thu nhập"
+        categories_str = "Ăn uống, Đi lại, Mua sắm, Hóa đơn, Giải trí, Thu nhập"
 
     today_str = datetime.now().strftime("%Y-%m-%d")
     
-    # Nâng cấp Prompt: Dạy AI phân biệt thu/chi và chọn đúng danh mục của người dùng
+    # Fix 2: Chuẩn hóa lại Prompt, dùng đúng biến req.currency và răn đe AI
     prompt = f"""
     Hôm nay là ngày {today_str}.
     Tôi có một câu mô tả dòng tiền: "{req.text}"
-    Hãy trích xuất thông tin và trả về DUY NHẤT một chuỗi JSON hợp lệ, không có thêm bất kỳ văn bản, định dạng markdown hay dấu backtick (```) nào thừa.
+    Hãy trích xuất thông tin và trả về DUY NHẤT một chuỗi JSON hợp lệ.
+
+    QUY TẮC TIỀN TỆ & TÍNH TOÁN (TỐI QUAN TRỌNG):
+    - Hệ thống của người dùng hiện ĐANG CÀI ĐẶT TIỀN TỆ LÀ: {req.currency.upper()}
+    - Lệnh 1: Nếu người dùng nhập một con số mà KHÔNG CÓ ĐƠN VỊ (VD: "mua bánh 15"), bạn BẮT BUỘC phải ngầm hiểu đó là 15 {req.currency.upper()}.
+    - Lệnh 2: NẾU NGƯỜI DÙNG HOÀN TOÀN KHÔNG NHẬP SỐ TIỀN (VD: "tôi ăn cơm"), bạn BẮT BUỘC phải trả về "amount": 0. Tuyệt đối không được tự bịa ra số tiền.
+    - Lệnh 3: TUYỆT ĐỐI KHÔNG ĐƯỢC than vãn hay hỏi lại người dùng tỷ giá. BẠN PHẢI TỰ LÀM TOÁN.
+    - Lệnh 4: Dữ liệu lưu vào hệ thống ('amount') LUÔN LUÔN PHẢI LÀ VNĐ. Bạn hãy lấy con số người dùng nhập nhân với tỷ giá hiện tại là: {req.rate} (Đây là tỷ giá quy đổi từ 1 {req.currency.upper()} sang VNĐ). Tuyệt đối không được dùng con số nào khác.
+    
     Định dạng JSON yêu cầu:
     {{
-        "name": "Tên món đồ hoặc khoản thu thật ngắn gọn",
-        "amount": Số tiền (QUAN TRỌNG: Nếu là CHI TIÊU thì phải là số ÂM ví dụ -50000. Nếu là THU NHẬP như nhận lương, được cho tiền, bán đồ thì phải là số DƯƠNG ví dụ 2000000),
-        "category": "Chọn 1 từ phù hợp nhất TRONG DANH SÁCH SAU ĐÂY của người dùng: {categories_str}",
+        "name": "Tên món đồ thật ngắn gọn",
+        "amount": Số tiền (QUAN TRỌNG: KHÔNG ĐƯỢC BẰNG 0. Chi tiêu là số ÂM, Thu nhập là số DƯƠNG),
+        "category": "Chọn 1 từ trong: {categories_str}",
         "date": "YYYY-MM-DD"
     }}
     """
     
-    url = f"[https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=](https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=){api_key}"
-    payload = {
-        "contents": [{"parts": [{"text": prompt}]}]
-    }
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+    payload = {"contents": [{"parts": [{"text": prompt}]}]}
     
     try:
         response = call_gemini_with_backoff(url, payload, headers={"Content-Type": "application/json"}, timeout=90, retries=3)
@@ -452,23 +461,34 @@ def parse_expense_from_text(req: AIRequest, db: Session = Depends(get_db), curre
         clean_text = ai_text.strip().replace("```json", "").replace("```", "")
         data = json.loads(clean_text)
         
-        parsed_date = datetime.strptime(data["date"], "%Y-%m-%d").date()
+        # Fix 3: KIỂM TRA SỐ TIỀN TẠI CHỖ (Ngăn số 0)
+        try:
+            amount = float(data.get("amount", 0))
+        except (ValueError, TypeError):
+            amount = 0
+            
+        if amount == 0:
+            raise HTTPException(status_code=400, detail="Trợ lý AI không nhận diện được số tiền! Vui lòng nhập rõ con số nhé (VD: Ăn cơm 10).")
+            
+        # Xử lý ngày
+        try:
+            parsed_date = datetime.strptime(data.get("date", today_str), "%Y-%m-%d").date()
+        except ValueError:
+            parsed_date = datetime.now().date()
         
+        # Fix 4: CẤM LƯU DATABASE Ở ĐÂY, CHỈ TRẢ VỀ DỮ LIỆU JSON
         new_id = str(uuid.uuid4())
-        db_transaction = models.Transaction(
-            id=new_id,
-            name=data["name"],
-            amount=data["amount"],
-            category=data["category"],
-            date=parsed_date,
-            tags=["AI Assistant"],
-            user_id=current_user.id
-        )
-        db.add(db_transaction)
-        db.commit()
-        db.refresh(db_transaction)
-        
-        return {"message": "AI đã phân tích và lưu thành công!", "transaction": db_transaction}
+        return {
+            "message": "AI đã phân tích thành công!", 
+            "transaction": {
+                "id": new_id,
+                "name": data.get("name", "Giao dịch AI"),
+                "amount": amount,
+                "category": data.get("category", "Khác"),
+                "date": parsed_date.isoformat(),
+                "tags": ["AI Assistant"]
+            }
+        }
         
     except HTTPException:
         raise
@@ -526,6 +546,28 @@ def chat_with_data(req: ChatRequest, db: Session = Depends(get_db), current_user
     CÂU HỎI MỚI NHẤT CỦA NGƯỜI DÙNG: "{req.message}"
     
     NHIỆM VỤ CỦA BẠN LÀ TRẢ VỀ DUY NHẤT MỘT KHỐI JSON HỢP LỆ (Không chứa dấu markdown ``` hay văn bản nào bên ngoài JSON).
+
+    QUY TẮC CHO TRƯỜNG "reply" (Giữ nguyên phong cách của bạn):
+    1. Trả lời trực tiếp, chính xác. Dùng tiếng Việt, giọng điệu thân thiện. Dùng in đậm (**chữ**) cho các con số.
+    2. Nếu câu hỏi ám chỉ thông tin cũ ("Khoản đó là khoản nào?"), dựa vào LỊCH SỬ TRÒ CHUYỆN để trả lời.
+    3. Tự tính toán (tổng chi, tổng thu...) cẩn thận từ DỮ LIỆU TÀI CHÍNH nếu được hỏi.
+    4. QUY TẮC HIỂN THỊ ĐƠN VỊ TIỀN TỆ:
+       - BẠN CHỈ ĐƯỢC PHÉP báo cáo số tiền bằng đơn vị tiền tệ hiện tại là: {req.currency.upper()}.
+       - NẾU đơn vị hiện tại KHÁC "VND" (Ví dụ đang là EUR, USD...): TUYỆT ĐỐI KHÔNG nhắc đến chữ "VND" hay "VNĐ". Phải tự lấy dữ liệu lịch sử (đang lưu bằng VNĐ) chia ngược lại cho tỷ giá trước khi trả lời người dùng.
+       - NẾU đơn vị hiện tại LÀ "VND": Bạn được phép nhắc đến chữ "VNĐ" và báo cáo bình thường, không cần chia tỷ giá.
+    QUY TẮC CHO TRƯỜNG "action" VÀ "data":
+    1. Nếu người dùng CHƯA CUNG CẤP ĐỦ 2 THÔNG TIN cốt lõi là "Mục đích" VÀ "Số tiền" (Ví dụ: "tôi ăn cơm" -> thiếu tiền, hoặc "nay tiêu 10k" -> thiếu mục đích):
+       -> BẮT BUỘC trả về "action": "chat" VÀ "data": null.
+       -> Ở trường "reply", hãy khéo léo hỏi lại người dùng thông tin còn thiếu (VD: "Bữa cơm đó hết bao nhiêu tiền thế bạn?").
+    2. TUYỆT ĐỐI KHÔNG tự bịa ra số tiền hoặc tự động gán bằng 0. Không thấy tiền = Không được lưu.
+    3. Nếu người dùng CUNG CẤP ĐỦ thông tin (số tiền VÀ mục đích) -> "action": "save", điền đầy đủ phần "data".
+
+    QUY TẮC TIỀN TỆ & TÍNH TOÁN (TỐI QUAN TRỌNG):
+    - Hệ thống của người dùng hiện ĐANG CÀI ĐẶT TIỀN TỆ LÀ: {req.currency.upper()}
+    - Lệnh 1: Nếu người dùng nhập một con số mà KHÔNG CÓ ĐƠN VỊ (VD: "nay ăn phở 40"), bạn BẮT BUỘC phải ngầm hiểu đó là 40 {req.currency.upper()}.
+    - Lệnh 2: TUYỆT ĐỐI KHÔNG ĐƯỢC than vãn hay hỏi lại người dùng tỷ giá. BẠN PHẢI TỰ LÀM TOÁN.
+    - Lệnh 3: Dữ liệu lưu vào hệ thống ('amount') LUÔN LUÔN PHẢI LÀ VNĐ. Bạn hãy lấy con số người dùng nhập nhân với tỷ giá hiện tại là: {req.rate} (Đây là tỷ giá quy đổi từ 1 {req.currency.upper()} sang VNĐ). Tuyệt đối không được dùng con số nào khác.
+
     Cấu trúc JSON bắt buộc:
     {{
         "reply": "Câu trả lời của bạn gửi cho người dùng",
@@ -537,15 +579,6 @@ def chat_with_data(req: ChatRequest, db: Session = Depends(get_db), current_user
             "date": "YYYY-MM-DD (chỉ có khi action là save)"
         }}
     }}
-
-    QUY TẮC CHO TRƯỜNG "reply" (Giữ nguyên phong cách của bạn):
-    1. Trả lời trực tiếp, chính xác. Dùng tiếng Việt, giọng điệu thân thiện. Dùng in đậm (**chữ**) cho các con số.
-    2. Nếu câu hỏi ám chỉ thông tin cũ ("Khoản đó là khoản nào?"), dựa vào LỊCH SỬ TRÒ CHUYỆN để trả lời.
-    3. Tự tính toán (tổng chi, tổng thu...) cẩn thận từ DỮ LIỆU TÀI CHÍNH nếu được hỏi.
-    
-    QUY TẮC CHO TRƯỜNG "action" VÀ "data":
-    1. Nếu người dùng chỉ hỏi đáp, tra cứu, tính toán, hoặc thông tin CHƯA ĐỦ để lưu (VD: "nay tiêu 10k" nhưng chưa nói tiêu vào việc gì) -> action: "chat", data: null.
-    2. Nếu người dùng CUNG CẤP ĐỦ thông tin (số tiền VÀ mục đích, ví dụ: "tôi tiêu 10k cho đồ ăn vặt" hoặc nối tiếp lịch sử "cho đồ ăn vặt") -> action: "save", điền đầy đủ phần "data".
     """
     
     # BƯỚC 5: Gọi Gemini 2.5 Flash

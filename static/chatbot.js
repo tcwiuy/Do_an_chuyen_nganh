@@ -107,10 +107,12 @@ window.sendChatMessage = async function() {
     sendBtn.disabled = true;
 
     try {
+        const currentRate = (typeof exchangeRatesToVND !== 'undefined') ? (exchangeRatesToVND[currentCurrency] || 1) : 1;
+        
         const res = await fetch('/api/ai/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: message, history: conversationMemory })
+            body: JSON.stringify({ message: message, history: conversationMemory, currency: currentCurrency, rate: currentRate })
         });
 
         document.getElementById(loadingId).remove();

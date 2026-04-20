@@ -25,3 +25,4 @@ __pycache__/
 # Các file hệ thống tự sinh ra
 .DS_Store
 .vscode/
+requirements.txt
