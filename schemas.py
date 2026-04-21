@@ -1,9 +1,6 @@
-from datetime import date
-from pydantic import BaseModel, field_validator, Field
-from datetime import datetime, date # Đã sửa lại import cho chuẩn
+from datetime import date, datetime
 from typing import List, Optional
-from pydantic import BaseModel, ConfigDict
-
+from pydantic import BaseModel, field_validator, Field, ConfigDict
 
 # --- SCHEMAS CHO GIAO DỊCH THÔNG THƯỜNG ---
 class TransactionBase(BaseModel):
@@ -12,8 +9,12 @@ class TransactionBase(BaseModel):
     category: str
     date: datetime
     tags: Optional[List[str]] = Field(default_factory=list)
+    
+    # 1. BỔ SUNG 2 TRƯỜNG MỚI ĐỂ KHỚP VỚI DATABASE
+    note: Optional[str] = None
+    recurring_interval: Optional[str] = ""
 
-    # 1. Chặn số tiền bằng 0 hoặc lớn hơn 1 tỷ VNĐ
+    # Chặn số tiền bằng 0 hoặc lớn hơn 1 tỷ VNĐ
     @field_validator('amount')
     @classmethod
     def validate_amount(cls, value):
@@ -23,7 +24,7 @@ class TransactionBase(BaseModel):
             raise ValueError("Số tiền giao dịch quá lớn (vượt quá 1 tỷ VNĐ), hệ thống từ chối ghi nhận!")
         return value
 
-    # 2. Chặn tên giao dịch nhập cho có (VD: "A", "B")
+    # Chặn tên giao dịch nhập cho có (VD: "A", "B")
     @field_validator('name')
     @classmethod
     def validate_name(cls, value):
@@ -31,7 +32,7 @@ class TransactionBase(BaseModel):
             raise ValueError("Tên giao dịch không hợp lệ (phải có ít nhất 2 ký tự).")
         return value
 
-    # 3. Chặn chọn nhầm năm quá xa trong tương lai
+    # Chặn chọn nhầm năm quá xa trong tương lai
     @field_validator('date')
     @classmethod
     def validate_date(cls, value):
@@ -42,11 +43,8 @@ class TransactionBase(BaseModel):
 class TransactionCreate(TransactionBase):
     pass
 
-# Ở các class TransactionResponse, RecurringTransactionResponse, UserResponse
 class TransactionResponse(TransactionBase):
     id: str
-    
-    # Xóa "class Config:" đi và thay bằng 1 dòng này:
     model_config = ConfigDict(from_attributes=True)
 
 # --- SCHEMAS CHO GIAO DỊCH ĐỊNH KỲ ---
@@ -54,7 +52,8 @@ class RecurringTransactionBase(BaseModel):
     name: str
     amount: float
     category: str
-    tags: Optional[List[str]] = []
+    # 2. SỬA LỖI MUTABLE DEFAULT CỦA PYTHON
+    tags: Optional[List[str]] = Field(default_factory=list) 
     interval: str
     startDate: datetime
     occurrences: int
@@ -82,9 +81,8 @@ class RecurringTransactionCreate(RecurringTransactionBase):
 class RecurringTransactionResponse(RecurringTransactionBase):
     id: str
     user_id: int
-
-    class Config:
-        from_attributes = True
+    # 3. ĐỒNG BỘ CHUẨN PYDANTIC V2
+    model_config = ConfigDict(from_attributes=True) 
 
 # --- SCHEMAS CHO NGƯỜI DÙNG & ĐĂNG NHẬP ---
 class UserCreate(BaseModel):
@@ -98,9 +96,8 @@ class UserCreate(BaseModel):
 class UserResponse(BaseModel):
     id: int
     username: str
-
-    class Config:
-        from_attributes = True
+    # 3. ĐỒNG BỘ CHUẨN PYDANTIC V2
+    model_config = ConfigDict(from_attributes=True) 
 
 class Token(BaseModel):
     access_token: str

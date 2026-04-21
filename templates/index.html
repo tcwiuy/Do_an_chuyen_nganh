@@ -43,7 +43,7 @@
         <a href="/" class="view-button active" data-tooltip="Trang Chủ">
           <i class="fa-solid fa-chart-pie"></i>
         </a>
-        <a href="/table" class="view-button" data-tooltip="Hoạt động">
+        <a href="/history" class="view-button" data-tooltip="Hoạt động">
           <i class="fa-solid fa-clock-rotate-left"></i>
         </a>
         <a href="/suggestions" class="view-button" data-tooltip="Gợi Ý AI">
@@ -202,7 +202,21 @@
                 <option value="">Chọn danh mục</option>
               </select>
             </div>
+            <div class="form-group">
+              <label>Tần suất lặp lại</label>
+              <select id="recurring_interval" style="width: 100%; padding: 10px; border-radius: 8px; background: #151521; color: #fff; border: 1px solid #2a2a40; outline: none;">
+                  <option value="">Không lặp lại (Chỉ 1 lần)</option>
+                  <option value="daily">Hàng ngày</option>
+                  <option value="weekly">Hàng tuần</option>
+                  <option value="monthly">Hàng tháng</option>
+                  <option value="yearly">Hàng năm</option>
+              </select>
+          </div>
 
+          <div class="form-group">
+              <label>Ghi chú chi tiết</label>
+              <textarea id="note" rows="2" placeholder="" style="width: 100%; padding: 10px; border-radius: 8px; background: #151521; color: #fff; border: 1px solid #2a2a40; outline: none;"></textarea>
+          </div>
             <div class="form-group">
               <label for="tags-input">Nhãn</label>
               <div id="tags-input-container" class="tags-input-container">

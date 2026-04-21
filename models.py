@@ -30,7 +30,9 @@ class Transaction(Base):
     amount = Column(Float)
     category = Column(String, index=True)
     date = Column(DateTime, default=datetime.datetime.utcnow)
-    tags = Column(JSON) # Lưu list tags dưới dạng JSON
+    tags = Column(JSON) 
+    note = Column(String, nullable=True)
+    recurring_interval = Column(String, nullable=True)
     
     user_id = Column(Integer, ForeignKey("users.id"))
     owner = relationship("User", back_populates="transactions")

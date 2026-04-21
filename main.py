@@ -46,9 +46,9 @@ def render_dashboard(request: Request):
     # Trả về trang index.html
     return templates.TemplateResponse(request=request, name="index.html")
 
-@app.get("/table")
-def render_table(request: Request):
-    return templates.TemplateResponse(request=request, name="table.html")
+@app.get("/history")
+def render_history(request: Request):
+    return templates.TemplateResponse(request=request, name="history.html")
 
 @app.get("/settings")
 def render_settings(request: Request):

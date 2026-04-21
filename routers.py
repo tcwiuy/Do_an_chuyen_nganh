@@ -228,7 +228,13 @@ def create_transaction(transaction: schemas.TransactionCreate, db: Session = Dep
         category=transaction.category,
         date=transaction.date,
         tags=transaction.tags if transaction.tags else ["Manual"],
-        user_id=current_user.id # LƯU VÀO ID THẬT
+        
+        # --- THÊM 2 DÒNG NÀY ---
+        note=transaction.note,
+        recurring_interval=transaction.recurring_interval,
+        # -----------------------
+        
+        user_id=current_user.id 
     )
     db.add(db_transaction)
     db.commit()
@@ -237,7 +243,6 @@ def create_transaction(transaction: schemas.TransactionCreate, db: Session = Dep
 
 @router.put("/{transaction_id}", response_model=schemas.TransactionResponse)
 def update_transaction(transaction_id: str, transaction_update: schemas.TransactionCreate, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
-    # Đảm bảo giao dịch thuộc về user hiện tại mới cho phép sửa
     db_txn = db.query(models.Transaction).filter(models.Transaction.id == transaction_id, models.Transaction.user_id == current_user.id).first()
     if not db_txn:
         raise HTTPException(status_code=404, detail="Không tìm thấy giao dịch")
@@ -247,6 +252,11 @@ def update_transaction(transaction_id: str, transaction_update: schemas.Transact
     db_txn.category = transaction_update.category
     db_txn.date = transaction_update.date
     db_txn.tags = transaction_update.tags
+    
+    # --- THÊM 2 DÒNG NÀY ---
+    db_txn.note = transaction_update.note
+    db_txn.recurring_interval = transaction_update.recurring_interval
+    # -----------------------
     
     db.commit()
     db.refresh(db_txn)
@@ -1098,6 +1108,7 @@ async def confirm_scan_receipt(
         tags = transaction_data.get("tags", ["OCR"])
         if not isinstance(tags, list):
             tags = [str(tags)] if tags else ["OCR"]
+        note_text = str(transaction_data.get("notes", "")).strip()
 
         new_id = str(uuid.uuid4())
         db_transaction = models.Transaction(
@@ -1107,6 +1118,7 @@ async def confirm_scan_receipt(
             category=category,
             date=parsed_date,
             tags=tags,
+            note=note_text,
             user_id=current_user.id
         )
 

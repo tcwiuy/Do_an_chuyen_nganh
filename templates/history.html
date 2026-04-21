@@ -19,7 +19,7 @@
         <header>
             <div class="nav-bar">
                 <a href="/" class="view-button" data-tooltip="Trang Chủ"><i class="fa-solid fa-chart-pie"></i></a>
-                <a href="/table" class="view-button active" data-tooltip="Hoạt động"><i class="fa-solid fa-clock-rotate-left"></i></a>
+                <a href="/history" class="view-button active" data-tooltip="Hoạt động"><i class="fa-solid fa-clock-rotate-left"></i></a>
                 <a href="/suggestions" class="view-button" data-tooltip="Gợi Ý AI"><i class="fa-solid fa-lightbulb"></i></a>
                 <a href="/settings" class="view-button" data-tooltip="Cài Đặt"><i class="fa-solid fa-gear"></i></a>
                 <a href="javascript:void(0)" class="view-button" onclick="logout()" data-tooltip="Đăng Xuất" style="margin-left: auto; color: #ff4d4d;"><i class="fa-solid fa-right-from-bracket"></i></a>
@@ -47,40 +47,70 @@
         </div>
 
         <div class="form-container">
-            <form id="expenseForm" class="expense-form">
-                <div class="form-group">
-                    <label for="name">Mô tả giao dịch</label>
-                    <input type="text" id="name" value="-" required>
-                </div>
-                <div class="form-group">
-                    <label for="category">Danh mục</label>
-                    <select id="category" required><option value="">Chọn danh mục</option></select>
-                </div>
-                <div class="form-group">
-                    <label for="tags-input">Nhãn</label>
-                    <div id="tags-input-container" class="tags-input-container">
-                        <div id="selected-tags" class="selected-tags"></div>
-                        <input type="text" id="tags-input" placeholder="(Thêm thủ công)">
+            <form id="expenseForm">
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; align-items: start; margin-bottom: 20px;">
+    
+                    <div class="form-group">
+                        <label>Mô tả</label>
+                        <input type="text" id="name" placeholder="Ví dụ: Trà sữa" required>
                     </div>
-                    <div id="tags-dropdown" class="tags-dropdown"></div>
+                    
+                    <div class="form-group">
+                        <label>Danh mục</label>
+                        <select id="category" required>
+                            </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Số tiền</label>
+                        <input type="number" id="amount" step="0.01" placeholder="0" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Ngày</label>
+                        <input type="date" id="date" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Tần suất lặp lại</label>
+                        <select id="recurring_interval">
+                            <option value="">Không lặp lại</option>
+                            <option value="daily">Hàng ngày</option>
+                            <option value="weekly">Hàng tuần</option>
+                            <option value="monthly">Hàng tháng</option>
+                            <option value="yearly">Hàng năm</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group" style="position: relative;">
+                        <label>Nhãn</label>
+                        
+                        <div id="tags-input-container" style="width: 100%;">
+                            <input type="text" id="tags-input" placeholder="Nhập và ấn Enter" autocomplete="off" style="width: 100%; box-sizing: border-box;">
+                        </div>
+                        
+                        <div id="tags-dropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: #2a2a40; border: 1px solid #3d3d5c; border-radius: 8px; z-index: 100; max-height: 150px; overflow-y: auto; box-shadow: 0 4px 12px rgba(0,0,0,0.5); padding: 5px 0;"></div>
+                        
+                        <div id="selected-tags" style="display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px;"></div>
+                    </div>
+                    
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label>Ghi chú chi tiết</label>
+                        <input type="text" id="note" placeholder="Ghi chú thêm (không bắt buộc)...">
+                    </div>
+
                 </div>
-                <div class="form-group">
-                    <label for="amount">Số tiền</label>
-                    <input type="number" id="amount" step="0.01" min="0.01" max="9000000000000000" required>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #2a2a40; padding-top: 15px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <label for="reportGain" style="margin: 0; color: #a1a1aa;">Khoản thu</label>
+                        <input type="checkbox" id="reportGain" style="transform: scale(1.2); cursor: pointer;">
+                    </div>
+                    
+                    <button type="submit" class="nav-button" style="padding: 10px 25px; font-weight: bold;">
+                        Lưu Giao Dịch
+                    </button>
                 </div>
-                <div class="form-group">
-                    <label for="date">Ngày</label>
-                    <input type="date" id="date" required>
-                    <script>
-                        const td = new Date();
-                        document.getElementById('date').value = `${td.getFullYear()}-${String(td.getMonth() + 1).padStart(2, '0')}-${String(td.getDate()).padStart(2, '0')}`;
-                    </script>
-                </div>
-                <div class="form-group form-group-checkbox">
-                    <label for="reportGain">Khoản thu</label>
-                    <input type="checkbox" id="reportGain" class="styled-checkbox">
-                </div>
-                <button type="submit" class="nav-button">Lưu Giao Dịch</button>
             </form>
             <div id="formMessage" class="form-message"></div>
         </div>
@@ -147,16 +177,14 @@
             if (!expenses || expenses.length === 0) {
                 return `<div class="no-data">${document.getElementById('showAllToggle').checked ? 'Không tìm thấy giao dịch nào' : 'Không có giao dịch nào được ghi nhận trong giai đoạn này'}</div>`;
             }
-            const hasTags = expenses.some(exp => exp.tags && exp.tags.length > 0);
-            
+                        
             return `
                 <table class="expense-table" style="width: 100%;">
                     <thead>
                         <tr>
                             <th style="cursor: pointer; transition: 0.2s;" onclick="handleSort('name')" onmouseover="this.style.color='#d4a5ff'" onmouseout="this.style.color=''">Mô tả ${getSortIcon('name')}</th>
                             <th>Danh mục</th>
-                            ${hasTags ? '<th class="tags-column">Nhãn</th>' : ''}
-                            <th style="cursor: pointer; transition: 0.2s;" onclick="handleSort('amount')" onmouseover="this.style.color='#d4a5ff'" onmouseout="this.style.color=''">Số tiền ${getSortIcon('amount')}</th>
+                            <th>Nhãn</th> <th style="cursor: pointer; transition: 0.2s;" onclick="handleSort('amount')" onmouseover="this.style.color='#d4a5ff'" onmouseout="this.style.color=''">Số tiền ${getSortIcon('amount')}</th>
                             <th style="cursor: pointer; transition: 0.2s;" class="date-header" onclick="handleSort('date')" onmouseover="this.style.color='#d4a5ff'" onmouseout="this.style.color=''">Ngày ${getSortIcon('date')}</th>
                             <th></th>
                         </tr>
@@ -164,12 +192,21 @@
                     <tbody>
                         ${expenses.map((expense, index) => {
                             const catColor = categoryColors[expense.category] || '#d4a5ff';
+                            
+                            // XỬ LÝ GIAO DIỆN NHÃN THÀNH CÁC "VIÊN THUỐC" (PILL)
+                            let tagsHtml = '-'; // Mặc định hiện dấu gạch ngang nếu không có nhãn
+                            if (expense.tags && expense.tags.length > 0) {
+                                tagsHtml = expense.tags.map(tag => 
+                                    `<span style="background: #2a2a40; color: #d4a5ff; padding: 3px 10px; border-radius: 12px; font-size: 0.8rem; margin-right: 5px; display: inline-block; white-space: nowrap; border: 1px solid #3d3d5c;">${escapeHTML(tag)}</span>`
+                                ).join('');
+                            }
+
                             return `
                             <tr>
                                 <td>${escapeHTML(expense.name)}</td>
                                 <td><span style="background: ${catColor}1A; color: ${catColor}; border: 1px solid ${catColor}40; padding: 4px 10px; border-radius: 6px; font-size: 0.85rem; font-weight: bold; white-space: nowrap;">${escapeHTML(expense.category)}</span></td>
-                                ${hasTags ? `<td class="tags-column">${(expense.tags || []).map(escapeHTML).join(', ')}</td>` : ''}
-                                <td class="amount ${expense.amount > 0 ? 'positive' : 'negative'}" style="font-weight: bold;">${formatCurrency(expense.amount)}</td>
+                                
+                                <td class="tags-column">${tagsHtml}</td> <td class="amount ${expense.amount > 0 ? 'positive' : 'negative'}" style="font-weight: bold;">${formatCurrency(expense.amount)}</td>
                                 <td class="date-column">${formatDateFromUTC(expense.date)}</td>
                                 <td>
                                     <button class="edit-button" onclick="editExpenseByIndex(${index})"><i class="fa-solid fa-pen-to-square"></i></button>
@@ -242,13 +279,15 @@
         function editExpense(id, name, category, amount, tags, date) {
             document.getElementById('name').value = name;
             document.getElementById('category').value = category;
+            document.getElementById('note').value = transaction.note || '';
+            document.getElementById('recurring_interval').value = transaction.recurring_interval || '';
             
             let displayAmount = Math.abs(amount);
             if (typeof exchangeRatesToVND !== 'undefined') {
                 const rate = exchangeRatesToVND[currentCurrency] || 1;
                 displayAmount = displayAmount / rate;
             }
-            document.getElementById('amount').value = displayAmount;
+            document.getElementById('amount').value = parseFloat(displayAmount.toFixed(2));
             document.getElementById('reportGain').checked = amount > 0;
             renderSelectedTags(tags);
             
@@ -433,7 +472,9 @@
                 category: selectedCategory,
                 amount: finalAmountToSave, 
                 date: getISODateWithLocalTime(document.getElementById('date').value), 
-                tags: Array.from(selectedTags)
+                tags: Array.from(selectedTags), 
+                note: document.getElementById('note').value,
+                recurring_interval: document.getElementById('recurring_interval').value
             };
 
             try {
