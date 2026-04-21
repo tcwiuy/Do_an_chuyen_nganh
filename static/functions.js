@@ -114,7 +114,7 @@ function formatCurrency(amount) {
 }
 
 // =========================================
-// QUẢN LÝ THỜI GIAN & NGÀY THÁNG
+// QUẢN LÝ THỜI GIAN & NGÀY THÁNG (BẢN CHUẨN UTC)
 // =========================================
 function getUserTimeZone() {
     return Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -128,31 +128,18 @@ function formatMonth(date) {
     });
 }
 
-function getISODateWithLocalTime(dateInput) {
-    const [year, month, day] = dateInput.split('-').map(Number);
-    const now = new Date();
-    const hours = now.getHours();
-    const minutes = now.getMinutes();
-    const seconds = now.getSeconds();
-    const localDateTime = new Date(year, month - 1, day, hours, minutes, seconds);
-    return localDateTime.toISOString();
-}
+// BỎ getISODateWithLocalTime vì gây lệch múi giờ
 
+// Chỉ đọc ngày UTC để hiển thị đồng nhất, không cho trình duyệt tự cộng giờ
 function formatDateFromUTC(utcDateString) {
-    let safeDateString = utcDateString;
-    if (!safeDateString.endsWith('Z')) {
-        safeDateString += 'Z'; 
-    }
+    if (!utcDateString) return '-';
+    const safeDate = utcDateString.endsWith('Z') ? utcDateString : utcDateString + 'Z';
+    const date = new Date(safeDate);
     
-    const date = new Date(safeDateString);
-    
-    return date.toLocaleDateString('vi-VN', {
-        hour: '2-digit',
-        minute: '2-digit',
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric'
-    });
+    const day = String(date.getUTCDate()).padStart(2, '0');
+    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const year = date.getUTCFullYear();
+    return `${day}/${month}/${year}`;
 }
 
 function updateMonthDisplay() {
@@ -162,63 +149,36 @@ function updateMonthDisplay() {
     }
 }
 
+// Tính khoảng tháng theo đúng 00:00:00 UTC
 function getMonthBounds(date) {
-    const localDate = new Date(date);
+    const d = new Date(date);
+    const year = d.getUTCFullYear();
+    const month = d.getUTCMonth();
+
     if (startDate === 1) {
-        const startLocal = new Date(localDate.getFullYear(), localDate.getMonth(), 1);
-        const endLocal = new Date(localDate.getFullYear(), localDate.getMonth() + 1, 0, 23, 59, 59, 999);
-        return { start: new Date(startLocal.toISOString()), end: new Date(endLocal.toISOString()) };
+        const start = new Date(Date.UTC(year, month, 1, 0, 0, 0));
+        const end = new Date(Date.UTC(year, month + 1, 0, 23, 59, 59, 999));
+        return { start, end };
     }
     
-    let thisMonthStartDate = startDate;
-    let prevMonthStartDate = startDate;
-
-    const currentMonth = localDate.getMonth();
-    const currentYear = localDate.getFullYear();
-    const daysInCurrentMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-    thisMonthStartDate = Math.min(thisMonthStartDate, daysInCurrentMonth);
-    const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
-    const prevYear = currentMonth === 0 ? currentYear - 1 : currentYear;
-    const daysInPrevMonth = new Date(prevYear, prevMonth + 1, 0).getDate();
-    prevMonthStartDate = Math.min(prevMonthStartDate, daysInPrevMonth);
-
-    if (localDate.getDate() < thisMonthStartDate) {
-        const startLocal = new Date(prevYear, prevMonth, prevMonthStartDate);
-        const endLocal = new Date(currentYear, currentMonth, thisMonthStartDate - 1, 23, 59, 59, 999);
-        return { start: new Date(startLocal.toISOString()), end: new Date(endLocal.toISOString()) };
+    let start, end;
+    if (d.getUTCDate() < startDate) {
+        start = new Date(Date.UTC(year, month - 1, startDate, 0, 0, 0));
+        end = new Date(Date.UTC(year, month, startDate - 1, 23, 59, 59, 999));
     } else {
-        const nextMonth = currentMonth === 11 ? 0 : currentMonth + 1;
-        const nextYear = currentMonth === 11 ? currentYear + 1 : currentYear;
-        const daysInNextMonth = new Date(nextYear, nextMonth + 1, 0).getDate();
-        let nextMonthStartDate = Math.min(startDate, daysInNextMonth);
-        const startLocal = new Date(currentYear, currentMonth, thisMonthStartDate);
-        const endLocal = new Date(nextYear, nextMonth, nextMonthStartDate - 1, 23, 59, 59, 999);
-        return { start: new Date(startLocal.toISOString()), end: new Date(endLocal.toISOString()) };
+        start = new Date(Date.UTC(year, month, startDate, 0, 0, 0));
+        end = new Date(Date.UTC(year, month + 1, startDate - 1, 23, 59, 59, 999));
     }
+    return { start, end };
 }
 
 function getMonthExpenses(expenses) {
     const { start, end } = getMonthBounds(currentDate);
     return expenses.filter(exp => {
-        let safeDateString = exp.date;
-        if (!safeDateString.endsWith('Z')) safeDateString += 'Z';
-        
+        const safeDateString = exp.date.endsWith('Z') ? exp.date : exp.date + 'Z';
         const expDate = new Date(safeDateString);
         return expDate >= start && expDate <= end;
     }).sort((a, b) => new Date(b.date) - new Date(a.date));
-}
-
-function escapeHTML(str) {
-    if (typeof str !== 'string') return str;
-    return str.replace(/[&<>'"]/g,
-        tag => ({
-            '&': '&amp;',
-            '<': '&lt;',
-            '>': '&gt;',
-            "'": '&#39;',
-            '"': '&quot;'
-        }[tag] || tag)
-    );
 }
 
 // =========================================

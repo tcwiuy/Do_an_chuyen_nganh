@@ -57,8 +57,7 @@
                     
                     <div class="form-group">
                         <label>Danh mục</label>
-                        <select id="category" required>
-                            </select>
+                        <select id="category" required></select>
                     </div>
                     
                     <div class="form-group">
@@ -144,8 +143,23 @@
     <script src="/static/functions.js"></script>
     <script>
         let currentCurrency = 'usd', currentDate = new Date(), allExpenses = [], expensesForTable = [], startDate = 1, allTags = new Set(), selectedTags = new Set(), categoryColors = {};
-        
         let currentFilterCategory = 'all', currentSortColumn = null, currentSortOrder = null;
+
+        // 👇 DÁN HÀM BỊ THIẾU VÀO ĐÂY 👇
+        window.escapeHTML = function(str) {
+            if (str === null || str === undefined) return '';
+            if (typeof str !== 'string') return String(str);
+            return str.replace(/[&<>'"]/g, function(tag) {
+                const charsToReplace = {
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    "'": '&#39;',
+                    '"': '&quot;'
+                };
+                return charsToReplace[tag] || tag;
+            });
+        };
 
         function assignCategoryColors(categories) {
             categories.forEach((category, index) => {
@@ -193,8 +207,7 @@
                         ${expenses.map((expense, index) => {
                             const catColor = categoryColors[expense.category] || '#d4a5ff';
                             
-                            // XỬ LÝ GIAO DIỆN NHÃN THÀNH CÁC "VIÊN THUỐC" (PILL)
-                            let tagsHtml = '-'; // Mặc định hiện dấu gạch ngang nếu không có nhãn
+                            let tagsHtml = '-'; 
                             if (expense.tags && expense.tags.length > 0) {
                                 tagsHtml = expense.tags.map(tag => 
                                     `<span style="background: #2a2a40; color: #d4a5ff; padding: 3px 10px; border-radius: 12px; font-size: 0.8rem; margin-right: 5px; display: inline-block; white-space: nowrap; border: 1px solid #3d3d5c;">${escapeHTML(tag)}</span>`
@@ -253,9 +266,14 @@
             updateTable();
         });
 
+        // ==========================================
+        // FIX: Thêm note và recurring_interval để khi Sửa không bị mất dữ liệu cũ
+        // ==========================================
         function editExpenseByIndex(index) {
             const expense = expensesForTable[index]; 
-            if (expense) editExpense(expense.id, expense.name, expense.category, expense.amount, (expense.tags || []), expense.date);
+            if (expense) {
+                editExpense(expense.id, expense.name, expense.category, expense.amount, (expense.tags || []), expense.date, expense.note, expense.recurring_interval);
+            }
         }
 
         function renderSelectedTags(tags) {
@@ -276,11 +294,13 @@
             });
         }
 
-        function editExpense(id, name, category, amount, tags, date) {
+        function editExpense(id, name, category, amount, tags, date, note, recurring_interval) {
             document.getElementById('name').value = name;
             document.getElementById('category').value = category;
-            document.getElementById('note').value = transaction.note || '';
-            document.getElementById('recurring_interval').value = transaction.recurring_interval || '';
+            
+            // Gán dữ liệu cũ vào Form
+            document.getElementById('note').value = note || '';
+            document.getElementById('recurring_interval').value = recurring_interval || '';
             
             let displayAmount = Math.abs(amount);
             if (typeof exchangeRatesToVND !== 'undefined') {
@@ -291,8 +311,8 @@
             document.getElementById('reportGain').checked = amount > 0;
             renderSelectedTags(tags);
             
-            const localDate = new Date(date);
-            document.getElementById('date').value = `${localDate.getFullYear()}-${String(localDate.getMonth() + 1).padStart(2, '0')}-${String(localDate.getDate()).padStart(2, '0')}`;
+            // FIX NGÀY: Cắt lấy YYYY-MM-DD để tránh lệch múi giờ
+            document.getElementById('date').value = date.split('T')[0];
             
             const form = document.getElementById('expenseForm');
             form.dataset.editId = id;
@@ -348,6 +368,7 @@
 
         async function initialize() {
             try {
+                // 1. Tải cấu hình
                 const configResponse = await fetch('/api/config');
                 if (!configResponse.ok) throw new Error('Failed to fetch configuration');
                 const config = await configResponse.json();
@@ -355,16 +376,53 @@
                 document.getElementById('category').innerHTML = config.categories.map(cat => `<option value="${cat}">${cat}</option>`).join('');
                 document.getElementById('categoryFilter').innerHTML = `<option value="all">Tất cả danh mục</option>` + config.categories.map(cat => `<option value="${cat}">${cat}</option>`).join('');
 
-                currentCurrency = config.currency;
+                window.currentCurrency = config.currency || 'usd'; 
+                currentCurrency = window.currentCurrency;
                 startDate = config.startDate;
                 
+                // 2. Tải dữ liệu giao dịch
                 const response = await fetch('/api/expenses/');
                 if (!response.ok) throw new Error('Failed to fetch data');
-                const data = await response.json();
-                allExpenses = Array.isArray(data) ? data : (data && Array.isArray(data.expenses) ? data.expenses : []);
+                const rawData = await response.json();
+                let fetchedExpenses = Array.isArray(rawData) ? rawData : (rawData && Array.isArray(rawData.expenses) ? rawData.expenses : []);
                 
+                // ====================================================
+                // 🛡️ BỘ LỌC VỆ SINH DỮ LIỆU (CHỐNG CRASH DO DATA CŨ)
+                // ====================================================
+                allExpenses = fetchedExpenses.map(exp => {
+                    // Đảm bảo Tags luôn là 1 mảng (Array)
+                    let safeTags = [];
+                    if (Array.isArray(exp.tags)) {
+                        safeTags = exp.tags;
+                    } else if (typeof exp.tags === 'string') {
+                        try { safeTags = JSON.parse(exp.tags); } catch(e) {}
+                        if (!Array.isArray(safeTags) && exp.tags.trim() !== '') safeTags = [exp.tags];
+                    }
+
+                    // Đảm bảo Date luôn tồn tại và là chuỗi
+                    let safeDate = new Date().toISOString();
+                    if (typeof exp.date === 'string' && exp.date.trim() !== '') {
+                        safeDate = exp.date;
+                    }
+
+                    return {
+                        ...exp,
+                        name: exp.name || 'Không có mô tả',
+                        category: exp.category || 'Khác',
+                        amount: parseFloat(exp.amount) || 0,
+                        date: safeDate,
+                        tags: safeTags,
+                        note: exp.note || null,
+                        recurring_interval: exp.recurring_interval || null
+                    };
+                });
+                // ====================================================
+
+                // 3. Gom Tags và xử lý Giao diện
                 allTags.clear();
-                allExpenses.forEach(exp => { if (exp.tags) exp.tags.forEach(tag => allTags.add(tag)); });
+                allExpenses.forEach(exp => {
+                    exp.tags.forEach(tag => allTags.add(tag));
+                });
 
                 const uniqueCategories = [...new Set(allExpenses.map(exp => exp.category))];
                 assignCategoryColors(uniqueCategories);
@@ -372,9 +430,13 @@
                 updateMonthDisplay();
                 updateTable();
                 setupTagInput();
+
             } catch (error) {
-                console.error('Lỗi khi khởi tạo bảng:', error);
-                document.getElementById('tableContainer').innerHTML = '<div class="no-data">Lỗi khi tải danh sách giao dịch</div>';
+                console.error('Lỗi khi khởi tạo bảng (Chi tiết):', error);
+                document.getElementById('tableContainer').innerHTML = `
+                    <div class="no-data" style="color: #ff4d4d;">
+                        <i class="fa-solid fa-triangle-exclamation"></i> Lỗi khi tải danh sách giao dịch. Hãy kiểm tra (F12) Console để biết chi tiết.
+                    </div>`;
             }
         }
 
@@ -426,6 +488,9 @@
             });
         }
 
+        // ==========================================
+        // FIX: Ngăn chặn lỗi 422 Unprocessable Entity
+        // ==========================================
         document.getElementById('expenseForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const form = e.target;
@@ -439,8 +504,11 @@
             if (typeof exchangeRatesToVND !== 'undefined') {
                 rate = exchangeRatesToVND[currentCurrency] || 1;
             }
+            
             let amountInVND = rawAmount * rate;
+            let finalAmountToSave = isGain ? amountInVND : -amountInVND;
 
+            // KIỂM TRA BẤT THƯỜNG TRƯỚC KHI LƯU
             if (!isGain && selectedCategory) {
                 const categoryExpenses = allExpenses.filter(exp => exp.amount < 0 && exp.category === selectedCategory);
                 let categoryAverageVND = 0;
@@ -456,25 +524,21 @@
                     const confirmMsg = `Số tiền bạn định lưu (${formatCurrency(amountInVND)}) lớn hơn GẤP NHIỀU LẦN so với mức chi tiêu trung bình của danh mục "${selectedCategory}" (${formatCurrency(categoryAverageVND)}).\n\nBạn có chắc chắn thông tin này là chính xác và muốn lưu không?`;
                     
                     const userConfirmed = await showCustomConfirm(confirmMsg);
-                    if (!userConfirmed) {
-                        return; 
-                    }
+                    if (!userConfirmed) return; 
                 }
             }
 
-            let finalAmountToSave = amountInVND;
-            if (!isGain) {
-                finalAmountToSave *= -1;
-            }
-
+            // ĐÓNG GÓI DỮ LIỆU
             const formData = {
-                name: document.getElementById('name').value, 
+                name: document.getElementById('name').value.trim(), 
                 category: selectedCategory,
                 amount: finalAmountToSave, 
-                date: getISODateWithLocalTime(document.getElementById('date').value), 
-                tags: Array.from(selectedTags), 
-                note: document.getElementById('note').value,
-                recurring_interval: document.getElementById('recurring_interval').value
+                // FIX: Ép UTC để chống nhảy ngày
+                date: new Date(document.getElementById('date').value + "T00:00:00Z").toISOString(), 
+                tags: Array.from(selectedTags).map(t => String(t)), 
+                // FIX: Dùng || null để tránh gửi chuỗi rỗng gây lỗi 422
+                note: document.getElementById('note').value.trim() || null,
+                recurring_interval: document.getElementById('recurring_interval').value || null
             };
 
             try {
@@ -490,16 +554,24 @@
                 
                 if (response.ok) {
                     if(window.showToast) showToast(editId ? 'Đã cập nhật giao dịch!' : 'Đã thêm giao dịch mới!', "success");
+                    
+                    const lastDate = document.getElementById('date').value; // Lưu lại ngày
+                    
                     form.reset(); 
                     document.getElementById('selected-tags').innerHTML = ''; 
                     selectedTags.clear(); 
                     delete form.dataset.editId;
                     await initialize();
-                    const td = new Date();
-                    document.getElementById('date').value = `${td.getFullYear()}-${String(td.getMonth() + 1).padStart(2, '0')}-${String(td.getDate()).padStart(2, '0')}`;
+                    
+                    document.getElementById('date').value = lastDate; // Trả lại ngày
                 } else {
-                    const error = await response.json();
-                    if(window.showToast) showToast(`Lỗi: ${error.error || 'Không thể lưu'}`, "error");
+                    const errorDetail = await response.json();
+                    console.error("Lỗi từ Server:", errorDetail);
+                    
+                    // Phân tách lỗi để hiển thị rõ ràng
+                    const msg = errorDetail.detail?.[0]?.msg || errorDetail.error || 'Không thể lưu do dữ liệu không hợp lệ';
+                    const loc = errorDetail.detail?.[0]?.loc?.[1] || "";
+                    if(window.showToast) showToast(`Lỗi ${loc ? '['+loc+']' : ''}: ${msg}`, "error");
                 }
             } catch (error) {
                 if(window.showToast) showToast("Lỗi kết nối máy chủ!", "error");

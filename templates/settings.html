@@ -179,8 +179,7 @@
                         const year = today.getFullYear();
                         const month = String(today.getMonth() + 1).padStart(2, '0');
                         const day = String(today.getDate()).padStart(2, '0');
-                        const formattedDate = `${year}-${month}-${day}`;
-                        document.getElementById('recurringStartDate').value = formattedDate;
+                        document.getElementById('recurringStartDate').value = `${year}-${month}-${day}`;
                     </script>
                 </div>
                 <div class="form-group">
@@ -278,7 +277,7 @@
         let recurringExpenseToDelete = null;
         let recurringExpenseToEdit = null;
 
-        // XỬ LÝ LẤY TÊN ĐĂNG NHẬP TRỰC TIẾP TỪ TOKEN
+        // LẤY TÊN ĐĂNG NHẬP
         const token = localStorage.getItem('token'); 
         if (token) {
             try {
@@ -313,7 +312,6 @@
             btn.disabled = true;
 
             try {
-                const token = localStorage.getItem('token'); 
                 const res = await fetch('/api/auth/change-password', {
                     method: 'PUT',
                     headers: {
@@ -324,7 +322,7 @@
                 });
 
                 if (res.ok) {
-                    if(window.showToast) showToast("Đổi mật khẩu thành công! Hãy dùng mật khẩu mới cho lần đăng nhập sau.", "success");
+                    if(window.showToast) showToast("Đổi mật khẩu thành công!", "success");
                     e.target.reset();
                 } else {
                     const err = await res.json();
@@ -417,7 +415,6 @@
                 list.splice(toIndex, 0, movedItem);
                 
                 renderCategories();
-                // Lưu tự động sau khi kéo thả (không hiện thông báo để tránh rườm rà)
                 saveCategories(false); 
             }
             return false;
@@ -431,7 +428,6 @@
                 categories.push(category);
                 renderCategories();
                 input.value = '';
-                // Lưu tự động và báo thành công
                 saveCategories(true, 'Đã thêm danh mục mới'); 
             } else if (categories.includes(category)) {
                 if(window.showToast) showToast('Danh mục đã tồn tại', "error");
@@ -441,18 +437,15 @@
         }
 
         function removeCategory(index) {
-            // Chặn không cho xóa nếu chỉ còn 1 danh mục
             if (categories.length <= 1) {
                 if(window.showToast) showToast('Cần giữ lại ít nhất một danh mục!', "error");
                 return;
             }
             categories.splice(index, 1);
             renderCategories();
-            // Lưu tự động và báo thành công
             saveCategories(true, 'Đã xóa danh mục'); 
         }
 
-        // Đã cập nhật hàm lưu để hỗ trợ tắt/mở thông báo tùy ngữ cảnh
         async function saveCategories(showNotification = true, customMsg = 'Đã cập nhật danh mục') {
             if (categories.length === 0) return;
             try {
@@ -641,7 +634,7 @@
                     }
                 }
                 return nextDate.toLocaleDateString('vi-VN');
-            } else { // Indefinite
+            } else { 
                  while (nextDate < today) {
                     switch(r.interval) {
                         case 'daily': nextDate.setDate(nextDate.getDate() + 1); break;
@@ -661,12 +654,7 @@
                 return;
             }
             
-            const intervalMap = {
-                daily: "Hằng ngày",
-                weekly: "Hằng tuần",
-                monthly: "Hằng tháng",
-                yearly: "Hằng năm"
-            };
+            const intervalMap = { daily: "Hằng ngày", weekly: "Hằng tuần", monthly: "Hằng tháng", yearly: "Hằng năm" };
 
             list.innerHTML = `
                 <table class="expense-table">
@@ -714,15 +702,24 @@
             }
         }
         
+        // --- HIỂN THỊ MODAL SỬA GIAO DỊCH (FIX TỶ GIÁ & NGÀY UTC) ---
         function showRecurringEditModal(id) {
             recurringExpenseToEdit = recurringExpenses.find(r => r.id === id);
             if (!recurringExpenseToEdit) return;
+            
             document.getElementById('editRecurringName').value = recurringExpenseToEdit.name;
-            document.getElementById('editRecurringAmount').value = Math.abs(recurringExpenseToEdit.amount);
+            
+            // FIX TỶ GIÁ: Hiển thị đúng số tiền theo tỷ giá chọn
+            const rate = exchangeRatesToVND[currentCurrency] || 1;
+            document.getElementById('editRecurringAmount').value = parseFloat((Math.abs(recurringExpenseToEdit.amount) / rate).toFixed(2));
+            
             document.getElementById('editRecurringReportGain').checked = recurringExpenseToEdit.amount > 0;
             document.getElementById('editRecurringCategory').value = recurringExpenseToEdit.category;
             document.getElementById('editRecurringInterval').value = recurringExpenseToEdit.interval;
-            document.getElementById('editRecurringStartDate').value = new Date(recurringExpenseToEdit.startDate).toISOString().split('T')[0];
+            
+            // FIX NGÀY THÁNG: Lấy an toàn YYYY-MM-DD từ DB không lo lệch múi giờ
+            document.getElementById('editRecurringStartDate').value = recurringExpenseToEdit.startDate.split('T')[0];
+            
             document.getElementById('editRecurringOccurrences').value = recurringExpenseToEdit.occurrences;
             editFormSelectedTags = new Set(recurringExpenseToEdit.tags || []);
             createTagInput('edit-tags-input', 'edit-selected-tags', 'edit-tags-dropdown', editFormSelectedTags).renderSelected();
@@ -734,12 +731,19 @@
             document.getElementById('editRecurringModal').classList.remove('active');
         }
 
+        // --- SUBMIT CẬP NHẬT GIAO DỊCH (FIX TỶ GIÁ & NGÀY UTC) ---
         async function confirmRecurringUpdate(updateAll) {
             if (!recurringExpenseToEdit) return;
-            let amount = parseFloat(document.getElementById('editRecurringAmount').value);
+            
+            // FIX TỶ GIÁ: Nhân với rate để lưu vào DB (VND)
+            const rate = exchangeRatesToVND[currentCurrency] || 1;
+            let amount = parseFloat(document.getElementById('editRecurringAmount').value) * rate;
             if (!document.getElementById('editRecurringReportGain').checked) {
                 amount *= -1;
             }
+
+            // FIX NGÀY THÁNG: Nối thêm T00:00:00Z để khóa chặt múi giờ UTC
+            const safeDateISO = new Date(document.getElementById('editRecurringStartDate').value + "T00:00:00Z").toISOString();
 
             const updatedData = {
                 ...recurringExpenseToEdit,
@@ -748,7 +752,7 @@
                 category: document.getElementById('editRecurringCategory').value,
                 tags: Array.from(editFormSelectedTags),
                 interval: document.getElementById('editRecurringInterval').value,
-                startDate: new Date(document.getElementById('editRecurringStartDate').value).toISOString(),
+                startDate: safeDateISO,
                 occurrences: parseInt(document.getElementById('editRecurringOccurrences').value, 10)
             };
             
@@ -769,7 +773,7 @@
             }
         }
 
-        // --- Import/Export ---
+        // --- Import/Export CSV ---
         async function handleCsvImport(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -781,11 +785,7 @@
             summaryDiv.style.display = 'none';
 
             try {
-                const response = await fetch('/api/expenses/import/csv', {
-                    method: 'POST',
-                    body: formData
-                });
-
+                const response = await fetch('/api/expenses/import/csv', { method: 'POST', body: formData });
                 const result = await response.json();
 
                 if (response.ok) {
@@ -795,7 +795,6 @@
                     document.getElementById('summary-imported').textContent = result.imported;
                     document.getElementById('summary-skipped').textContent = result.skipped;
                     document.getElementById('summary-new-categories').textContent = (result.new_categories || []).join(', ') || 'Không có';
-                    
                     await initialize();
                 } else {
                     if(window.showToast) showToast(`Lỗi: ${result.error || 'Lỗi khi nhập CSV'}`, "error");
@@ -808,51 +807,37 @@
             }
         }
 
-        // ==========================================
-        // XỬ LÝ XUẤT FILE CSV CÓ TOKEN XÁC THỰC
-        // ==========================================
         document.getElementById('csv-export-file').addEventListener('click', async () => {
             const btn = document.getElementById('csv-export-file');
             const originalHTML = btn.innerHTML;
-            
-            // 1. Kiểm tra Token NGAY LẬP TỨC
             const token = localStorage.getItem('token');
             if (!token) {
                 if(window.showToast) showToast('Lỗi: Bạn chưa đăng nhập. Vui lòng đăng nhập lại!', 'error');
-                setTimeout(() => window.location.href = '/login', 1500); // Đẩy về trang đăng nhập
-                return; // Ngừng chạy code bên dưới
+                setTimeout(() => window.location.href = '/login', 1500); 
+                return;
             }
-
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang xuất dữ liệu...';
             btn.style.pointerEvents = 'none';
-
             try {
-                // 2. Gọi API kèm Token
                 const response = await fetch('/api/expenses/export/csv', {
                     method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
+                    headers: { 'Authorization': `Bearer ${token}` }
                 });
 
                 if (response.ok) {
-                    // 3. Ép dữ liệu thô thành file CSV
                     const blob = await response.blob();
                     const url = window.URL.createObjectURL(blob);
-                    
                     const a = document.createElement('a');
                     a.style.display = 'none';
                     a.href = url;
                     a.download = 'ExpenseOwl_Data.csv';
                     document.body.appendChild(a);
                     a.click();
-                    
                     window.URL.revokeObjectURL(url);
                     if(window.showToast) showToast('Xuất dữ liệu thành công!', 'success');
                 } else if (response.status === 401) {
-                    // Lỗi 401: Sai token hoặc token hết hạn
                     if(window.showToast) showToast('Lỗi: Phiên đăng nhập hết hạn. Đang chuyển hướng...', 'error');
-                    localStorage.removeItem('token'); // Xóa token hỏng
+                    localStorage.removeItem('token'); 
                     setTimeout(() => window.location.href = '/login', 1500);
                 } else {
                     if(window.showToast) showToast('Lỗi xử lý từ máy chủ.', 'error');
@@ -870,9 +855,7 @@
         async function initialize() {
             try {
                 const [configResponse, expensesResponse, recurringExpensesResponse] = await Promise.all([
-                    fetch('/api/config'),
-                    fetch('/api/expenses/'),
-                    fetch('/api/recurring-expenses')
+                    fetch('/api/config'), fetch('/api/expenses/'), fetch('/api/recurring-expenses')
                 ]);
                 if (!configResponse.ok) throw new Error('Failed to fetch configuration');
                 const config = await configResponse.json();
@@ -884,7 +867,6 @@
                 if (recurringExpensesResponse.ok) recurringExpensesList = await recurringExpensesResponse.json();
 
                 recurringExpenses = recurringExpensesList || [];
-
                 categories = [...(config.categories || [])];
                 currentCurrency = config.currency || 'usd';
                 currentStartDate = config.startDate || 1;
@@ -934,11 +916,18 @@
         document.getElementById('csv-import-file').addEventListener('change', handleCsvImport);
         document.getElementById('newCategory').addEventListener('keypress', e => e.key === 'Enter' && addCategory());
 
+        // --- SUBMIT TẠO GIAO DỊCH ĐỊNH KỲ (FIX TỶ GIÁ & NGÀY UTC) ---
         document.getElementById('recurringExpenseForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const isGain = document.getElementById('recurringReportGain').checked;
-            let amount = parseFloat(document.getElementById('recurringAmount').value);
+            
+            // FIX TỶ GIÁ
+            const rate = exchangeRatesToVND[currentCurrency] || 1;
+            let amount = parseFloat(document.getElementById('recurringAmount').value) * rate;
             if (!isGain) amount *= -1;
+
+            // FIX NGÀY UTC: Ép ngày nhập vào 00:00:00Z
+            const safeDateISO = new Date(document.getElementById('recurringStartDate').value + "T00:00:00Z").toISOString();
 
             const formData = {
                 name: document.getElementById('recurringName').value,
@@ -946,7 +935,7 @@
                 category: document.getElementById('recurringCategory').value,
                 tags: Array.from(addFormSelectedTags),
                 interval: document.getElementById('recurringInterval').value,
-                startDate: getISODateWithLocalTime(document.getElementById('recurringStartDate').value),
+                startDate: safeDateISO,
                 occurrences: parseInt(document.getElementById('recurringOccurrences').value, 10)
             };
 
@@ -981,6 +970,5 @@
         window.closeRecurringEditModal = closeRecurringEditModal;
         window.confirmRecurringUpdate = confirmRecurringUpdate;
     </script>
-    <script src="/static/chatbot.js"></script>
 </body>
 </html>

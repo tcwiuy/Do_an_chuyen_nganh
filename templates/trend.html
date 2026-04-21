@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Biến động Thu Chi - ExpenseOwl</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        (function() {
+            const theme = localStorage.getItem('theme') || 'system';
+            if (theme === 'light') document.documentElement.setAttribute('data-theme', 'light');
+            else if (theme === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+        })();
+    </script>
+    <style>
+        /* HIỆU ỨNG NÚT BẤM CHO 3 THẺ */
+        .trend-card { 
+            padding: 20px; text-align: center; display: flex; flex-direction: column; justify-content: center; position: relative;
+            cursor: pointer; transition: all 0.2s ease; border: 1px solid #2a2a40;
+        }
+        .trend-card:hover { border-color: #8a2be2; transform: translateY(-3px); box-shadow: 0 4px 12px rgba(138, 43, 226, 0.1); }
+        .trend-card.active { border-color: #d4a5ff; background: #1e1e2f; box-shadow: 0 0 15px rgba(212, 165, 255, 0.15); }
+        
+        .trend-title { color: #a1a1aa; font-size: 0.95rem; margin-bottom: 8px; font-weight: 500; }
+        .trend-value { font-size: 1.8rem; font-weight: bold; margin-bottom: 5px; }
+        
+        .badge { display: inline-block; padding: 4px 8px; border-radius: 6px; font-size: 0.8rem; font-weight: bold; }
+        .badge.up.good { background: #4ade8020; color: #4ade80; } 
+        .badge.down.bad { background: #f8717120; color: #f87171; } 
+        .badge.up.bad { background: #f8717120; color: #f87171; }   
+        .badge.down.good { background: #4ade8020; color: #4ade80; } 
+        .badge.neutral { background: #2a2a40; color: #a1a1aa; }
+
+        .category-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; border-bottom: 1px solid #2a2a40; }
+        .category-item:last-child { border-bottom: none; }
+        .progress-bar-bg { width: 100%; background: #2a2a40; height: 6px; border-radius: 3px; margin-top: 8px; overflow: hidden; }
+        .progress-bar-fill { height: 100%; border-radius: 3px; transition: width 0.5s ease; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="nav-bar">
+                <a href="/" class="view-button" data-tooltip="Dashboard"><i class="fa-solid fa-chart-pie"></i></a>
+                <a href="/history" class="view-button" data-tooltip="Hoạt động"><i class="fa-solid fa-clock-rotate-left"></i></a>
+                <a href="/lich" class="view-button" data-tooltip="Lịch"><i class="fa-solid fa-calendar-days"></i></a>
+                <a href="/trends" class="view-button active" data-tooltip="Thống Kê" style="color: #d4a5ff;"><i class="fa-solid fa-chart-line"></i></a>
+                <a href="/suggestions" class="view-button" data-tooltip="Gợi Ý AI"><i class="fa-solid fa-lightbulb"></i></a>
+                <a href="/settings" class="view-button" data-tooltip="Cài Đặt"><i class="fa-solid fa-gear"></i></a>
+                <a href="javascript:void(0)" class="view-button" onclick="logout()" data-tooltip="Đăng Xuất" style="margin-left: auto; color: #ff4d4d;"><i class="fa-solid fa-right-from-bracket"></i></a>
+            </div>
+        </header>
+
+        <h2 style="text-align: center; color: #d4a5ff; margin-bottom: 20px;"><i class="fa-solid fa-chart-line"></i> Biến động thu chi</h2>
+
+        <div class="form-container" style="display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; margin-bottom: 20px;">
+            <div style="display: flex; gap: 10px;">
+                <button class="nav-button active" id="btnWeek" style="background: #8a2be2; border-color: #d4a5ff;">Tuần này</button>
+                <button class="nav-button" id="btnMonth">Tháng này</button>
+                <button class="nav-button" id="btnYear">Năm nay</button>
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <label for="compareToggle" style="color: #a1a1aa; margin: 0;">So sánh cùng kỳ</label>
+                <input type="checkbox" id="compareToggle" class="styled-checkbox" style="transform: scale(1.2); cursor: pointer;" checked>
+            </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px;">
+            <div class="form-container trend-card" id="cardIncome">
+                <div class="trend-title">Thu nhập</div>
+                <div class="trend-value" id="trendIncomeVal" style="color: #4ade80;">$0</div>
+                <div><span class="badge neutral" id="trendIncomeBadge">Đang tải...</span></div>
+            </div>
+            <div class="form-container trend-card active" id="cardExpense">
+                <div class="trend-title">Chi tiêu</div>
+                <div class="trend-value" id="trendExpenseVal" style="color: #f87171;">$0</div>
+                <div><span class="badge neutral" id="trendExpenseBadge">Đang tải...</span></div>
+            </div>
+            <div class="form-container trend-card" id="cardBalance">
+                <div class="trend-title">Chênh lệch</div>
+                <div class="trend-value" id="trendBalanceVal" style="color: #d4a5ff;">$0</div>
+                <div style="color: #a1a1aa; font-size: 0.85rem; margin-top: 5px;">Thực nhận</div>
+            </div>
+        </div>
+
+        <div class="form-container" style="padding: 20px; margin-bottom: 20px;">
+            <h3 id="chartTitle" style="margin-top: 0; color: #fff; text-align: center;">Tương quan Chi Tiêu</h3>
+            <div style="position: relative; height: 300px; width: 100%;">
+                <canvas id="trendChart"></canvas>
+            </div>
+        </div>
+
+        <div class="form-container" style="padding: 20px;">
+            <h3 id="topCategoriesTitle" style="margin-top: 0; color: #fff;"><i class="fa-solid fa-fire" style="color: #f87171;"></i> Top danh mục tiêu xài</h3>
+            <div id="topCategoriesContainer">
+                <div style="text-align: center; color: #a1a1aa; padding: 10px;">Đang tính toán...</div>
+            </div>
+        </div>
+
+    </div>
+    
+    <script src="/static/functions.js"></script>
+    <script src="/static/trend.js"></script>
+</body>
+</html>
