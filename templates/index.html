@@ -318,18 +318,14 @@
       let allTags = new Set();
       let selectedTags = new Set();
       
-      // BIẾN CHO BỘ LỌC DỮ LIỆU VÀ LỊCH
       let currentPeriodType = "month";
-      let isCalendarExpanded = true;  // Biến kiểm soát trạng thái gập/mở của Lịch
-      let selectedDayFilter = null;   // Biến lưu trữ ngày đang được chọn (Drill-down)
+      let isCalendarExpanded = true; 
+      let selectedDayFilter = null;   
       
       let wStep = 1;
       let wData = { balance: 0, categories: [], colors: {} };
       let initialCategories = [];
 
-      // =========================================
-      // WIZARD LOGIC
-      // =========================================
       function getUsernameFromToken() {
           try {
               const token = localStorage.getItem('token');
@@ -431,9 +427,6 @@
           }
       }
 
-      // =========================================
-      // GỢI Ý CÂU HỎI AI (PROMPT CHIPS)
-      // =========================================
       const aiPromptBank = ["Tháng này tôi tiêu nhiều nhất vào khoản nào?", "Tôi đang muốn mua trả góp điện thoại, có nên không?", "Quy tắc quản lý tiền 50/30/20 là gì?", "Gợi ý cho tôi vài mẹo tiết kiệm tiền ăn uống", "Làm cách nào để bắt đầu đầu tư với số vốn nhỏ?", "Hôm nay uống trà sữa 55k", "Tôi muốn đổi mục tiêu sang Đầu tư mạo hiểm", "Hãy lập kế hoạch để tôi trả dứt nợ", "Phân tích sức khỏe tài chính của tôi hiện tại"];
 
       function loadRandomSuggestions() {
@@ -454,7 +447,7 @@
       }
 
       // =========================================
-      // TÍNH NĂNG LỊCH HEATMAP (RẤT MẠNH MẼ)
+      // TÍNH NĂNG LỊCH HEATMAP
       // =========================================
       function renderCalendar() {
           const grid = document.getElementById('calGrid');
@@ -462,7 +455,6 @@
           const toggleBtn = document.getElementById('calToggleBtn');
           if(!grid) return;
 
-          // Chỉ hiện Lịch khi đang xem chế độ Tháng hoặc Tuần
           if (currentPeriodType === 'year' || currentPeriodType === 'all') {
               widget.style.display = 'none';
               return;
@@ -470,19 +462,16 @@
               widget.style.display = 'block';
           }
           
-          // Icon nút toggle thay đổi dựa theo trạng thái gập/mở
           toggleBtn.innerHTML = isCalendarExpanded ? '<i class="fa-solid fa-chevron-up"></i>' : '<i class="fa-solid fa-chevron-down"></i>';
 
           let days = [];
           let start = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate());
           
           if (!isCalendarExpanded) {
-              // Thu gọn: Chỉ vẽ 1 tuần (chứa currentDate)
               let day = start.getDay() || 7; 
               start.setDate(start.getDate() - day + 1);
               for(let i = 0; i < 7; i++) { days.push(new Date(start)); start.setDate(start.getDate() + 1); }
           } else {
-              // Mở rộng: Vẽ 42 ô (Đủ 6 tuần của 1 tháng)
               start.setDate(1); 
               let day = start.getDay() || 7;
               start.setDate(start.getDate() - day + 1); 
@@ -493,8 +482,6 @@
           let totalMonthExpense = 0;
           const rate = (typeof exchangeRatesToVND !== 'undefined') ? (exchangeRatesToVND[currentCurrency] || 1) : 1;
           
-          // QUAN TRỌNG: Quét toàn bộ allExpenses để tính toán mốc Trung Bình 
-          // (Dù có lọc ngày hay không thì mốc trung bình vẫn phải chuẩn của cả tháng)
           allExpenses.forEach(exp => {
               const dStr = exp.date.split('T')[0];
               const expDateObj = new Date(dStr);
@@ -512,7 +499,6 @@
               }
           });
 
-          // Tính mức chi trung bình ngày
           const todayObj = new Date();
           let daysToDivide = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
           if (currentDate.getFullYear() === todayObj.getFullYear() && currentDate.getMonth() === todayObj.getMonth()) {
@@ -529,19 +515,17 @@
               return new Intl.NumberFormat('vi-VN', { notation: 'compact', compactDisplay: 'short', maximumFractionDigits: 1 }).format(val);
           };
 
-          // Bắt đầu vẽ từng Ô Ngày
           days.forEach(d => {
               const dStr = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
               const data = dailyData[dStr] || { in: 0, out: 0 };
               const isToday = dStr === todayStr;
               const isCurrentMonth = d.getMonth() === currentDate.getMonth();
               
-              let opacity = isCurrentMonth ? '1' : '0.3';
+              let opacity = isCurrentMonth ? '1' : '0.4';
               let bg = 'var(--bg-primary)';
               let border = '1px solid var(--border)';
               let dateColor = 'var(--text-secondary)';
 
-              // Nếu ô này đang được Click chọn (Drill-down)
               if (selectedDayFilter === dStr) {
                   bg = 'rgba(138, 43, 226, 0.15)'; 
                   border = '2px solid #8a2be2';
@@ -553,16 +537,15 @@
                   dateColor = 'var(--accent)';
               }
 
-              // Vẽ DẤU CHẤM ĐỎ CẢNH BÁO
               let dotHtml = '';
-              if (threshold > 0 && data.out > threshold) {
+              // CẢI TIẾN: Chỉ hiển thị chấm đỏ NẾU có chi tiêu (>0) VÀ chi tiêu đó lớn hơn 2 lần trung bình tháng
+              if (data.out > 0 && threshold > 0 && data.out > threshold) {
                   dotHtml = `<div style="position: absolute; top: 6px; left: 6px; width: 8px; height: 8px; background-color: #ff4d4d; border-radius: 50%; box-shadow: 0 0 5px rgba(255,77,77,0.5);"></div>`;
               }
 
               let inText = data.in > 0 ? `<div style="color: #2EAB7D; font-size: 0.75rem; font-weight: bold; margin-bottom: 2px;">+${formatShort(data.in)}</div>` : '';
               let outText = data.out > 0 ? `<div style="color: var(--text-primary); font-size: 0.75rem; font-weight: bold; display: inline-block;">-${formatShort(data.out)}</div>` : ''; 
 
-              // Gán sự kiện Click vào ngày
               grid.innerHTML += `
                   <div onclick="toggleDayFilter('${dStr}')" style="position: relative; cursor: pointer; background: ${bg}; border: ${border}; border-radius: 6px; padding: 5px; min-height: 60px; opacity: ${opacity}; display: flex; flex-direction: column; transition: all 0.2s ease;">
                       ${dotHtml}
@@ -576,25 +559,23 @@
           });
       }
 
-      // Sự kiện bấm nút Gập/Mở Lịch
       document.addEventListener("DOMContentLoaded", () => {
           const calToggleBtn = document.getElementById('calToggleBtn');
           if(calToggleBtn) {
               calToggleBtn.addEventListener('click', () => {
-                  isCalendarExpanded = !isCalendarExpanded; // Chỉ lật biến gập mở, không đổi bộ lọc
+                  isCalendarExpanded = !isCalendarExpanded; 
                   renderCalendar();
               });
           }
       });
 
-      // Hàm xử lý khi bấm vào 1 ngày (Drill-down)
       window.toggleDayFilter = function(dStr) {
           if (selectedDayFilter === dStr) {
-              selectedDayFilter = null; // Bấm lần 2 thì bỏ chọn, về lại như cũ
+              selectedDayFilter = null; 
           } else {
-              selectedDayFilter = dStr; // Bấm lần 1 thì Ghi nhận ngày được chọn
+              selectedDayFilter = dStr; 
           }
-          updateChartAndLegend(); // Lệnh này sẽ vẽ lại cả Lịch, Biểu Đồ và Tổng tiền
+          updateChartAndLegend(); 
       };
 
       // =========================================
@@ -672,7 +653,6 @@
       }
 
       function getFilteredExpensesOverride(expenses) {
-        // NẾU ĐANG CHỌN 1 NGÀY TRÊN LỊCH -> CHỈ LỌC DỮ LIỆU CỦA NGÀY ĐÓ
         if (selectedDayFilter) {
             return expenses.filter(exp => {
                 const expDateStr = exp.date.split('T')[0];
@@ -680,7 +660,6 @@
             }).sort((a, b) => new Date(b.date) - new Date(a.date));
         }
 
-        // NẾU KHÔNG THÌ LỌC THEO BỘ LỌC TỔNG (TUẦN/THÁNG/NĂM)
         const { start, end } = getPeriodBoundsOverride(currentDate, currentPeriodType);
         return expenses.filter((exp) => {
             let safeDateString = exp.date;
@@ -710,8 +689,7 @@
       document.getElementById("periodSelect").addEventListener("change", (e) => { 
           currentPeriodType = e.target.value; 
           currentDate = new Date(); 
-          selectedDayFilter = null; // Hủy chọn ngày khi đổi Bộ lọc tổng
-          // Tự động gập/mở lịch cho hợp lý
+          selectedDayFilter = null; 
           isCalendarExpanded = currentPeriodType === 'month'; 
           updatePeriodDisplayOverride(); 
           updateChartAndLegend(); 
@@ -765,7 +743,6 @@
           updateCashflow(periodExpenses); createPieChart(categoryData); updateLegend(categoryData);
         }
         
-        // LUÔN LUÔN VẼ LẠI LỊCH
         renderCalendar();
       }
 
@@ -810,7 +787,7 @@
           });
         const activeTotalExpenses = periodExpenses.filter((exp) => exp.amount < 0 && !disabledCategories.has(exp.category)).reduce((sum, exp) => sum + Math.abs(exp.amount), 0);
         
-        let extraInfo = selectedDayFilter ? `<span style="color:#d4a5ff; font-size:0.8rem; margin-right:10px;">(Đang xem: ${selectedDayFilter})</span>` : '';
+        let extraInfo = selectedDayFilter ? `<span style="color:#d4a5ff; font-size:0.8rem; margin-right:10px;">(Đang xem: ${selectedDayFilter.split('-').reverse().join('/')})</span>` : '';
         
         legendContainer.insertAdjacentHTML("beforeend", `<div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border);"><div style="display: flex; justify-content: space-between; align-items: center;"><span>${extraInfo}Tổng cộng:</span><span class="amount">${formatCurrency(activeTotalExpenses)}</span></div></div>`);
       }
