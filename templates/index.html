@@ -45,7 +45,6 @@
       .wiz-cat-item input[type="color"] { background: transparent; border: none; cursor: pointer; height: 35px; width: 45px; padding: 0; border-radius: 4px; }
       @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
       
-      /* Căn chỉnh lại Form trên Mobile */
       @media (max-width: 768px) {
           .four-col-grid {
               grid-template-columns: 1fr !important;
@@ -68,18 +67,34 @@
       </div>
       </header>
 
-      <div class="period-navigation" style="display: flex; gap: 15px; align-items: center; justify-content: center; flex-wrap: wrap; margin-bottom: 20px; background: linear-gradient(145deg, #1e1e2d, #2a2a40); padding: 15px; border-radius: 12px; border: 1px solid #2a2a40;">
-        <select id="periodSelect" style="padding: 8px 15px; border-radius: 8px; background-color: #151521; color: #d4a5ff; border: 1px solid #8a2be2; outline: none; cursor: pointer; font-family: inherit; font-weight: bold;">
-          <option value="month">Theo Tháng</option>
-          <option value="week">Theo Tuần</option>
-          <option value="year">Theo Năm</option>
-          <option value="all">Tất cả thời gian</option>
-        </select>
+      <div class="form-container" style="background-color: var(--bg-secondary); padding: 15px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 20px;">
+        
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+            <select id="periodSelect" style="padding: 8px 15px; border-radius: 8px; background-color: var(--bg-primary); color: var(--text-primary); border: 1px solid var(--border); outline: none; cursor: pointer; font-family: inherit; font-weight: bold;">
+                <option value="month">Theo Tháng</option>
+                <option value="week">Theo Tuần</option>
+                <option value="year">Theo Năm</option>
+                <option value="all">Tất cả thời gian</option>
+            </select>
 
-        <div style="display: flex; align-items: center; gap: 10px" id="periodControls">
-          <button id="prevPeriod" class="nav-button"><i class="fa-solid fa-arrow-left"></i></button>
-          <div class="current-month" id="currentPeriodLabel" style="min-width: 180px; text-align: center; color: #e0e0e0"></div>
-          <button id="nextPeriod" class="nav-button"><i class="fa-solid fa-arrow-right"></i></button>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <button id="prevPeriod" class="nav-button" style="padding: 5px 12px;"><i class="fa-solid fa-chevron-left"></i></button>
+                <div id="currentPeriodLabel" style="min-width: 150px; text-align: center; color: var(--text-primary); font-weight: bold; font-size: 1.1rem;"></div>
+                <button id="nextPeriod" class="nav-button" style="padding: 5px 12px;"><i class="fa-solid fa-chevron-right"></i></button>
+            </div>
+        </div>
+
+        <div id="calendarWidget">
+            <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; text-align: center; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 8px; font-weight: bold;">
+                <div>T2</div><div>T3</div><div>T4</div><div>T5</div><div>T6</div><div>T7</div><div>CN</div>
+            </div>
+            <div id="calGrid" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; overflow: hidden; transition: max-height 0.3s ease;">
+                </div>
+            <div style="text-align: center; margin-top: 10px; border-top: 1px dashed var(--border); padding-top: 10px;">
+                <button id="calToggleBtn" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.2rem; transition: transform 0.2s;">
+                    <i class="fa-solid fa-chevron-down"></i>
+                </button>
+            </div>
         </div>
       </div>
 
@@ -95,8 +110,7 @@
           <h3 align="center" style="color: #d4a5ff"><i class="fa-solid fa-wand-magic-sparkles"></i> Trợ lý AI Cú Mèo</h3>
           <p style="text-align: center; color: #a0a0b0; font-size: 0.9rem; margin-bottom: 15px;">Hãy nhập chi tiêu hoặc hỏi Cú Mèo một câu về tài chính!</p>
           
-          <div id="aiPromptSuggestions" style="display: flex; gap: 10px; overflow-x: auto; margin-bottom: 15px; padding-bottom: 5px; scrollbar-width: none;">
-            </div>
+          <div id="aiPromptSuggestions" style="display: flex; gap: 10px; overflow-x: auto; margin-bottom: 15px; padding-bottom: 5px; scrollbar-width: none;"></div>
 
           <div class="form-group" style="display: flex; gap: 10px; align-items: center">
             <input type="text" id="aiInput" placeholder="VD: Tối qua đổ 50k tiền xăng và uống ly cafe 30k..." style="flex: 1; padding: 12px; border-radius: 8px" />
@@ -105,8 +119,8 @@
         </div>
 
         <div class="form-container">
-          <form id="expenseForm"> <div class="four-col-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; align-items: start; margin-bottom: 20px;">
-                
+          <form id="expenseForm"> 
+            <div class="four-col-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; align-items: start; margin-bottom: 20px;">
                 <div class="form-group">
                     <label>Mô tả</label>
                     <input type="text" id="name" placeholder="Ví dụ: Trà sữa" required>
@@ -155,7 +169,6 @@
                     <label>Ghi chú chi tiết</label>
                     <input type="text" id="note" placeholder="Ghi chú thêm (không bắt buộc)...">
                 </div>
-
             </div>
 
             <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #2a2a40; padding-top: 15px;">
@@ -163,10 +176,7 @@
                     <label for="reportGain" style="margin: 0; color: #a1a1aa;">Khoản thu</label>
                     <input type="checkbox" id="reportGain" style="transform: scale(1.2); cursor: pointer;">
                 </div>
-                
-                <button type="submit" class="nav-button" style="padding: 10px 25px; font-weight: bold;">
-                    Lưu Giao Dịch
-                </button>
+                <button type="submit" class="nav-button" style="padding: 10px 25px; font-weight: bold;">Lưu Giao Dịch</button>
             </div>
           </form>
         </div>
@@ -182,7 +192,7 @@
             <canvas id="categoryPieChart"></canvas>
           </div>
           <div class="chart-controls" style="text-align: center; margin-top: 20px; width: 100%">
-            <select id="chartTypeSelect" style="padding: 8px 15px; border-radius: 8px; background-color: #2a2a40; color: #d4a5ff; border: 1px solid #8a2be2; outline: none; cursor: pointer; font-family: inherit;">
+            <select id="chartTypeSelect" style="padding: 8px 15px; border-radius: 8px; background-color: var(--bg-primary); color: var(--text-primary); border: 1px solid var(--border); outline: none; cursor: pointer; font-family: inherit;">
               <option value="doughnut">🍩 Biểu đồ Vòng</option>
               <option value="pie">🍕 Biểu đồ Tròn</option>
               <option value="bar">📊 Biểu đồ Cột</option>
@@ -265,7 +275,7 @@
 
           <div id="wStep4" class="wizard-step">
               <h3 style="margin-top: 0; color: #fff;">4. Nhập dữ liệu cũ (Tùy chọn)</h3>
-              <p style="font-size: 0.9rem; color: #a0a0b0; line-height: 1.5;">Nếu bạn có file CSV từ ứng dụng cũ, hãy tải lên đây.</p>
+              <p style="font-size: 0.9rem; color: #a0a0b0; line-height: 1.5;">Nếu bạn có file CSV từ ứng dụng cũ, hãy tải lên đây. Bạn cũng có thể làm sau trong Cài đặt.</p>
               
               <label for="wCsvFile" class="wizard-input" style="display: block; text-align: center; cursor: pointer; padding: 20px; border: 2px dashed #8a2be2; background: rgba(138, 43, 226, 0.1);">
                   <i class="fa-solid fa-file-csv" style="font-size: 30px; color: #d4a5ff; margin-bottom: 10px;"></i><br>
@@ -298,9 +308,6 @@
 
     <script src="/static/functions.js"></script>
     <script>
-      // =========================================
-      // BIẾN TOÀN CỤC
-      // =========================================
       let currentCurrency = "usd";
       let pieChart = null;
       let currentChartType = "doughnut";
@@ -310,14 +317,18 @@
       let categoryColors = {};
       let allTags = new Set();
       let selectedTags = new Set();
+      
+      // BIẾN CHO BỘ LỌC DỮ LIỆU VÀ LỊCH
       let currentPeriodType = "month";
+      let isCalendarExpanded = true;  // Biến kiểm soát trạng thái gập/mở của Lịch
+      let selectedDayFilter = null;   // Biến lưu trữ ngày đang được chọn (Drill-down)
       
       let wStep = 1;
       let wData = { balance: 0, categories: [], colors: {} };
       let initialCategories = [];
 
       // =========================================
-      // WIZARD SETUP LOGIC
+      // WIZARD LOGIC
       // =========================================
       function getUsernameFromToken() {
           try {
@@ -329,9 +340,7 @@
                   return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
               }).join(''));
               return JSON.parse(jsonPayload).sub || 'default_user';
-          } catch (e) {
-              return 'default_user';
-          }
+          } catch (e) { return 'default_user'; }
       }
 
       function checkSetupWizard() {
@@ -343,62 +352,31 @@
           }
       }
 
-      function skipWizard() {
-          markWizardDone();
-          document.getElementById('setupWizardOverlay').style.display = 'none';
-          if(window.showToast) showToast("Đã bỏ qua thiết lập ban đầu", "success");
-      }
-
-      function markWizardDone() {
-          localStorage.setItem(`setupDone_${getUsernameFromToken()}`, 'true');
-      }
+      function skipWizard() { markWizardDone(); document.getElementById('setupWizardOverlay').style.display = 'none'; if(window.showToast) showToast("Đã bỏ qua thiết lập ban đầu", "success"); }
+      function markWizardDone() { localStorage.setItem(`setupDone_${getUsernameFromToken()}`, 'true'); }
 
       function renderWizCats() {
-          const list = document.getElementById('wCatList');
-          list.innerHTML = '';
+          const list = document.getElementById('wCatList'); list.innerHTML = '';
           wData.categories.forEach((cat, idx) => {
               const color = wData.colors[cat] || categoryColors[cat] || colorPalette[idx % colorPalette.length] || "#8a2be2";
               wData.colors[cat] = color;
-              
-              list.innerHTML += `
-                  <div class="wiz-cat-item">
-                      <input type="text" value="${cat}" readonly>
-                      <div style="display: flex; gap: 15px; align-items: center;">
-                          <input type="color" value="${color}" onchange="wData.colors['${cat}'] = this.value">
-                          <button onclick="removeWizCat(${idx})" style="background: none; border: none; color: #ff4d4d; cursor: pointer; padding: 5px;"><i class="fa-solid fa-trash"></i></button>
-                      </div>
-                  </div>
-              `;
+              list.innerHTML += `<div class="wiz-cat-item"><input type="text" value="${cat}" readonly><div style="display: flex; gap: 15px; align-items: center;"><input type="color" value="${color}" onchange="wData.colors['${cat}'] = this.value"><button onclick="removeWizCat(${idx})" style="background: none; border: none; color: #ff4d4d; cursor: pointer; padding: 5px;"><i class="fa-solid fa-trash"></i></button></div></div>`;
           });
       }
 
       function addWizCat() {
-          const input = document.getElementById('wNewCat');
-          const val = input.value.trim().replace(/[<>]/g, '');
-          if (val && !wData.categories.includes(val)) {
-              wData.categories.push(val);
-              input.value = '';
-              renderWizCats();
-          }
+          const input = document.getElementById('wNewCat'); const val = input.value.trim().replace(/[<>]/g, '');
+          if (val && !wData.categories.includes(val)) { wData.categories.push(val); input.value = ''; renderWizCats(); }
       }
 
       window.removeWizCat = function(idx) {
-          if (wData.categories.length <= 1) {
-              if(window.showToast) showToast('Cần giữ lại ít nhất một danh mục!', "error");
-              return;
-          }
-          wData.categories.splice(idx, 1);
-          renderWizCats();
+          if (wData.categories.length <= 1) { if(window.showToast) showToast('Cần giữ lại ít nhất một danh mục!', "error"); return; }
+          wData.categories.splice(idx, 1); renderWizCats();
       }
 
       function updateWizardUI() {
-          [1, 2, 3, 4, 5].forEach(i => {
-              document.getElementById(`wStep${i}`).classList.remove('active');
-              document.getElementById(`prog${i}`).classList.remove('active');
-          });
-          document.getElementById(`wStep${wStep}`).classList.add('active');
-          document.getElementById(`prog${wStep}`).classList.add('active');
-
+          [1, 2, 3, 4, 5].forEach(i => { document.getElementById(`wStep${i}`).classList.remove('active'); document.getElementById(`prog${i}`).classList.remove('active'); });
+          document.getElementById(`wStep${wStep}`).classList.add('active'); document.getElementById(`prog${wStep}`).classList.add('active');
           document.getElementById('wBtnPrev').style.display = wStep > 1 ? 'block' : 'none';
           document.getElementById('wBtnNext').style.display = wStep < 5 ? 'block' : 'none';
           document.getElementById('wBtnFinish').style.display = wStep === 5 ? 'block' : 'none';
@@ -407,17 +385,13 @@
               wData.balance = parseFloat(document.getElementById('wBalance').value) || 0;
               const rate = (typeof exchangeRatesToVND !== 'undefined') ? (exchangeRatesToVND[currentCurrency] || 1) : 1;
               document.getElementById('wConfirmBalance').textContent = formatCurrency(wData.balance * rate);
-              
               document.getElementById('wConfirmCats').textContent = wData.categories.length + " mục";
               
-              const goal = document.getElementById('wFinancialGoal').value;
-              const risk = document.getElementById('wRiskTolerance').value;
-              let aiStatus = "Đã thiết lập";
-              if (goal === "Chưa xác định" && risk === "Cân bằng") aiStatus = "Mặc định";
+              const goal = document.getElementById('wFinancialGoal').value; const risk = document.getElementById('wRiskTolerance').value;
+              let aiStatus = "Đã thiết lập"; if (goal === "Chưa xác định" && risk === "Cân bằng") aiStatus = "Mặc định";
               document.getElementById('wConfirmAI').textContent = aiStatus;
 
-              const fileInput = document.getElementById('wCsvFile');
-              document.getElementById('wConfirmFile').textContent = fileInput.files.length > 0 ? fileInput.files[0].name : "Không có";
+              const fileInput = document.getElementById('wCsvFile'); document.getElementById('wConfirmFile').textContent = fileInput.files.length > 0 ? fileInput.files[0].name : "Không có";
           }
       }
 
@@ -425,100 +399,203 @@
       function wizPrev() { if (wStep > 1) { wStep--; updateWizardUI(); } }
 
       async function wizFinish() {
-          const btn = document.getElementById('wBtnFinish');
-          btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang lưu...';
-          btn.disabled = true;
-
+          const btn = document.getElementById('wBtnFinish'); btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang lưu...'; btn.disabled = true;
           try {
               localStorage.setItem('customCategoryColors', JSON.stringify(wData.colors));
+              await fetch('/api/categories/edit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(wData.categories) }).catch(e => {});
 
-              await fetch('/api/categories/edit', {
-                  method: 'POST', headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify(wData.categories)
-              }).catch(e => console.warn("Lỗi lưu danh mục", e));
-
-              const goal = document.getElementById('wFinancialGoal').value;
-              const risk = document.getElementById('wRiskTolerance').value;
-              await fetch('/api/profile/edit', {
-                  method: 'POST', headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ goal: goal, risk: risk })
-              }).catch(e => console.warn("Lỗi lưu hồ sơ AI", e));
+              const goal = document.getElementById('wFinancialGoal').value; const risk = document.getElementById('wRiskTolerance').value;
+              await fetch('/api/profile/edit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ goal: goal, risk: risk }) }).catch(e => {});
 
               if (wData.balance > 0) {
                   const rate = (typeof exchangeRatesToVND !== 'undefined') ? (exchangeRatesToVND[currentCurrency] || 1) : 1;
                   const incCat = wData.categories.includes('Lương') ? 'Lương' : (wData.categories[0] || 'Khác');
                   const todayStr = new Date().toISOString().split('T')[0];
-                  const formData = {
-                      name: "Số dư ban đầu", category: incCat, amount: wData.balance * rate,
-                      date: new Date(todayStr + "T00:00:00Z").toISOString(),
-                      tags: ["Setup"], note: null, recurring_interval: null
-                  };
-                  
-                  const res = await fetch('/api/expenses/', {
-                      method: 'POST', headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify(formData)
-                  });
+                  const formData = { name: "Số dư ban đầu", category: incCat, amount: wData.balance * rate, date: new Date(todayStr + "T00:00:00Z").toISOString(), tags: ["Setup"], note: null, recurring_interval: null };
+                  const res = await fetch('/api/expenses/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData) });
                   if (!res.ok) throw new Error("Dữ liệu không hợp lệ");
               }
 
               const fileInput = document.getElementById('wCsvFile');
               if (fileInput.files.length > 0) {
                   const fd = new FormData(); fd.append('file', fileInput.files[0]);
-                  await fetch('/api/expenses/import/csv', { method: 'POST', body: fd }).catch(e => console.warn("Lỗi upload file", e));
+                  await fetch('/api/expenses/import/csv', { method: 'POST', body: fd }).catch(e => {});
               }
 
-              markWizardDone();
-              document.getElementById('setupWizardOverlay').style.display = 'none';
+              markWizardDone(); document.getElementById('setupWizardOverlay').style.display = 'none';
               if(window.showToast) showToast("Thiết lập thành công! Hãy bắt đầu theo dõi.", "success");
-              
               await initialize();
           } catch (e) {
               if(window.showToast) showToast("Lỗi hệ thống: " + e.message, "error");
-              btn.innerHTML = '<i class="fa-solid fa-rocket"></i> Hoàn tất';
-              btn.disabled = false;
+              btn.innerHTML = '<i class="fa-solid fa-rocket"></i> Hoàn tất'; btn.disabled = false;
           }
       }
 
       // =========================================
       // GỢI Ý CÂU HỎI AI (PROMPT CHIPS)
       // =========================================
-      const aiPromptBank = [
-          "Tháng này tôi tiêu nhiều nhất vào khoản nào?",
-          "Tôi đang muốn mua trả góp điện thoại, có nên không?",
-          "Quy tắc quản lý tiền 50/30/20 là gì?",
-          "Gợi ý cho tôi vài mẹo tiết kiệm tiền ăn uống",
-          "Làm cách nào để bắt đầu đầu tư với số vốn nhỏ?",
-          "Hôm nay uống trà sữa 55k",
-          "Tôi muốn đổi mục tiêu sang Đầu tư mạo hiểm",
-          "Hãy lập kế hoạch để tôi trả dứt nợ",
-          "Phân tích sức khỏe tài chính của tôi hiện tại"
-      ];
+      const aiPromptBank = ["Tháng này tôi tiêu nhiều nhất vào khoản nào?", "Tôi đang muốn mua trả góp điện thoại, có nên không?", "Quy tắc quản lý tiền 50/30/20 là gì?", "Gợi ý cho tôi vài mẹo tiết kiệm tiền ăn uống", "Làm cách nào để bắt đầu đầu tư với số vốn nhỏ?", "Hôm nay uống trà sữa 55k", "Tôi muốn đổi mục tiêu sang Đầu tư mạo hiểm", "Hãy lập kế hoạch để tôi trả dứt nợ", "Phân tích sức khỏe tài chính của tôi hiện tại"];
 
       function loadRandomSuggestions() {
           const container = document.getElementById('aiPromptSuggestions');
           if (!container) return;
-          
           const shuffled = [...aiPromptBank].sort(() => 0.5 - Math.random());
           const selectedPrompts = shuffled.slice(0, 3); 
-          
           container.innerHTML = '';
           selectedPrompts.forEach(prompt => {
               const chip = document.createElement('span');
-              chip.style.cssText = `
-                  background: rgba(138, 43, 226, 0.15); color: #d4a5ff; border: 1px solid #8a2be2; 
-                  padding: 8px 12px; border-radius: 16px; font-size: 0.85rem; cursor: pointer; 
-                  white-space: nowrap; transition: 0.2s; user-select: none; display: inline-block;
-              `;
+              chip.style.cssText = `background: rgba(138, 43, 226, 0.15); color: #d4a5ff; border: 1px solid #8a2be2; padding: 8px 12px; border-radius: 16px; font-size: 0.85rem; cursor: pointer; white-space: nowrap; transition: 0.2s; user-select: none; display: inline-block;`;
               chip.textContent = prompt;
               chip.onmouseover = () => { chip.style.background = 'rgba(138, 43, 226, 0.4)'; };
               chip.onmouseout = () => { chip.style.background = 'rgba(138, 43, 226, 0.15)'; };
-              chip.onclick = () => {
-                  const input = document.getElementById('aiInput');
-                  input.value = prompt; input.focus();
-              };
+              chip.onclick = () => { const input = document.getElementById('aiInput'); input.value = prompt; input.focus(); };
               container.appendChild(chip);
           });
       }
+
+      // =========================================
+      // TÍNH NĂNG LỊCH HEATMAP (RẤT MẠNH MẼ)
+      // =========================================
+      function renderCalendar() {
+          const grid = document.getElementById('calGrid');
+          const widget = document.getElementById('calendarWidget');
+          const toggleBtn = document.getElementById('calToggleBtn');
+          if(!grid) return;
+
+          // Chỉ hiện Lịch khi đang xem chế độ Tháng hoặc Tuần
+          if (currentPeriodType === 'year' || currentPeriodType === 'all') {
+              widget.style.display = 'none';
+              return;
+          } else {
+              widget.style.display = 'block';
+          }
+          
+          // Icon nút toggle thay đổi dựa theo trạng thái gập/mở
+          toggleBtn.innerHTML = isCalendarExpanded ? '<i class="fa-solid fa-chevron-up"></i>' : '<i class="fa-solid fa-chevron-down"></i>';
+
+          let days = [];
+          let start = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate());
+          
+          if (!isCalendarExpanded) {
+              // Thu gọn: Chỉ vẽ 1 tuần (chứa currentDate)
+              let day = start.getDay() || 7; 
+              start.setDate(start.getDate() - day + 1);
+              for(let i = 0; i < 7; i++) { days.push(new Date(start)); start.setDate(start.getDate() + 1); }
+          } else {
+              // Mở rộng: Vẽ 42 ô (Đủ 6 tuần của 1 tháng)
+              start.setDate(1); 
+              let day = start.getDay() || 7;
+              start.setDate(start.getDate() - day + 1); 
+              for(let i = 0; i < 42; i++) { days.push(new Date(start)); start.setDate(start.getDate() + 1); }
+          }
+
+          const dailyData = {};
+          let totalMonthExpense = 0;
+          const rate = (typeof exchangeRatesToVND !== 'undefined') ? (exchangeRatesToVND[currentCurrency] || 1) : 1;
+          
+          // QUAN TRỌNG: Quét toàn bộ allExpenses để tính toán mốc Trung Bình 
+          // (Dù có lọc ngày hay không thì mốc trung bình vẫn phải chuẩn của cả tháng)
+          allExpenses.forEach(exp => {
+              const dStr = exp.date.split('T')[0];
+              const expDateObj = new Date(dStr);
+              
+              if(!dailyData[dStr]) dailyData[dStr] = { in: 0, out: 0 };
+              
+              if(exp.amount > 0) {
+                  dailyData[dStr].in += exp.amount / rate;
+              } else {
+                  const outAmt = Math.abs(exp.amount) / rate;
+                  dailyData[dStr].out += outAmt;
+                  if (expDateObj.getFullYear() === currentDate.getFullYear() && expDateObj.getMonth() === currentDate.getMonth()) {
+                      totalMonthExpense += outAmt;
+                  }
+              }
+          });
+
+          // Tính mức chi trung bình ngày
+          const todayObj = new Date();
+          let daysToDivide = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
+          if (currentDate.getFullYear() === todayObj.getFullYear() && currentDate.getMonth() === todayObj.getMonth()) {
+              daysToDivide = todayObj.getDate() || 1;
+          }
+          const avgDailyExpense = totalMonthExpense / daysToDivide;
+          const threshold = avgDailyExpense * 2;
+
+          grid.innerHTML = '';
+          const todayStr = todayObj.getFullYear() + '-' + String(todayObj.getMonth()+1).padStart(2,'0') + '-' + String(todayObj.getDate()).padStart(2,'0');
+
+          const formatShort = (val) => {
+              if (val === 0) return '';
+              return new Intl.NumberFormat('vi-VN', { notation: 'compact', compactDisplay: 'short', maximumFractionDigits: 1 }).format(val);
+          };
+
+          // Bắt đầu vẽ từng Ô Ngày
+          days.forEach(d => {
+              const dStr = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+              const data = dailyData[dStr] || { in: 0, out: 0 };
+              const isToday = dStr === todayStr;
+              const isCurrentMonth = d.getMonth() === currentDate.getMonth();
+              
+              let opacity = isCurrentMonth ? '1' : '0.3';
+              let bg = 'var(--bg-primary)';
+              let border = '1px solid var(--border)';
+              let dateColor = 'var(--text-secondary)';
+
+              // Nếu ô này đang được Click chọn (Drill-down)
+              if (selectedDayFilter === dStr) {
+                  bg = 'rgba(138, 43, 226, 0.15)'; 
+                  border = '2px solid #8a2be2';
+                  dateColor = '#d4a5ff';
+                  opacity = '1'; 
+              } else if (isToday) {
+                  bg = 'rgba(105, 175, 222, 0.1)'; 
+                  border = '1px solid var(--accent)';
+                  dateColor = 'var(--accent)';
+              }
+
+              // Vẽ DẤU CHẤM ĐỎ CẢNH BÁO
+              let dotHtml = '';
+              if (threshold > 0 && data.out > threshold) {
+                  dotHtml = `<div style="position: absolute; top: 6px; left: 6px; width: 8px; height: 8px; background-color: #ff4d4d; border-radius: 50%; box-shadow: 0 0 5px rgba(255,77,77,0.5);"></div>`;
+              }
+
+              let inText = data.in > 0 ? `<div style="color: #2EAB7D; font-size: 0.75rem; font-weight: bold; margin-bottom: 2px;">+${formatShort(data.in)}</div>` : '';
+              let outText = data.out > 0 ? `<div style="color: var(--text-primary); font-size: 0.75rem; font-weight: bold; display: inline-block;">-${formatShort(data.out)}</div>` : ''; 
+
+              // Gán sự kiện Click vào ngày
+              grid.innerHTML += `
+                  <div onclick="toggleDayFilter('${dStr}')" style="position: relative; cursor: pointer; background: ${bg}; border: ${border}; border-radius: 6px; padding: 5px; min-height: 60px; opacity: ${opacity}; display: flex; flex-direction: column; transition: all 0.2s ease;">
+                      ${dotHtml}
+                      <div style="text-align: right; font-size: 0.8rem; color: ${dateColor}; font-weight: bold;">${d.getDate()}</div>
+                      <div style="flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: center;">
+                          ${inText}
+                          ${outText}
+                      </div>
+                  </div>
+              `;
+          });
+      }
+
+      // Sự kiện bấm nút Gập/Mở Lịch
+      document.addEventListener("DOMContentLoaded", () => {
+          const calToggleBtn = document.getElementById('calToggleBtn');
+          if(calToggleBtn) {
+              calToggleBtn.addEventListener('click', () => {
+                  isCalendarExpanded = !isCalendarExpanded; // Chỉ lật biến gập mở, không đổi bộ lọc
+                  renderCalendar();
+              });
+          }
+      });
+
+      // Hàm xử lý khi bấm vào 1 ngày (Drill-down)
+      window.toggleDayFilter = function(dStr) {
+          if (selectedDayFilter === dStr) {
+              selectedDayFilter = null; // Bấm lần 2 thì bỏ chọn, về lại như cũ
+          } else {
+              selectedDayFilter = dStr; // Bấm lần 1 thì Ghi nhận ngày được chọn
+          }
+          updateChartAndLegend(); // Lệnh này sẽ vẽ lại cả Lịch, Biểu Đồ và Tổng tiền
+      };
 
       // =========================================
       // KHỞI TẠO DỮ LIỆU
@@ -558,7 +635,6 @@
               }
               let safeDate = new Date().toISOString();
               if (typeof exp.date === 'string' && exp.date.trim() !== '') safeDate = exp.date;
-
               return { ...exp, amount: parseFloat(exp.amount) || 0, date: safeDate, tags: safeTags, category: exp.category || 'Khác' };
           });
 
@@ -580,9 +656,6 @@
         } catch (error) { console.error("Fatal error during initialization:", error); }
       }
 
-      // =========================================
-      // CÁC HÀM XỬ LÝ LỌC & BIỂU ĐỒ GIỮ NGUYÊN
-      // =========================================
       function getPeriodBoundsOverride(date, period) {
         const localDate = new Date(date);
         if (period === "all") return { start: new Date("1970-01-01"), end: new Date("2099-12-31") };
@@ -599,6 +672,15 @@
       }
 
       function getFilteredExpensesOverride(expenses) {
+        // NẾU ĐANG CHỌN 1 NGÀY TRÊN LỊCH -> CHỈ LỌC DỮ LIỆU CỦA NGÀY ĐÓ
+        if (selectedDayFilter) {
+            return expenses.filter(exp => {
+                const expDateStr = exp.date.split('T')[0];
+                return expDateStr === selectedDayFilter;
+            }).sort((a, b) => new Date(b.date) - new Date(a.date));
+        }
+
+        // NẾU KHÔNG THÌ LỌC THEO BỘ LỌC TỔNG (TUẦN/THÁNG/NĂM)
         const { start, end } = getPeriodBoundsOverride(currentDate, currentPeriodType);
         return expenses.filter((exp) => {
             let safeDateString = exp.date;
@@ -625,17 +707,27 @@
         }
       }
 
-      document.getElementById("periodSelect").addEventListener("change", (e) => { currentPeriodType = e.target.value; currentDate = new Date(); updatePeriodDisplayOverride(); updateChartAndLegend(); });
+      document.getElementById("periodSelect").addEventListener("change", (e) => { 
+          currentPeriodType = e.target.value; 
+          currentDate = new Date(); 
+          selectedDayFilter = null; // Hủy chọn ngày khi đổi Bộ lọc tổng
+          // Tự động gập/mở lịch cho hợp lý
+          isCalendarExpanded = currentPeriodType === 'month'; 
+          updatePeriodDisplayOverride(); 
+          updateChartAndLegend(); 
+      });
       document.getElementById("prevPeriod").addEventListener("click", () => {
         if (currentPeriodType === "month") currentDate.setMonth(currentDate.getMonth() - 1);
         else if (currentPeriodType === "year") currentDate.setFullYear(currentDate.getFullYear() - 1);
         else if (currentPeriodType === "week") currentDate.setDate(currentDate.getDate() - 7);
+        selectedDayFilter = null;
         updatePeriodDisplayOverride(); updateChartAndLegend();
       });
       document.getElementById("nextPeriod").addEventListener("click", () => {
         if (currentPeriodType === "month") currentDate.setMonth(currentDate.getMonth() + 1);
         else if (currentPeriodType === "year") currentDate.setFullYear(currentDate.getFullYear() + 1);
         else if (currentPeriodType === "week") currentDate.setDate(currentDate.getDate() + 7);
+        selectedDayFilter = null;
         updatePeriodDisplayOverride(); updateChartAndLegend();
       });
 
@@ -643,9 +735,7 @@
         const categoryTotals = {}; let totalAmount = 0;
         expenses.forEach((exp) => {
           if (exp.amount < 0 && !disabledCategories.has(exp.category)) {
-            const amount = Math.abs(exp.amount);
-            categoryTotals[exp.category] = (categoryTotals[exp.category] || 0) + amount;
-            totalAmount += amount;
+            const amount = Math.abs(exp.amount); categoryTotals[exp.category] = (categoryTotals[exp.category] || 0) + amount; totalAmount += amount;
           }
         });
         return Object.entries(categoryTotals).map(([category, total]) => ({ category, total, percentage: totalAmount > 0 ? (total / totalAmount) * 100 : 0 })).sort((a, b) => b.total - a.total);
@@ -674,6 +764,9 @@
           const categoryData = calculateCategoryBreakdown(periodExpenses);
           updateCashflow(periodExpenses); createPieChart(categoryData); updateLegend(categoryData);
         }
+        
+        // LUÔN LUÔN VẼ LẠI LỊCH
+        renderCalendar();
       }
 
       function updateCashflow(expenses) {
@@ -691,36 +784,10 @@
         const isBarChart = currentChartType === "bar";
         const rate = (typeof exchangeRatesToVND !== 'undefined') ? (exchangeRatesToVND[currentCurrency] || 1) : 1;
 
-        let chartOptions = {
-          responsive: true, maintainAspectRatio: false,
-          plugins: { legend: { display: false }, tooltip: { callbacks: { label: (context) => {
-                  const value = context.raw; const total = context.dataset.data.reduce((sum, val) => sum + val, 0);
-                  const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
-                  return `${context.label}: ${formatCurrency(value * rate)} (${percentage}%)`;
-                }, }, }, },
-        };
-
-        if (isBarChart) {
-          chartOptions.scales = {
-            y: { beginAtZero: true, grid: { color: "rgba(255, 255, 255, 0.05)" }, ticks: { color: "#a0a0b0", callback: function(value) { return formatCurrency(value * rate); } } },
-            x: { grid: { display: false }, ticks: { color: "#a0a0b0" } },
-          };
-        }
-
+        let chartOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: (context) => { const value = context.raw; const total = context.dataset.data.reduce((sum, val) => sum + val, 0); const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0; return `${context.label}: ${formatCurrency(value * rate)} (${percentage}%)`; }, }, }, }, };
+        if (isBarChart) { chartOptions.scales = { y: { beginAtZero: true, grid: { color: "rgba(255, 255, 255, 0.05)" }, ticks: { color: "#a0a0b0", callback: function(value) { return formatCurrency(value * rate); } } }, x: { grid: { display: false }, ticks: { color: "#a0a0b0" } }, }; }
         const convertedDataset = categoryData.map((c) => c.total / rate);
-
-        pieChart = new Chart("categoryPieChart", {
-          type: currentChartType,
-          data: {
-            labels: categoryData.map((c) => c.category),
-            datasets: [{
-                label: "Tổng chi", data: convertedDataset, 
-                backgroundColor: categoryData.map((c) => categoryColors[c.category] || "#8a2be2"),
-                borderColor: "#1a1a1a", borderWidth: 1, borderRadius: isBarChart ? 6 : 0,
-            }],
-          },
-          options: chartOptions,
-        });
+        pieChart = new Chart("categoryPieChart", { type: currentChartType, data: { labels: categoryData.map((c) => c.category), datasets: [{ label: "Tổng chi", data: convertedDataset, backgroundColor: categoryData.map((c) => categoryColors[c.category] || "#8a2be2"), borderColor: "#1a1a1a", borderWidth: 1, borderRadius: isBarChart ? 6 : 0, }], }, options: chartOptions, });
       }
 
       function updateLegend(categoryData) {
@@ -734,96 +801,41 @@
             if (dataA && dataB) return dataB.total - dataA.total;
             if (dataA) return -1; if (dataB) return 1; return a.localeCompare(b);
           }).forEach((category) => {
-            const item = document.createElement("div");
-            item.className = `legend-item${disabledCategories.has(category) ? " disabled" : ""}`;
-            const color = categoryColors[category];
-            const categoryDataItem = categoryMap.get(category);
+            const item = document.createElement("div"); item.className = `legend-item${disabledCategories.has(category) ? " disabled" : ""}`;
+            const color = categoryColors[category]; const categoryDataItem = categoryMap.get(category);
             const percentage = categoryDataItem ? ` (${categoryDataItem.percentage.toFixed(1)}%)` : "";
             const amount = categoryDataItem ? formatCurrency(categoryDataItem.total) : "";
-            item.innerHTML = `<div class="color-box" style="background-color: ${color}"></div>
-                <div class="legend-text"><span>${category}${percentage}</span><span class="amount">${amount}</span></div>`;
-            item.addEventListener("click", () => toggleCategory(category));
-            legendContainer.appendChild(item);
+            item.innerHTML = `<div class="color-box" style="background-color: ${color}"></div><div class="legend-text"><span>${category}${percentage}</span><span class="amount">${amount}</span></div>`;
+            item.addEventListener("click", () => toggleCategory(category)); legendContainer.appendChild(item);
           });
-
         const activeTotalExpenses = periodExpenses.filter((exp) => exp.amount < 0 && !disabledCategories.has(exp.category)).reduce((sum, exp) => sum + Math.abs(exp.amount), 0);
-        legendContainer.insertAdjacentHTML("beforeend", `<div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border);"><div style="display: flex; justify-content: space-between; align-items: center;"><span>Tổng cộng:</span><span class="amount">${formatCurrency(activeTotalExpenses)}</span></div></div>`);
+        
+        let extraInfo = selectedDayFilter ? `<span style="color:#d4a5ff; font-size:0.8rem; margin-right:10px;">(Đang xem: ${selectedDayFilter})</span>` : '';
+        
+        legendContainer.insertAdjacentHTML("beforeend", `<div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border);"><div style="display: flex; justify-content: space-between; align-items: center;"><span>${extraInfo}Tổng cộng:</span><span class="amount">${formatCurrency(activeTotalExpenses)}</span></div></div>`);
       }
 
-      function toggleCategory(category) {
-        if (disabledCategories.has(category)) disabledCategories.delete(category); else disabledCategories.add(category);
-        updateChartAndLegend();
-      }
+      function toggleCategory(category) { if (disabledCategories.has(category)) disabledCategories.delete(category); else disabledCategories.add(category); updateChartAndLegend(); }
 
-      Chart.defaults.color = "#b3b3b3";
-      Chart.defaults.borderColor = "#606060";
-      Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      Chart.defaults.color = "#b3b3b3"; Chart.defaults.borderColor = "#606060"; Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
 
       function setupTagInput() {
-        const container = document.getElementById("tags-input-container");
-        const input = document.getElementById("tags-input");
-        const dropdown = document.getElementById("tags-dropdown");
-        const selectedContainer = document.getElementById("selected-tags");
-        const formGroup = container.parentElement;
-
-        const addTag = (tag) => {
-          tag = tag.trim();
-          if (tag && !selectedTags.has(tag)) {
-            selectedTags.add(tag);
-            const pill = document.createElement("div"); pill.className = "tag-pill"; pill.textContent = tag;
-            const removeBtn = document.createElement("span"); removeBtn.className = "remove-tag"; removeBtn.textContent = "×";
-            removeBtn.onclick = () => { selectedTags.delete(tag); pill.remove(); };
-            pill.appendChild(removeBtn); selectedContainer.appendChild(pill);
-          }
-          input.value = ""; dropdown.style.display = "none";
-        };
-
-        input.addEventListener("focus", () => {
-          dropdown.innerHTML = "";
-          const availableTags = [...allTags].filter((tag) => !selectedTags.has(tag));
-          if (availableTags.length > 0) {
-            availableTags.forEach((tag) => {
-              const item = document.createElement("div"); item.textContent = tag; item.onclick = () => addTag(tag); dropdown.appendChild(item);
-            });
-            dropdown.style.display = "block";
-          }
-        });
-
-        input.addEventListener("input", () => {
-          const value = input.value.trim().toLowerCase(); dropdown.innerHTML = "";
-          const filteredTags = [...allTags].filter((tag) => tag.toLowerCase().includes(value) && !selectedTags.has(tag));
-          if (value && ![...allTags].map((t) => t.toLowerCase()).includes(value)) {
-            const newItem = document.createElement("div"); newItem.textContent = `+ Thêm nhãn "${input.value.trim()}"`; newItem.className = "new-tag";
-            newItem.onclick = () => addTag(input.value.trim()); dropdown.appendChild(newItem);
-          }
-          filteredTags.forEach((tag) => {
-            const item = document.createElement("div"); item.textContent = tag; item.onclick = () => addTag(tag); dropdown.appendChild(item);
-          });
-          dropdown.style.display = dropdown.children.length > 0 ? "block" : "none";
-        });
-
+        const container = document.getElementById("tags-input-container"); const input = document.getElementById("tags-input"); const dropdown = document.getElementById("tags-dropdown"); const selectedContainer = document.getElementById("selected-tags"); const formGroup = container.parentElement;
+        const addTag = (tag) => { tag = tag.trim(); if (tag && !selectedTags.has(tag)) { selectedTags.add(tag); const pill = document.createElement("div"); pill.className = "tag-pill"; pill.textContent = tag; const removeBtn = document.createElement("span"); removeBtn.className = "remove-tag"; removeBtn.textContent = "×"; removeBtn.onclick = () => { selectedTags.delete(tag); pill.remove(); }; pill.appendChild(removeBtn); selectedContainer.appendChild(pill); } input.value = ""; dropdown.style.display = "none"; };
+        input.addEventListener("focus", () => { dropdown.innerHTML = ""; const availableTags = [...allTags].filter((tag) => !selectedTags.has(tag)); if (availableTags.length > 0) { availableTags.forEach((tag) => { const item = document.createElement("div"); item.textContent = tag; item.onclick = () => addTag(tag); dropdown.appendChild(item); }); dropdown.style.display = "block"; } });
+        input.addEventListener("input", () => { const value = input.value.trim().toLowerCase(); dropdown.innerHTML = ""; const filteredTags = [...allTags].filter((tag) => tag.toLowerCase().includes(value) && !selectedTags.has(tag)); if (value && ![...allTags].map((t) => t.toLowerCase()).includes(value)) { const newItem = document.createElement("div"); newItem.textContent = `+ Thêm nhãn "${input.value.trim()}"`; newItem.className = "new-tag"; newItem.onclick = () => addTag(input.value.trim()); dropdown.appendChild(newItem); } filteredTags.forEach((tag) => { const item = document.createElement("div"); item.textContent = tag; item.onclick = () => addTag(tag); dropdown.appendChild(item); }); dropdown.style.display = dropdown.children.length > 0 ? "block" : "none"; });
         input.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); if (input.value.trim()) { addTag(input.value.trim()); } } });
-        container.addEventListener("click", () => input.focus());
-        document.addEventListener("click", (e) => { if (!formGroup.contains(e.target)) dropdown.style.display = "none"; });
+        container.addEventListener("click", () => input.focus()); document.addEventListener("click", (e) => { if (!formGroup.contains(e.target)) dropdown.style.display = "none"; });
       }
 
       document.getElementById("toggleExpenseFormBtn").addEventListener("click", function () {
-        const formContainer = document.getElementById("addExpenseContainer");
-        const isHidden = formContainer.style.display === "none" || formContainer.style.display === "";
-        if (isHidden) {
-          formContainer.style.display = "block"; 
-          this.innerHTML = '<i class="fa-solid fa-times"></i> Đóng';
-          loadRandomSuggestions();
-        } else {
-          formContainer.style.display = "none"; 
-          this.innerHTML = '<i class="fa-solid fa-plus"></i> Thêm Chi Tiêu';
-        }
+        const formContainer = document.getElementById("addExpenseContainer"); const isHidden = formContainer.style.display === "none" || formContainer.style.display === "";
+        if (isHidden) { formContainer.style.display = "block"; this.innerHTML = '<i class="fa-solid fa-times"></i> Đóng'; loadRandomSuggestions(); } else { formContainer.style.display = "none"; this.innerHTML = '<i class="fa-solid fa-plus"></i> Thêm Chi Tiêu'; }
       });
 
       function showCustomConfirm(message) {
         return new Promise((resolve) => {
-          const modal = document.getElementById("customConfirmModal"); const msgEl = document.getElementById("confirmMessage");
-          const btnCancel = document.getElementById("btnConfirmCancel"); const btnProceed = document.getElementById("btnConfirmProceed");
+          const modal = document.getElementById("customConfirmModal"); const msgEl = document.getElementById("confirmMessage"); const btnCancel = document.getElementById("btnConfirmCancel"); const btnProceed = document.getElementById("btnConfirmProceed");
           msgEl.textContent = message; modal.style.display = "flex";
           const cleanup = () => { modal.style.display = "none"; btnCancel.removeEventListener("click", onCancel); btnProceed.removeEventListener("click", onProceed); };
           const onCancel = () => { cleanup(); resolve(false); }; const onProceed = () => { cleanup(); resolve(true); };
@@ -831,165 +843,93 @@
         });
       }
 
-      // ==========================================
-      // FORM GIAO DỊCH THỦ CÔNG
-      // ==========================================
       document.getElementById("expenseForm").addEventListener("submit", async (e) => {
         e.preventDefault();
         const isGain = document.getElementById("reportGain").checked;
         let rawAmount = parseFloat(document.getElementById("amount").value);
         const selectedCategory = document.getElementById("category").value;
 
-        let rate = 1;
-        if (typeof exchangeRatesToVND !== "undefined") { rate = exchangeRatesToVND[currentCurrency] || 1; }
+        let rate = 1; if (typeof exchangeRatesToVND !== "undefined") { rate = exchangeRatesToVND[currentCurrency] || 1; }
         let amountInVND = rawAmount * rate; 
 
         if (!isGain && selectedCategory) {
-          const categoryExpenses = allExpenses.filter((exp) => exp.amount < 0 && exp.category === selectedCategory);
-          let categoryAverageVND = 0;
-          if (categoryExpenses.length > 0) {
-            const totalCategory = categoryExpenses.reduce((sum, exp) => sum + Math.abs(exp.amount), 0);
-            categoryAverageVND = totalCategory / categoryExpenses.length;
-          }
+          const categoryExpenses = allExpenses.filter((exp) => exp.amount < 0 && exp.category === selectedCategory); let categoryAverageVND = 0;
+          if (categoryExpenses.length > 0) { const totalCategory = categoryExpenses.reduce((sum, exp) => sum + Math.abs(exp.amount), 0); categoryAverageVND = totalCategory / categoryExpenses.length; }
           const minAlertAmountVND = 50 * exchangeRatesToVND["usd"];
           if (categoryAverageVND > 0 && amountInVND > categoryAverageVND * 3 && amountInVND > minAlertAmountVND) {
             const confirmMsg = `Số tiền bạn định lưu (${formatCurrency(amountInVND)}) lớn hơn GẤP NHIỀU LẦN so với mức chi tiêu trung bình của danh mục "${selectedCategory}" (${formatCurrency(categoryAverageVND)}).\n\nBạn có chắc chắn thông tin này là chính xác và muốn lưu không?`;
-            const userConfirmed = await showCustomConfirm(confirmMsg);
-            if (!userConfirmed) return; 
+            const userConfirmed = await showCustomConfirm(confirmMsg); if (!userConfirmed) return; 
           }
         }
 
-        let finalAmountToSave = amountInVND;
-        if (!isGain) { finalAmountToSave *= -1; }
+        let finalAmountToSave = amountInVND; if (!isGain) { finalAmountToSave *= -1; }
 
         const formData = {
-          name: document.getElementById("name").value.trim(),
-          category: selectedCategory,
-          amount: finalAmountToSave,
+          name: document.getElementById("name").value.trim(), category: selectedCategory, amount: finalAmountToSave,
           date: new Date(document.getElementById("date").value + "T00:00:00Z").toISOString(), 
-          tags: Array.from(selectedTags).map(t => String(t)),
-          note: document.getElementById("note").value.trim() || null,
-          recurring_interval: document.getElementById("recurring_interval").value || null
+          tags: Array.from(selectedTags).map(t => String(t)), note: document.getElementById("note").value.trim() || null, recurring_interval: document.getElementById("recurring_interval").value || null
         };
 
         try {
-          const response = await fetch("/api/expenses/", {
-            method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(formData),
-          });
-
+          const response = await fetch("/api/expenses/", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(formData), });
           if (response.ok) {
             if (window.showToast) showToast("Đã thêm giao dịch thành công!", "success");
             const lastDate = document.getElementById("date").value; 
-            document.getElementById("expenseForm").reset();
-            document.getElementById("selected-tags").innerHTML = "";
-            selectedTags.clear();
-            await initialize();
-            document.getElementById("date").value = lastDate; 
+            document.getElementById("expenseForm").reset(); document.getElementById("selected-tags").innerHTML = ""; selectedTags.clear();
+            await initialize(); document.getElementById("date").value = lastDate; 
           } else {
-            const error = await response.json();
-            const msg = error.detail?.[0]?.msg || error.error || "Dữ liệu không hợp lệ";
+            const error = await response.json(); const msg = error.detail?.[0]?.msg || error.error || "Dữ liệu không hợp lệ";
             if (window.showToast) showToast(`Lỗi: ${msg}`, "error");
           }
-        } catch (error) {
-          if (window.showToast) showToast("Lỗi kết nối đến máy chủ", "error");
-        }
+        } catch (error) { if (window.showToast) showToast("Lỗi kết nối đến máy chủ", "error"); }
       });
 
       document.addEventListener("DOMContentLoaded", initialize);
       document.getElementById("name").addEventListener("click", (e) => { if (e.target.value === "-") e.target.value = ""; });
 
-      // ==========================================
-      // FORM GIAO DỊCH BẰNG AI
-      // ==========================================
       async function sendToAI() {
-        const inputField = document.getElementById("aiInput");
-        const btn = document.getElementById("aiBtn");
-        const text = inputField.value.trim();
-
-        if (!text) {
-          if (window.showToast) showToast("Vui lòng nhập chi tiêu của bạn!", "error");
-          return;
-        }
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang nghĩ...';
-        btn.disabled = true;
+        const inputField = document.getElementById("aiInput"); const btn = document.getElementById("aiBtn"); const text = inputField.value.trim();
+        if (!text) { if (window.showToast) showToast("Vui lòng nhập chi tiêu của bạn!", "error"); return; }
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang nghĩ...'; btn.disabled = true;
 
         try {
           const currentRate = (typeof exchangeRatesToVND !== 'undefined') ? (exchangeRatesToVND[currentCurrency] || 1) : 1;
-          const res = await fetch("/api/ai/parse-expense", {
-            method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ text: text, currency: currentCurrency, rate: currentRate }),
-          });
+          const res = await fetch("/api/ai/parse-expense", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: text, currency: currentCurrency, rate: currentRate }), });
 
           if (res.ok) {
-            const data = await res.json();
-            const parsedTxn = data.transaction;
-
-            let rate = 1;
-            if (typeof exchangeRatesToVND !== "undefined") { rate = exchangeRatesToVND[currentCurrency] || 1; }
-
-            let amountInVND = Math.abs(parsedTxn.amount); 
-            let amountDisplay = amountInVND / rate; 
+            const data = await res.json(); const parsedTxn = data.transaction;
+            let rate = 1; if (typeof exchangeRatesToVND !== "undefined") { rate = exchangeRatesToVND[currentCurrency] || 1; }
+            let amountInVND = Math.abs(parsedTxn.amount); let amountDisplay = amountInVND / rate; 
 
             if (parsedTxn.amount < 0) {
-              const categoryExpenses = allExpenses.filter((exp) => exp.amount < 0 && exp.category === parsedTxn.category);
-              let categoryAverageVND = 0;
-              if (categoryExpenses.length > 0) {
-                const totalCategory = categoryExpenses.reduce((sum, exp) => sum + Math.abs(exp.amount), 0);
-                categoryAverageVND = totalCategory / categoryExpenses.length;
-              }
-              let avgDisplay = categoryAverageVND / rate; 
-              const minAlertAmountVND = 50 * exchangeRatesToVND["usd"];
+              const categoryExpenses = allExpenses.filter((exp) => exp.amount < 0 && exp.category === parsedTxn.category); let categoryAverageVND = 0;
+              if (categoryExpenses.length > 0) { const totalCategory = categoryExpenses.reduce((sum, exp) => sum + Math.abs(exp.amount), 0); categoryAverageVND = totalCategory / categoryExpenses.length; }
+              let avgDisplay = categoryAverageVND / rate; const minAlertAmountVND = 50 * exchangeRatesToVND["usd"];
 
               if (categoryAverageVND > 0 && amountInVND > categoryAverageVND * 3 && amountInVND > minAlertAmountVND) {
                 let fmtAmount = amountDisplay.toLocaleString('vi-VN', { maximumFractionDigits: 2 }) + " " + currentCurrency.toUpperCase();
                 let fmtAvg = avgDisplay.toLocaleString('vi-VN', { maximumFractionDigits: 2 }) + " " + currentCurrency.toUpperCase();
                 const confirmMsg = `Trợ lý AI phát hiện bạn vừa nhập một khoản chi RẤT LỚN!\n\nSố tiền (${fmtAmount}) lớn hơn GẤP NHIỀU LẦN mức trung bình của danh mục "${parsedTxn.category}" (${fmtAvg}).\n\nBạn có chắc chắn muốn lưu giao dịch này không?`;
-
                 const userConfirmed = await showCustomConfirm(confirmMsg);
-                if (!userConfirmed) {
-                  btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Gửi'; btn.disabled = false;
-                  return; 
-                }
+                if (!userConfirmed) { btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Gửi'; btn.disabled = false; return; }
               }
             }
 
-            let finalAmountToSave = amountInVND;
-            if (parsedTxn.amount < 0) { finalAmountToSave *= -1; }
-
+            let finalAmountToSave = amountInVND; if (parsedTxn.amount < 0) { finalAmountToSave *= -1; }
             const safeAIDate = parsedTxn.date.includes('T') ? parsedTxn.date : new Date(parsedTxn.date + "T00:00:00Z").toISOString();
 
-            const saveRes = await fetch("/api/expenses/", {
-              method: "POST", headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                name: parsedTxn.name,
-                category: parsedTxn.category,
-                amount: finalAmountToSave, 
-                date: safeAIDate,
-                tags: ["AI Assistant"],
-                note: null,
-                recurring_interval: null
-              }),
-            });
-
+            const saveRes = await fetch("/api/expenses/", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: parsedTxn.name, category: parsedTxn.category, amount: finalAmountToSave, date: safeAIDate, tags: ["AI Assistant"], note: null, recurring_interval: null }), });
             if (saveRes.ok) {
               let fmtSaved = amountDisplay.toLocaleString('vi-VN', { maximumFractionDigits: 2 }) + " " + currentCurrency.toUpperCase();
               if (window.showToast) showToast(`Đã lưu: ${parsedTxn.name} (${fmtSaved})`, "success");
-              inputField.value = "";
-              await initialize();
+              inputField.value = ""; await initialize();
             } else {
-              const err = await saveRes.json();
-              if (window.showToast) showToast(`Lỗi khi lưu: ${err.error || "Lỗi không xác định"}`, "error");
+              const err = await saveRes.json(); if (window.showToast) showToast(`Lỗi khi lưu: ${err.error || "Lỗi không xác định"}`, "error");
             }
           } else {
-            const err = await res.json();
-            if (window.showToast) showToast(err.detail || "Có lỗi xảy ra khi AI phân tích.", "error");
+            const err = await res.json(); if (window.showToast) showToast(err.detail || "Có lỗi xảy ra khi AI phân tích.", "error");
           }
-        } catch (error) {
-          if (window.showToast) showToast("Lỗi kết nối đến máy chủ AI.", "error");
-        } finally {
-          btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Gửi'; btn.disabled = false;
-        }
+        } catch (error) { if (window.showToast) showToast("Lỗi kết nối đến máy chủ AI.", "error"); } finally { btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Gửi'; btn.disabled = false; }
       }
 
       document.getElementById("aiInput").addEventListener("keypress", function (e) { if (e.key === "Enter") { sendToAI(); } });
@@ -999,15 +939,9 @@
     
     <div id="aiModal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.7); align-items: center; justify-content: center;">
       <div style="background: linear-gradient(145deg, #1e1e2d, #2a2a40); border: 2px solid #8a2be2; border-radius: 12px; width: 90%; max-width: 500px; max-height: 80vh; overflow-y: auto; padding: 20px; box-shadow: 0 0 20px rgba(138, 43, 226, 0.4); position: relative;">
-        <button onclick="closeAiModal()" style="position: absolute; right: 15px; top: 15px; background: none; border: none; color: #ff4d4d; font-size: 20px; cursor: pointer;">
-          <i class="fa-solid fa-xmark"></i>
-        </button>
-        <h3 style="color: #d4a5ff; margin-top: 0; margin-bottom: 15px; text-align: center;">
-          <i class="fa-solid fa-wand-magic-sparkles"></i> Báo Cáo Từ Cú Mèo
-        </h3>
-        <div id="aiLoading" style="display: none; color: #a0a0b0; font-style: italic; text-align: center;">
-          <i class="fa-solid fa-spinner fa-spin" style="font-size: 24px; margin-bottom: 10px"></i><br />Cú Mèo đang đọc hồ sơ...
-        </div>
+        <button onclick="closeAiModal()" style="position: absolute; right: 15px; top: 15px; background: none; border: none; color: #ff4d4d; font-size: 20px; cursor: pointer;"><i class="fa-solid fa-xmark"></i></button>
+        <h3 style="color: #d4a5ff; margin-top: 0; margin-bottom: 15px; text-align: center;"><i class="fa-solid fa-wand-magic-sparkles"></i> Báo Cáo Từ Cú Mèo</h3>
+        <div id="aiLoading" style="display: none; color: #a0a0b0; font-style: italic; text-align: center;"><i class="fa-solid fa-spinner fa-spin" style="font-size: 24px; margin-bottom: 10px"></i><br />Cú Mèo đang đọc hồ sơ...</div>
         <div id="aiContent" style="line-height: 1.6; color: #e0e0e0"></div>
       </div>
     </div>
