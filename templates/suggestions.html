@@ -39,42 +39,49 @@
             </div>
         </header>
 
-        <div class="form-container" style="margin-bottom: 20px;">
-            <h2 style="text-align: center; color: #d4a5ff; margin-top: 0;">
+        <div class="form-container" style="background-color: var(--bg-secondary); margin-bottom: 20px; border: 1px solid var(--border); box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+            <h2 style="text-align: center; color: var(--accent); margin-top: 0;">
                 <i class="fa-solid fa-bullseye"></i> Lập Kế Hoạch Tiết Kiệm
             </h2>
-            <p style="text-align: center; color: #a0a0b0; margin-bottom: 16px;">
+            <p style="text-align: center; color: var(--text-secondary); margin-bottom: 16px;">
                 Thiết lập mục tiêu để Cú Mèo lập kế hoạch cắt giảm chi tiêu chi tiết cho bạn.
             </p>
 
-            <div style="background-color: #2a2a40; padding: 15px; border-radius: 10px; margin-bottom: 15px;">
-                <h4 style="color: #4ade80; margin-top: 0; margin-bottom: 10px;"><i class="fa-solid fa-flag-checkered"></i> Mục tiêu của bạn</h4>
-                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                    <input type="text" id="goalName" placeholder="VD: Mua xe máy mới..." style="flex: 1; min-width: 200px; padding: 10px; border-radius: 8px; border: 1px solid #8a2be2; background: #151521; color: #fff; outline: none;">
-                    <input type="number" id="goalAmount" placeholder="Số tiền mục tiêu..." style="flex: 1; min-width: 150px; padding: 10px; border-radius: 8px; border: 1px solid #8a2be2; background: #151521; color: #fff; outline: none;">
-                    <input type="number" id="goalMonths" placeholder="Đạt được trong mấy tháng?" style="flex: 1; min-width: 150px; padding: 10px; border-radius: 8px; border: 1px solid #8a2be2; background: #151521; color: #fff; outline: none;">
+            <div style="background-color: var(--bg-primary); padding: 15px; border-radius: 10px; margin-bottom: 20px; border: 1px solid var(--border);">
+                <h4 style="color: #4ade80; margin-top: 0; margin-bottom: 15px;"><i class="fa-solid fa-flag-checkered"></i> Mục tiêu của bạn</h4>
+                
+                <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                    <div style="flex: 1; min-width: 200px;">
+                        <input type="text" id="goalName" placeholder="VD: Mua xe máy mới..." style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border); background-color: var(--bg-secondary); color: var(--text-primary); outline: none; box-sizing: border-box; font-family: inherit;">
+                    </div>
+                    <div style="flex: 1; min-width: 150px;">
+                        <input type="number" id="goalAmount" placeholder="Số tiền mục tiêu..." style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border); background-color: var(--bg-secondary); color: var(--text-primary); outline: none; box-sizing: border-box; font-family: inherit;">
+                    </div>
+                    <div style="flex: 1; min-width: 150px;">
+                        <input type="number" id="goalMonths" placeholder="Đạt được trong mấy tháng?" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border); background-color: var(--bg-secondary); color: var(--text-primary); outline: none; box-sizing: border-box; font-family: inherit;">
+                    </div>
                 </div>
             </div>
 
-            <div style="display: flex; gap: 10px; align-items: center; justify-content: center; flex-wrap: wrap;">
-                <label for="monthWindow" style="color: var(--text-secondary);">Dựa trên dữ liệu:</label>
-                <select id="monthWindow" style="padding: 10px 12px; border-radius: 8px; border: 1px solid #8a2be2; background: #151521; color: #e0e0e0; outline: none;">
+            <div style="display: flex; gap: 15px; align-items: center; justify-content: center; flex-wrap: wrap;">
+                <label for="monthWindow" style="color: var(--text-secondary); font-weight: bold;">Dựa trên dữ liệu:</label>
+                <select id="monthWindow" style="padding: 10px 15px; border-radius: 8px; border: 1px solid var(--border); background-color: var(--bg-primary); color: var(--text-primary); outline: none; cursor: pointer; font-family: inherit; font-weight: bold;">
                     <option value="1">1 tháng qua</option>
                     <option value="3" selected>3 tháng qua</option>
                     <option value="6">6 tháng qua</option>
                 </select>
-                <button id="btnGenerateSuggestions" class="nav-button" style="background-color: #8a2be2; border: 1px solid #d4a5ff; padding: 10px 20px;">
+                <button id="btnGenerateSuggestions" class="nav-button" style="background-color: var(--accent); color: #fff; border: none; padding: 10px 25px; box-shadow: 0 2px 10px rgba(138,43,226,0.3);">
                     <i class="fa-solid fa-wand-magic-sparkles"></i> Lập kế hoạch
                 </button>
             </div>
         </div>
 
-        <div id="suggestionsLoading" class="form-container" style="display: none; text-align: center; color: #a0a0b0;">
-            <i class="fa-solid fa-spinner fa-spin" style="font-size: 22px;"></i>
-            <p>AI đang phân tích và tính toán đường đi nước bước...</p>
+        <div id="suggestionsLoading" class="form-container" style="display: none; text-align: center; color: var(--text-secondary); background-color: var(--bg-secondary); border: 1px solid var(--border);">
+            <i class="fa-solid fa-spinner fa-spin" style="font-size: 28px; margin-bottom: 15px; color: var(--accent);"></i>
+            <p style="margin: 0; font-weight: bold;">Cú Mèo đang phân tích và tính toán đường đi nước bước...</p>
         </div>
 
-        <div id="suggestionsSummary" class="form-container" style="display: none;"></div>
+        <div id="suggestionsSummary" class="form-container" style="display: none; background-color: var(--bg-secondary); border: 1px solid var(--border);"></div>
         <div id="suggestionsList" style="display: grid; gap: 12px;"></div>
     </div>
 
