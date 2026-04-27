@@ -512,120 +512,95 @@ def parse_expense_from_text(req: AIRequest, db: Session = Depends(get_db), curre
 # ---------------------------------------------------------
 @ai_router.post("/chat")
 def chat_with_data(req: ChatRequest, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
-    # SỬ DỤNG HÀM LẤY KEY RANDOM Ở ĐÂY
     api_key = get_random_api_key()
     if not api_key:
         raise HTTPException(status_code=500, detail="Chưa cấu hình GEMINI_API_KEY")
 
-    # BƯỚC 1: Lấy danh mục của user (để AI biết phân loại nếu người dùng muốn lưu)
+    # BƯỚC 1: Lấy Cấu hình, Danh mục và HỒ SƠ TÍNH CÁCH hiện tại
     user_config = db.query(models.UserConfig).filter(models.UserConfig.user_id == current_user.id).first()
-    categories_str = ", ".join(user_config.categories) if user_config and user_config.categories else "Ăn uống, ĐI lại, Mua sắm, Hóa đơn, Giải trí, Thu nhập"
+    categories_str = ", ".join(user_config.categories) if user_config and user_config.categories else "Ăn uống, Đi lại, Mua sắm, Hóa đơn, Giải trí"
+    
+    current_goal = user_config.financial_goal if user_config and user_config.financial_goal else "Chưa xác định"
+    current_risk = user_config.risk_tolerance if user_config and user_config.risk_tolerance else "Cân bằng"
 
-    # BƯỚC 2: Rút trích dữ liệu của riêng người dùng này từ Database (RAG)
+    # BƯỚC 2: Rút trích dữ liệu của riêng người dùng (RAG)
     transactions = db.query(models.Transaction).filter(models.Transaction.user_id == current_user.id).all()
     
-    data_context = "DANH SÁCH GIAO DỊCH CỦA NGƯỜI DÙNG:\n"
-    data_context += "Ngày | Tên giao dịch | Số tiền | Danh mục\n"
-    data_context += "-" * 50 + "\n"
-    
+    # 👇 THÊM ĐOẠN NÀY: CODE PYTHON TỰ TÍNH TOÁN SỐ DƯ 👇
+    total_income = sum(t.amount for t in transactions if t.amount > 0)
+    total_expense = sum(abs(t.amount) for t in transactions if t.amount < 0)
+    current_balance_vnd = total_income - total_expense
+    current_balance_display = current_balance_vnd / req.rate
+    data_context = "GIAO DỊCH GẦN ĐÂY:\n"
     if not transactions:
-        data_context += "Hiện tại người dùng chưa có giao dịch nào.\n"
+        data_context += "Trống.\n"
     else:
-        for t in transactions:
-            data_context += f"{t.date} | {t.name} | {t.amount} VND | {t.category}\n"
+        # Tối ưu: Chỉ lấy 30 giao dịch gần nhất để tránh tràn Token
+        for t in sorted(transactions, key=lambda x: x.date, reverse=True)[:30]:
+            data_context += f"{t.date.strftime('%Y-%m-%d')} | {t.name} | {t.amount} | {t.category}\n"
 
-    # BƯỚC 3: Xử lý mảng lịch sử thành chuỗi văn bản
+    # BƯỚC 3: Xử lý lịch sử Chat
     history_text = ""
     if req.history:
-        history_text = "LỊCH SỬ TRÒ CHUYỆN GẦN ĐÂY CỦA BẠN VÀ NGƯỜI DÙNG:\n"
-        for turn in req.history:
-            history_text += f"Người dùng hỏi: {turn.get('user', '')}\nCú Mèo trả lời: {turn.get('ai', '')}\n"
-        history_text += "-" * 50 + "\n"
+        history_text = "LỊCH SỬ CHAT:\n"
+        for turn in req.history[-3:]: # Tối ưu: Chỉ giữ 3 đoạn hội thoại gần nhất
+            history_text += f"User: {turn.get('user', '')}\nAI: {turn.get('ai', '')}\n"
 
-    # BƯỚC 4: KẾT HỢP PROMPT (Giữ Logic Cũ + Ép Format JSON Mới)
+    # BƯỚC 4: PROMPT TỐI ƯU HÓA (Gọn gàng, mạnh mẽ, đa nhiệm)
     today_str = datetime.now().strftime("%Y-%m-%d")
     prompt = f"""
-    Bạn là "Cú Mèo" - một chuyên gia tư vấn tài chính cá nhân thông minh, tận tâm và vui tính của ứng dụng ExpenseOwl.
-    Hôm nay là ngày {today_str}.
-    
-    Dưới đây là DỮ LIỆU TÀI CHÍNH THỰC TẾ của người dùng mà bạn đang trò chuyện (Lưu ý: Số tiền ÂM là chi tiêu, DƯƠNG là thu nhập):
+    Bạn là "Cú Mèo" - Cố vấn tài chính cá nhân của ExpenseOwl. Hôm nay: {today_str}.
+    TIỀN TỆ HIỆN TẠI: {req.currency.upper()} (Tỷ giá 1 {req.currency.upper()} = {req.rate} VNĐ).
+
+    HỒ SƠ KHÁCH HÀNG: Mục tiêu: {current_goal} | Khẩu vị rủi ro: {current_risk}.
     {data_context}
-    
     {history_text}
     
-    CÂU HỎI MỚI NHẤT CỦA NGƯỜI DÙNG: "{req.message}"
+    CÂU HỎI TỪ KHÁCH HÀNG: "{req.message}"
     
-    NHIỆM VỤ CỦA BẠN LÀ TRẢ VỀ DUY NHẤT MỘT KHỐI JSON HỢP LỆ (Không chứa dấu markdown ``` hay văn bản nào bên ngoài JSON).
-
-    QUY TẮC CHO TRƯỜNG "reply" (Giữ nguyên phong cách của bạn):
-    1. Trả lời trực tiếp, chính xác. Dùng tiếng Việt, giọng điệu thân thiện. Dùng in đậm (**chữ**) cho các con số.
-    2. Nếu câu hỏi ám chỉ thông tin cũ ("Khoản đó là khoản nào?"), dựa vào LỊCH SỬ TRÒ CHUYỆN để trả lời.
-    3. Tự tính toán (tổng chi, tổng thu...) cẩn thận từ DỮ LIỆU TÀI CHÍNH nếu được hỏi.
-    4. QUY TẮC HIỂN THỊ ĐƠN VỊ TIỀN TỆ:
-       - BẠN CHỈ ĐƯỢC PHÉP báo cáo số tiền bằng đơn vị tiền tệ hiện tại là: {req.currency.upper()}.
-       - NẾU đơn vị hiện tại KHÁC "VND" (Ví dụ đang là EUR, USD...): TUYỆT ĐỐI KHÔNG nhắc đến chữ "VND" hay "VNĐ". Phải tự lấy dữ liệu lịch sử (đang lưu bằng VNĐ) chia ngược lại cho tỷ giá trước khi trả lời người dùng.
-       - NẾU đơn vị hiện tại LÀ "VND": Bạn được phép nhắc đến chữ "VNĐ" và báo cáo bình thường, không cần chia tỷ giá.
-    QUY TẮC CHO TRƯỜNG "action" VÀ "data":
-    1. Nếu người dùng CHƯA CUNG CẤP ĐỦ 2 THÔNG TIN cốt lõi là "Mục đích" VÀ "Số tiền" (Ví dụ: "tôi ăn cơm" -> thiếu tiền, hoặc "nay tiêu 10k" -> thiếu mục đích):
-       -> BẮT BUỘC trả về "action": "chat" VÀ "data": null.
-       -> Ở trường "reply", hãy khéo léo hỏi lại người dùng thông tin còn thiếu (VD: "Bữa cơm đó hết bao nhiêu tiền thế bạn?").
-    2. TUYỆT ĐỐI KHÔNG tự bịa ra số tiền hoặc tự động gán bằng 0. Không thấy tiền = Không được lưu.
-    3. Nếu người dùng CUNG CẤP ĐỦ thông tin (số tiền VÀ mục đích) -> "action": "save", điền đầy đủ phần "data".
-
-    QUY TẮC TIỀN TỆ & TÍNH TOÁN (TỐI QUAN TRỌNG):
-    - Hệ thống của người dùng hiện ĐANG CÀI ĐẶT TIỀN TỆ LÀ: {req.currency.upper()}
-    - Lệnh 1: Nếu người dùng nhập một con số mà KHÔNG CÓ ĐƠN VỊ (VD: "nay ăn phở 40"), bạn BẮT BUỘC phải ngầm hiểu đó là 40 {req.currency.upper()}.
-    - Lệnh 2: TUYỆT ĐỐI KHÔNG ĐƯỢC than vãn hay hỏi lại người dùng tỷ giá. BẠN PHẢI TỰ LÀM TOÁN.
-    - Lệnh 3: Dữ liệu lưu vào hệ thống ('amount') LUÔN LUÔN PHẢI LÀ VNĐ. Bạn hãy lấy con số người dùng nhập nhân với tỷ giá hiện tại là: {req.rate} (Đây là tỷ giá quy đổi từ 1 {req.currency.upper()} sang VNĐ). Tuyệt đối không được dùng con số nào khác.
-
-    Cấu trúc JSON bắt buộc:
+    NHIỆM VỤ: Trả về DUY NHẤT 1 KHỐI JSON TỰ THUẦN (Không kèm markdown ```).
+    QUY TẮC BẮT BUỘC:
+    1. "reply": Tư vấn thân thiện dựa trên HỒ SƠ KHÁCH HÀNG. Báo cáo số tiền bằng {req.currency.upper()} (Tự chia dữ liệu lịch sử cho {req.rate}. Tuyệt đối không nhắc tới VNĐ nếu tiền tệ khác VND).
+    2. "action": Quyết định 1 trong 3 hành động sau:
+       - "save": Nếu khách cung cấp ĐỦ Tên khoản VÀ Số tiền. (Thu=DƯƠNG, Chi=ÂM). Nếu khách nói số không đơn vị, ngầm hiểu là {req.currency.upper()}. Giá trị lưu 'amount' PHẢI nhân với {req.rate} để ra VNĐ.
+       - "update_profile": CHỈ KHI khách có quyết định thay đổi mục tiêu DÀI HẠN (VD: "Tôi muốn đổi mục tiêu thành mua nhà", "Tôi đang gánh khoản nợ ngân hàng lớn cần lập kế hoạch"). TUYỆT ĐỐI KHÔNG thay đổi hồ sơ nếu đó chỉ là các khoản vay mượn lặt vặt, ngắn hạn (VD: nợ bạn bè vài đồng, khoản nợ trả trong ngày).
+       - "chat": Nếu thiếu số tiền/tên khoản (hỏi lại khách), hoặc nhờ lập kế hoạch ngắn hạn, hoặc trò chuyện thông thường. KHÔNG tự bịa số tiền.
+       
+    CẤU TRÚC JSON:
     {{
-        "reply": "Câu trả lời của bạn gửi cho người dùng",
-        "action": "save" hoặc "chat",
-        "data": {{
-            "name": "Tên khoản tiền (chỉ có khi action là save)",
-            "amount": Số tiền (số ÂM nếu chi, số DƯƠNG nếu thu. Chỉ có khi action là save),
-            "category": "Chọn 1 trong các danh mục: {categories_str} (chỉ có khi action là save)",
-            "date": "YYYY-MM-DD (chỉ có khi action là save)"
-        }}
+        "reply": "Câu trả lời của Cú Mèo",
+        "action": "chat" | "save" | "update_profile",
+        "data": {{ "name": "...", "amount": ±VNĐ, "category": "Chọn 1: {categories_str}", "date": "YYYY-MM-DD" }} | null,
+        "profile_update": {{ "financial_goal": "Mục tiêu mới", "risk_tolerance": "Rủi ro mới" }} | null
     }}
     """
     
     # BƯỚC 5: Gọi Gemini 2.5 Flash
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
-    payload = {
-        "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {"temperature": 0.2} # Giảm độ sáng tạo để JSON không bị lỗi format
-    }
+    payload = {"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"temperature": 0.2}}
     
-    # Gọi API Gemini và xử lý lỗi kết nối ở khối ngoài
     try:
         response = call_gemini_with_backoff(url, payload, headers={"Content-Type": "application/json"}, timeout=30, retries=3)
         _handle_gemini_http_status(response)
 
         result_data = response.json()
         ai_text = result_data["candidates"][0]["content"]["parts"][0]["text"]
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Lỗi Chatbot AI: {str(e)}")
+    except HTTPException: raise
+    except Exception as e: raise HTTPException(status_code=500, detail=f"Lỗi AI: {str(e)}")
 
-    # BƯỚC 6: Xử lý chuỗi JSON (AI trả về cấu trúc action/chat/save) và Lưu Database nếu cần
-    # BƯỚC 6: Xử lý chuỗi JSON (AI trả về cấu trúc action/chat/save)
+    # BƯỚC 6: Xử lý KẾT QUẢ VÀ CẬP NHẬT DB NGẦM
     try:
         clean_text = ai_text.strip().replace("```json", "").replace("```", "")
         result_json = json.loads(clean_text)
 
-        # ==========================================
-        # ĐÃ SỬA: KHÔNG LƯU DB NỮA, CHỈ ĐÓNG GÓI DỮ LIỆU TRẢ VỀ FRONTEND
-        # ==========================================
         transaction_data = None
-        if result_json.get("action") == "save" and result_json.get("data"):
+        final_action = result_json.get("action", "chat")
+
+        # 6.1. Đóng gói dữ liệu giao dịch (Nếu có)
+        if final_action == "save" and result_json.get("data"):
             data = result_json["data"]
-            try:
-                parsed_date = datetime.strptime(data.get("date", today_str), "%Y-%m-%d").date()
-            except Exception:
-                parsed_date = datetime.now()
+            try: parsed_date = datetime.strptime(data.get("date", today_str), "%Y-%m-%d").date()
+            except Exception: parsed_date = datetime.now()
 
             transaction_data = {
                 "name": str(data.get("name", "Giao dịch"))[:255],
@@ -635,18 +610,34 @@ def chat_with_data(req: ChatRequest, db: Session = Depends(get_db), current_user
                 "tags": ["AI Chatbot"]
             }
 
+        # 6.2. Tự động lưu Profile (Nếu AI phát hiện thay đổi)
+        if result_json.get("profile_update"):
+            p_data = result_json["profile_update"]
+            new_goal = p_data.get("financial_goal")
+            new_risk = p_data.get("risk_tolerance")
+            
+            if new_goal or new_risk:
+                if user_config:
+                    if new_goal: user_config.financial_goal = new_goal
+                    if new_risk: user_config.risk_tolerance = new_risk
+                else:
+                    user_config = models.UserConfig(
+                        user_id=current_user.id,
+                        financial_goal=new_goal or "Chưa xác định",
+                        risk_tolerance=new_risk or "Cân bằng"
+                    )
+                    db.add(user_config)
+                db.commit()
+                final_action = "update_profile" # Báo cho Frontend biết để tiện xử lý
+
         return {
-            "reply": result_json.get("reply", ai_text),
-            "action": result_json.get("action", "chat"),
+            "reply": result_json.get("reply", "Lỗi phản hồi"),
+            "action": final_action,
             "transaction_data": transaction_data
         }
 
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=400, detail="AI trả về dữ liệu không hợp lệ. Vui lòng thử lại.")
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Lỗi Chatbot AI: {str(e)}")
+    except json.JSONDecodeError: raise HTTPException(status_code=400, detail="AI trả về dữ liệu không hợp lệ.")
+    except Exception as e: raise HTTPException(status_code=500, detail=f"Lỗi xử lý: {str(e)}")
 
 # ---------------------------------------------------------
 # 3. API PHÂN TÍCH XU HƯỚNG VÀ PHÁT HIỆN BẤT THƯỜNG
@@ -911,6 +902,32 @@ def edit_categories(
             
         db.commit()
         return {"message": "Cập nhật danh mục thành công"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    
+# 4. API Lưu Hồ sơ tài chính (AI Profile)
+@config_router.post("/profile/edit")
+def edit_profile(
+    profile_data: dict = Body(...),
+    db: Session = Depends(get_db), 
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    try:
+        user_config = db.query(models.UserConfig).filter(models.UserConfig.user_id == current_user.id).first()
+        if not user_config:
+            user_config = models.UserConfig(
+                user_id=current_user.id, 
+                financial_goal=profile_data.get("goal", "Chưa xác định"),
+                risk_tolerance=profile_data.get("risk", "Cân bằng")
+            )
+            db.add(user_config)
+        else:
+            user_config.financial_goal = profile_data.get("goal", "Chưa xác định")
+            user_config.risk_tolerance = profile_data.get("risk", "Cân bằng")
+            
+        db.commit()
+        return {"message": "Cập nhật hồ sơ AI thành công"}
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))

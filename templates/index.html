@@ -44,6 +44,16 @@
       .wiz-cat-item input[type="text"] { background: transparent; border: none; color: #fff; font-weight: bold; outline: none; width: 60%; font-size: 1rem;}
       .wiz-cat-item input[type="color"] { background: transparent; border: none; cursor: pointer; height: 35px; width: 45px; padding: 0; border-radius: 4px; }
       @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+      
+      /* Căn chỉnh lại Form trên Mobile */
+      @media (max-width: 768px) {
+          .four-col-grid {
+              grid-template-columns: 1fr !important;
+          }
+          .four-col-grid .form-group {
+              grid-column: span 1 !important;
+          }
+      }
     </style>
   </head>
   <body>
@@ -83,7 +93,11 @@
       <div id="addExpenseContainer" style="display: none">
         <div class="form-container" style="border: 2px solid #8a2be2; background: linear-gradient(145deg, #1e1e2d, #2a2a40); box-shadow: 0 0 15px rgba(138, 43, 226, 0.3); margin-bottom: 20px;">
           <h3 align="center" style="color: #d4a5ff"><i class="fa-solid fa-wand-magic-sparkles"></i> Trợ lý AI Cú Mèo</h3>
-          <p style="text-align: center; color: #a0a0b0; font-size: 0.9rem; margin-bottom: 15px;">Hãy nhập câu nói tự nhiên, AI sẽ tự phân tích và lưu!</p>
+          <p style="text-align: center; color: #a0a0b0; font-size: 0.9rem; margin-bottom: 15px;">Hãy nhập chi tiêu hoặc hỏi Cú Mèo một câu về tài chính!</p>
+          
+          <div id="aiPromptSuggestions" style="display: flex; gap: 10px; overflow-x: auto; margin-bottom: 15px; padding-bottom: 5px; scrollbar-width: none;">
+            </div>
+
           <div class="form-group" style="display: flex; gap: 10px; align-items: center">
             <input type="text" id="aiInput" placeholder="VD: Tối qua đổ 50k tiền xăng và uống ly cafe 30k..." style="flex: 1; padding: 12px; border-radius: 8px" />
             <button onclick="sendToAI()" id="aiBtn" class="nav-button" style="background-color: #8a2be2; width: auto; padding: 0 20px"><i class="fa-solid fa-paper-plane"></i> Gửi</button>
@@ -91,62 +105,69 @@
         </div>
 
         <div class="form-container">
-          <form id="expenseForm" class="expense-form">
-            <div class="form-group">
-              <label for="name">Mô tả giao dịch</label>
-              <input type="text" id="name" value="-" required />
+          <form id="expenseForm"> <div class="four-col-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; align-items: start; margin-bottom: 20px;">
+                
+                <div class="form-group">
+                    <label>Mô tả</label>
+                    <input type="text" id="name" placeholder="Ví dụ: Trà sữa" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Danh mục</label>
+                    <select id="category" required></select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Số tiền</label>
+                    <input type="number" id="amount" step="0.01" placeholder="0" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Ngày</label>
+                    <input type="date" id="date" required>
+                    <script>
+                        const todayDate = new Date();
+                        document.getElementById("date").value = `${todayDate.getFullYear()}-${String(todayDate.getMonth() + 1).padStart(2, "0")}-${String(todayDate.getDate()).padStart(2, "0")}`;
+                    </script>
+                </div>
+
+                <div class="form-group">
+                    <label>Tần suất lặp lại</label>
+                    <select id="recurring_interval">
+                        <option value="">Không lặp lại</option>
+                        <option value="daily">Hàng ngày</option>
+                        <option value="weekly">Hàng tuần</option>
+                        <option value="monthly">Hàng tháng</option>
+                        <option value="yearly">Hàng năm</option>
+                    </select>
+                </div>
+                
+                <div class="form-group" style="position: relative;">
+                    <label>Nhãn</label>
+                    <div id="tags-input-container" style="width: 100%; display: flex; flex-wrap: wrap; border: 1px solid var(--border); border-radius: 4px; background-color: var(--bg-primary); cursor: text; padding: 0.25rem;">
+                        <div id="selected-tags" style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 2px;"></div>
+                        <input type="text" id="tags-input" placeholder="Nhập & Enter..." autocomplete="off" style="flex: 1; min-width: 100px; border: none; background: none; outline: none; padding: 0.25rem; color: var(--text-primary);">
+                    </div>
+                    <div id="tags-dropdown" class="tags-dropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: #2a2a40; border: 1px solid #3d3d5c; border-radius: 8px; z-index: 100; max-height: 150px; overflow-y: auto; box-shadow: 0 4px 12px rgba(0,0,0,0.5);"></div>
+                </div>
+                
+                <div class="form-group" style="grid-column: span 2;">
+                    <label>Ghi chú chi tiết</label>
+                    <input type="text" id="note" placeholder="Ghi chú thêm (không bắt buộc)...">
+                </div>
+
             </div>
 
-            <div class="form-group">
-              <label for="category">Danh mục</label>
-              <select id="category" required><option value="">Chọn danh mục</option></select>
+            <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #2a2a40; padding-top: 15px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <label for="reportGain" style="margin: 0; color: #a1a1aa;">Khoản thu</label>
+                    <input type="checkbox" id="reportGain" style="transform: scale(1.2); cursor: pointer;">
+                </div>
+                
+                <button type="submit" class="nav-button" style="padding: 10px 25px; font-weight: bold;">
+                    Lưu Giao Dịch
+                </button>
             </div>
-            
-            <div class="form-group">
-              <label>Tần suất lặp lại</label>
-              <select id="recurring_interval" style="width: 100%; padding: 10px; border-radius: 8px; background: #151521; color: #fff; border: 1px solid #2a2a40; outline: none;">
-                  <option value="">Không lặp lại (Chỉ 1 lần)</option>
-                  <option value="daily">Hàng ngày</option>
-                  <option value="weekly">Hàng tuần</option>
-                  <option value="monthly">Hàng tháng</option>
-                  <option value="yearly">Hàng năm</option>
-              </select>
-            </div>
-
-            <div class="form-group">
-              <label>Ghi chú chi tiết</label>
-              <textarea id="note" rows="2" placeholder="" style="width: 100%; padding: 10px; border-radius: 8px; background: #151521; color: #fff; border: 1px solid #2a2a40; outline: none;"></textarea>
-            </div>
-            
-            <div class="form-group">
-              <label for="tags-input">Nhãn</label>
-              <div id="tags-input-container" class="tags-input-container">
-                <div id="selected-tags" class="selected-tags"></div>
-                <input type="text" id="tags-input" placeholder="(Thêm thủ công)" />
-              </div>
-              <div id="tags-dropdown" class="tags-dropdown"></div>
-            </div>
-
-            <div class="form-group">
-              <label for="amount">Số tiền</label>
-              <input type="number" id="amount" step="0.01" min="0.01" max="9000000000000000" required />
-            </div>
-
-            <div class="form-group">
-              <label for="date">Ngày</label>
-              <input type="date" id="date" required />
-              <script>
-                const todayDate = new Date();
-                document.getElementById("date").value = `${todayDate.getFullYear()}-${String(todayDate.getMonth() + 1).padStart(2, "0")}-${String(todayDate.getDate()).padStart(2, "0")}`;
-              </script>
-            </div>
-
-            <div class="form-group form-group-checkbox">
-              <label for="reportGain">Khoản thu</label>
-              <input type="checkbox" id="reportGain" class="styled-checkbox" />
-            </div>
-
-            <button type="submit" class="nav-button">Lưu Giao Dịch</button>
           </form>
         </div>
       </div>
@@ -197,8 +218,9 @@
           <div class="wizard-progress">
               <span id="prog1" class="active">1. Số dư</span>
               <span id="prog2">2. Danh mục</span>
-              <span id="prog3">3. Dữ liệu</span>
-              <span id="prog4">4. Xác nhận</span>
+              <span id="prog3">3. AI Cú Mèo</span>
+              <span id="prog4">4. Dữ liệu cũ</span>
+              <span id="prog5">5. Xác nhận</span>
           </div>
 
           <div id="wStep1" class="wizard-step active">
@@ -221,8 +243,29 @@
           </div>
 
           <div id="wStep3" class="wizard-step">
-              <h3 style="margin-top: 0; color: #fff;">3. Nhập dữ liệu cũ (Tùy chọn)</h3>
-              <p style="font-size: 0.9rem; color: #a0a0b0; line-height: 1.5;">Nếu bạn có file CSV từ ứng dụng quản lý chi tiêu cũ, hãy tải lên đây. Bạn cũng có thể làm việc này sau trong phần Cài đặt.</p>
+              <h3 style="margin-top: 0; color: #fff;"><i class="fa-solid fa-brain"></i> 3. Huấn luyện AI Cú Mèo</h3>
+              <p style="font-size: 0.9rem; color: #a0a0b0; margin-bottom: 15px;">Cho Cú Mèo biết tính cách và mục tiêu của bạn để nhận được lời khuyên chuẩn xác nhất nhé.</p>
+              
+              <label style="color: #d4a5ff; font-weight: bold; margin-bottom: 5px; display: block;">Mục tiêu lớn nhất hiện tại:</label>
+              <select id="wFinancialGoal" class="wizard-input" style="cursor: pointer; margin-bottom: 15px;">
+                  <option value="Chưa xác định">Chưa xác định</option>
+                  <option value="Tiết kiệm phòng thân">Tiết kiệm phòng thân</option>
+                  <option value="Đầu tư sinh lời">Đầu tư sinh lời</option>
+                  <option value="Trả dứt điểm nợ">Trả dứt điểm nợ</option>
+                  <option value="Mua sắm tài sản lớn (Xe, Nhà)">Mua sắm tài sản lớn (Xe, Nhà)</option>
+              </select>
+
+              <label style="color: #d4a5ff; font-weight: bold; margin-bottom: 5px; display: block;">Khẩu vị rủi ro:</label>
+              <select id="wRiskTolerance" class="wizard-input" style="cursor: pointer;">
+                  <option value="An toàn (Không muốn mất tiền)">An toàn (Thích gửi tiết kiệm)</option>
+                  <option value="Cân bằng">Cân bằng</option>
+                  <option value="Mạo hiểm (Chấp nhận rủi ro cao)">Mạo hiểm (Thích Crypto, Cổ phiếu)</option>
+              </select>
+          </div>
+
+          <div id="wStep4" class="wizard-step">
+              <h3 style="margin-top: 0; color: #fff;">4. Nhập dữ liệu cũ (Tùy chọn)</h3>
+              <p style="font-size: 0.9rem; color: #a0a0b0; line-height: 1.5;">Nếu bạn có file CSV từ ứng dụng cũ, hãy tải lên đây.</p>
               
               <label for="wCsvFile" class="wizard-input" style="display: block; text-align: center; cursor: pointer; padding: 20px; border: 2px dashed #8a2be2; background: rgba(138, 43, 226, 0.1);">
                   <i class="fa-solid fa-file-csv" style="font-size: 30px; color: #d4a5ff; margin-bottom: 10px;"></i><br>
@@ -231,14 +274,15 @@
               <input type="file" id="wCsvFile" accept=".csv" style="display: none;" onchange="document.getElementById('wFileName').textContent = this.files[0] ? this.files[0].name : 'Chọn file CSV...'">
           </div>
 
-          <div id="wStep4" class="wizard-step">
-              <h3 style="margin-top: 0; color: #fff;">4. Xác nhận thiết lập</h3>
+          <div id="wStep5" class="wizard-step">
+              <h3 style="margin-top: 0; color: #fff;">5. Xác nhận thiết lập</h3>
               <ul style="color: #e0e0e0; line-height: 2; list-style: none; padding-left: 0; background: #151521; padding: 15px; border-radius: 8px; border: 1px solid #2a2a40;">
                   <li><i class="fa-solid fa-wallet" style="color: #4ade80; width: 25px;"></i> <strong>Số dư ban đầu:</strong> <span id="wConfirmBalance" style="float: right; font-weight: bold; color: #4ade80;">0</span></li>
                   <li><i class="fa-solid fa-tags" style="color: #d4a5ff; width: 25px;"></i> <strong>Danh mục tùy chỉnh:</strong> <span id="wConfirmCats" style="float: right;">0</span></li>
+                  <li><i class="fa-solid fa-brain" style="color: #ff79c6; width: 25px;"></i> <strong>Hồ sơ AI:</strong> <span id="wConfirmAI" style="float: right; color: #ff79c6;">Sẵn sàng</span></li>
                   <li><i class="fa-solid fa-file-import" style="color: #ffb86c; width: 25px;"></i> <strong>File dữ liệu:</strong> <span id="wConfirmFile" style="float: right;">Không có</span></li>
               </ul>
-              <p style="text-align: center; color: #4ade80; font-size: 0.9rem; margin-top: 15px;"><i class="fa-solid fa-check-circle"></i> Sẵn sàng để bắt đầu!</p>
+              <p style="text-align: center; color: #4ade80; font-size: 0.9rem; margin-top: 15px;"><i class="fa-solid fa-check-circle"></i> Cú Mèo đã sẵn sàng phục vụ bạn!</p>
           </div>
 
           <div class="wizard-footer">
@@ -348,7 +392,7 @@
       }
 
       function updateWizardUI() {
-          [1, 2, 3, 4].forEach(i => {
+          [1, 2, 3, 4, 5].forEach(i => {
               document.getElementById(`wStep${i}`).classList.remove('active');
               document.getElementById(`prog${i}`).classList.remove('active');
           });
@@ -356,26 +400,30 @@
           document.getElementById(`prog${wStep}`).classList.add('active');
 
           document.getElementById('wBtnPrev').style.display = wStep > 1 ? 'block' : 'none';
-          document.getElementById('wBtnNext').style.display = wStep < 4 ? 'block' : 'none';
-          document.getElementById('wBtnFinish').style.display = wStep === 4 ? 'block' : 'none';
+          document.getElementById('wBtnNext').style.display = wStep < 5 ? 'block' : 'none';
+          document.getElementById('wBtnFinish').style.display = wStep === 5 ? 'block' : 'none';
 
-          if (wStep === 4) {
+          if (wStep === 5) {
               wData.balance = parseFloat(document.getElementById('wBalance').value) || 0;
-              
-              // FIX TỶ GIÁ: Nhân với rate để formatCurrency hiển thị chính xác ở bước xác nhận
               const rate = (typeof exchangeRatesToVND !== 'undefined') ? (exchangeRatesToVND[currentCurrency] || 1) : 1;
               document.getElementById('wConfirmBalance').textContent = formatCurrency(wData.balance * rate);
               
               document.getElementById('wConfirmCats').textContent = wData.categories.length + " mục";
+              
+              const goal = document.getElementById('wFinancialGoal').value;
+              const risk = document.getElementById('wRiskTolerance').value;
+              let aiStatus = "Đã thiết lập";
+              if (goal === "Chưa xác định" && risk === "Cân bằng") aiStatus = "Mặc định";
+              document.getElementById('wConfirmAI').textContent = aiStatus;
+
               const fileInput = document.getElementById('wCsvFile');
               document.getElementById('wConfirmFile').textContent = fileInput.files.length > 0 ? fileInput.files[0].name : "Không có";
           }
       }
 
-      function wizNext() { if (wStep < 4) { wStep++; updateWizardUI(); } }
+      function wizNext() { if (wStep < 5) { wStep++; updateWizardUI(); } }
       function wizPrev() { if (wStep > 1) { wStep--; updateWizardUI(); } }
 
-      // GỌI API LƯU DỮ LIỆU WIZARD VÀ BẮT LỖI NGHIÊM NGẶT
       async function wizFinish() {
           const btn = document.getElementById('wBtnFinish');
           btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang lưu...';
@@ -389,38 +437,33 @@
                   body: JSON.stringify(wData.categories)
               }).catch(e => console.warn("Lỗi lưu danh mục", e));
 
+              const goal = document.getElementById('wFinancialGoal').value;
+              const risk = document.getElementById('wRiskTolerance').value;
+              await fetch('/api/profile/edit', {
+                  method: 'POST', headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ goal: goal, risk: risk })
+              }).catch(e => console.warn("Lỗi lưu hồ sơ AI", e));
+
               if (wData.balance > 0) {
                   const rate = (typeof exchangeRatesToVND !== 'undefined') ? (exchangeRatesToVND[currentCurrency] || 1) : 1;
                   const incCat = wData.categories.includes('Lương') ? 'Lương' : (wData.categories[0] || 'Khác');
-                  
-                  // BỌC THÉP CHO FORM DATA CHỐNG LỖI 422
                   const todayStr = new Date().toISOString().split('T')[0];
                   const formData = {
-                      name: "Số dư ban đầu",
-                      category: incCat,
-                      amount: wData.balance * rate,
-                      date: new Date(todayStr + "T00:00:00Z").toISOString(), // CHUẨN ĐỊNH DẠNG DATE
-                      tags: ["Setup"],
-                      note: null,                // TRÁNH LỖI STRING RỖNG
-                      recurring_interval: null   // TRÁNH LỖI STRING RỖNG
+                      name: "Số dư ban đầu", category: incCat, amount: wData.balance * rate,
+                      date: new Date(todayStr + "T00:00:00Z").toISOString(),
+                      tags: ["Setup"], note: null, recurring_interval: null
                   };
                   
                   const res = await fetch('/api/expenses/', {
                       method: 'POST', headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify(formData)
                   });
-                  
-                  // NẾU BACKEND TỪ CHỐI, CHẶN QUÁ TRÌNH LẠI VÀ BÁO LỖI
-                  if (!res.ok) {
-                      const err = await res.json();
-                      throw new Error(err.detail?.[0]?.msg || err.error || "Dữ liệu không hợp lệ");
-                  }
+                  if (!res.ok) throw new Error("Dữ liệu không hợp lệ");
               }
 
               const fileInput = document.getElementById('wCsvFile');
               if (fileInput.files.length > 0) {
-                  const fd = new FormData();
-                  fd.append('file', fileInput.files[0]);
+                  const fd = new FormData(); fd.append('file', fileInput.files[0]);
                   await fetch('/api/expenses/import/csv', { method: 'POST', body: fd }).catch(e => console.warn("Lỗi upload file", e));
               }
 
@@ -430,11 +473,51 @@
               
               await initialize();
           } catch (e) {
-              // BẮT LỖI TẠI ĐÂY ĐỂ USER BIẾT MÀ SỬA
-              if(window.showToast) showToast("Lỗi khi tạo số dư: " + e.message, "error");
+              if(window.showToast) showToast("Lỗi hệ thống: " + e.message, "error");
               btn.innerHTML = '<i class="fa-solid fa-rocket"></i> Hoàn tất';
               btn.disabled = false;
           }
+      }
+
+      // =========================================
+      // GỢI Ý CÂU HỎI AI (PROMPT CHIPS)
+      // =========================================
+      const aiPromptBank = [
+          "Tháng này tôi tiêu nhiều nhất vào khoản nào?",
+          "Tôi đang muốn mua trả góp điện thoại, có nên không?",
+          "Quy tắc quản lý tiền 50/30/20 là gì?",
+          "Gợi ý cho tôi vài mẹo tiết kiệm tiền ăn uống",
+          "Làm cách nào để bắt đầu đầu tư với số vốn nhỏ?",
+          "Hôm nay uống trà sữa 55k",
+          "Tôi muốn đổi mục tiêu sang Đầu tư mạo hiểm",
+          "Hãy lập kế hoạch để tôi trả dứt nợ",
+          "Phân tích sức khỏe tài chính của tôi hiện tại"
+      ];
+
+      function loadRandomSuggestions() {
+          const container = document.getElementById('aiPromptSuggestions');
+          if (!container) return;
+          
+          const shuffled = [...aiPromptBank].sort(() => 0.5 - Math.random());
+          const selectedPrompts = shuffled.slice(0, 3); 
+          
+          container.innerHTML = '';
+          selectedPrompts.forEach(prompt => {
+              const chip = document.createElement('span');
+              chip.style.cssText = `
+                  background: rgba(138, 43, 226, 0.15); color: #d4a5ff; border: 1px solid #8a2be2; 
+                  padding: 8px 12px; border-radius: 16px; font-size: 0.85rem; cursor: pointer; 
+                  white-space: nowrap; transition: 0.2s; user-select: none; display: inline-block;
+              `;
+              chip.textContent = prompt;
+              chip.onmouseover = () => { chip.style.background = 'rgba(138, 43, 226, 0.4)'; };
+              chip.onmouseout = () => { chip.style.background = 'rgba(138, 43, 226, 0.15)'; };
+              chip.onclick = () => {
+                  const input = document.getElementById('aiInput');
+                  input.value = prompt; input.focus();
+              };
+              container.appendChild(chip);
+          });
       }
 
       // =========================================
@@ -442,22 +525,20 @@
       // =========================================
       async function initialize() {
         try {
-          let config = { categories: ["Ăn uống", "Di chuyển", "Lương"], currency: "usd", startDate: 1 };
+          let config = { categories: ["Ăn uống", "Đi lại", "Mua sắm", "Hóa đơn", "Giải trí"], currency: "usd", startDate: 1 };
           try {
               const configResponse = await fetch("/api/config");
               if (configResponse.ok) {
                   const fetchedConfig = await configResponse.json();
                   if (fetchedConfig && fetchedConfig.categories) config = fetchedConfig;
               }
-          } catch(e) { console.warn("Dùng cấu hình mặc định (User mới)."); }
+          } catch(e) {}
           
           initialCategories = config.categories || [];
           const categorySelect = document.getElementById("category");
           categorySelect.innerHTML = initialCategories.map((cat) => `<option value="${cat}">${cat}</option>`).join("");
           
-          window.currentCurrency = config.currency || 'usd';
-          currentCurrency = window.currentCurrency;
-          window.startDate = config.startDate || 1;
+          window.currentCurrency = config.currency || 'usd'; currentCurrency = window.currentCurrency; window.startDate = config.startDate || 1;
 
           let fetchedExpenses = [];
           try {
@@ -466,7 +547,7 @@
                   const data = await response.json();
                   fetchedExpenses = Array.isArray(data) ? data : data && Array.isArray(data.expenses) ? data.expenses : [];
               }
-          } catch(e) { console.warn("Chưa có giao dịch nào."); }
+          } catch(e) {}
 
           allExpenses = fetchedExpenses.map(exp => {
               let safeTags = [];
@@ -493,18 +574,15 @@
             else if (!categoryColors[category]) { categoryColors[category] = colorPalette[index % colorPalette.length] || "#8a2be2"; }
           });
 
-          updatePeriodDisplayOverride();
-          updateChartAndLegend();
-          setupTagInput();
-
+          updatePeriodDisplayOverride(); updateChartAndLegend(); setupTagInput();
           checkSetupWizard();
 
-        } catch (error) { 
-          console.error("Fatal error during initialization:", error); 
-        }
+        } catch (error) { console.error("Fatal error during initialization:", error); }
       }
 
+      // =========================================
       // CÁC HÀM XỬ LÝ LỌC & BIỂU ĐỒ GIỮ NGUYÊN
+      // =========================================
       function getPeriodBoundsOverride(date, period) {
         const localDate = new Date(date);
         if (period === "all") return { start: new Date("1970-01-01"), end: new Date("2099-12-31") };
@@ -532,13 +610,11 @@
 
       function updatePeriodDisplayOverride() {
         const label = document.getElementById("currentPeriodLabel");
-        const btnPrev = document.getElementById("prevPeriod");
-        const btnNext = document.getElementById("nextPeriod");
+        const btnPrev = document.getElementById("prevPeriod"); const btnNext = document.getElementById("nextPeriod");
         if (!label) return;
 
         if (currentPeriodType === "all") {
-          label.textContent = "Toàn bộ lịch sử";
-          btnPrev.style.visibility = "hidden"; btnNext.style.visibility = "hidden";
+          label.textContent = "Toàn bộ lịch sử"; btnPrev.style.visibility = "hidden"; btnNext.style.visibility = "hidden";
         } else {
           btnPrev.style.visibility = "visible"; btnNext.style.visibility = "visible";
           if (currentPeriodType === "year") label.textContent = `Năm ${currentDate.getFullYear()}`;
@@ -572,9 +648,7 @@
             totalAmount += amount;
           }
         });
-        return Object.entries(categoryTotals).map(([category, total]) => ({
-            category, total, percentage: totalAmount > 0 ? (total / totalAmount) * 100 : 0,
-          })).sort((a, b) => b.total - a.total);
+        return Object.entries(categoryTotals).map(([category, total]) => ({ category, total, percentage: totalAmount > 0 ? (total / totalAmount) * 100 : 0 })).sort((a, b) => b.total - a.total);
       }
 
       function calculateIncome(expenses) { return expenses.filter((exp) => exp.amount > 0).reduce((sum, exp) => sum + exp.amount, 0); }
@@ -619,22 +693,16 @@
 
         let chartOptions = {
           responsive: true, maintainAspectRatio: false,
-          plugins: {
-            legend: { display: false },
-            tooltip: { callbacks: { label: (context) => {
-                  const value = context.raw; 
-                  const total = context.dataset.data.reduce((sum, val) => sum + val, 0);
+          plugins: { legend: { display: false }, tooltip: { callbacks: { label: (context) => {
+                  const value = context.raw; const total = context.dataset.data.reduce((sum, val) => sum + val, 0);
                   const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
                   return `${context.label}: ${formatCurrency(value * rate)} (${percentage}%)`;
-                },
-              },
-            },
-          },
+                }, }, }, },
         };
 
         if (isBarChart) {
           chartOptions.scales = {
-            y: { beginAtZero: true, grid: { color: "rgba(255, 255, 255, 0.05)" }, ticks: { color: "#a0a0b0", callback: function(value) { return formatCurrency(value * rate); } }, },
+            y: { beginAtZero: true, grid: { color: "rgba(255, 255, 255, 0.05)" }, ticks: { color: "#a0a0b0", callback: function(value) { return formatCurrency(value * rate); } } },
             x: { grid: { display: false }, ticks: { color: "#a0a0b0" } },
           };
         }
@@ -743,9 +811,12 @@
         const formContainer = document.getElementById("addExpenseContainer");
         const isHidden = formContainer.style.display === "none" || formContainer.style.display === "";
         if (isHidden) {
-          formContainer.style.display = "block"; this.innerHTML = '<i class="fa-solid fa-times"></i> Đóng';
+          formContainer.style.display = "block"; 
+          this.innerHTML = '<i class="fa-solid fa-times"></i> Đóng';
+          loadRandomSuggestions();
         } else {
-          formContainer.style.display = "none"; this.innerHTML = '<i class="fa-solid fa-plus"></i> Thêm Chi Tiêu';
+          formContainer.style.display = "none"; 
+          this.innerHTML = '<i class="fa-solid fa-plus"></i> Thêm Chi Tiêu';
         }
       });
 

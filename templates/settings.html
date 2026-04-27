@@ -15,7 +15,7 @@
             }
         })();
     </script>
-    <title>Cài Đặt ExpenseOwl</title>
+    <title>Cài Đặt</title>
 </head>
 <body>
     <div class="container">
@@ -79,6 +79,33 @@
                     <button id="addCategory" class="nav-button">Thêm</button>
                 </div>
             </div>
+        </div>
+
+        <div class="form-container">
+            <h2 align="center">Hồ Sơ Tài Chính AI</h2>
+            <p style="text-align: center; color: #a0a0b0; font-size: 0.9rem; margin-bottom: 20px;">Thông tin này giúp Trợ lý Cú Mèo đưa ra lời khuyên cá nhân hóa tốt hơn.</p>
+            
+            <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                <div class="form-group" style="flex: 1; min-width: 200px;">
+                    <label>Mục tiêu lớn nhất hiện tại</label>
+                    <select id="aiFinancialGoal" class="wizard-input" style="cursor: pointer;">
+                        <option value="Chưa xác định">Chưa xác định</option>
+                        <option value="Tiết kiệm phòng thân">Tiết kiệm phòng thân</option>
+                        <option value="Đầu tư sinh lời">Đầu tư sinh lời</option>
+                        <option value="Trả dứt điểm nợ">Trả dứt điểm nợ</option>
+                        <option value="Mua sắm tài sản lớn (Xe, Nhà)">Mua sắm tài sản lớn (Xe, Nhà)</option>
+                    </select>
+                </div>
+                <div class="form-group" style="flex: 1; min-width: 200px;">
+                    <label>Khẩu vị rủi ro</label>
+                    <select id="aiRiskTolerance" class="wizard-input" style="cursor: pointer;">
+                        <option value="An toàn (Không muốn mất tiền)">An toàn (Thích gửi tiết kiệm)</option>
+                        <option value="Cân bằng">Cân bằng</option>
+                        <option value="Mạo hiểm (Chấp nhận rủi ro cao)">Mạo hiểm (Thích Crypto, Cổ phiếu)</option>
+                    </select>
+                </div>
+            </div>
+            <button onclick="saveAIProfile()" class="nav-button" style="width: 100%; background-color: #8a2be2;"><i class="fa-solid fa-brain"></i> Lưu Hồ Sơ AI</button>
         </div>
 
         <div class="settings-container">
@@ -869,6 +896,8 @@
                 recurringExpenses = recurringExpensesList || [];
                 categories = [...(config.categories || [])];
                 currentCurrency = config.currency || 'usd';
+                document.getElementById('aiFinancialGoal').value = config.financial_goal || "Chưa xác định";
+                document.getElementById('aiRiskTolerance').value = config.risk_tolerance || "Cân bằng";
                 currentStartDate = config.startDate || 1;
                 allTags.clear();
                 (expenses || []).forEach(exp => (exp.tags || []).forEach(tag => allTags.add(tag)));
@@ -961,6 +990,33 @@
             }
         });
 
+        async function saveAIProfile() {
+            const goal = document.getElementById('aiFinancialGoal').value;
+            const risk = document.getElementById('aiRiskTolerance').value;
+            
+            const btn = event.target;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang lưu...';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('/api/profile/edit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ goal: goal, risk: risk })
+                });
+                if (res.ok) {
+                    if(window.showToast) showToast('Đã lưu hồ sơ AI! Cú Mèo đã nhớ tính cách của bạn.', 'success');
+                } else {
+                    if(window.showToast) showToast('Lỗi khi lưu hồ sơ AI', 'error');
+                }
+            } catch (e) {
+                if(window.showToast) showToast('Lỗi kết nối máy chủ', 'error');
+            } finally {
+                btn.innerHTML = '<i class="fa-solid fa-brain"></i> Lưu Hồ Sơ AI';
+                btn.disabled = false;
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', initialize);
         window.removeCategory = removeCategory;
         window.showRecurringDeleteModal = showRecurringDeleteModal;
@@ -970,5 +1026,6 @@
         window.closeRecurringEditModal = closeRecurringEditModal;
         window.confirmRecurringUpdate = confirmRecurringUpdate;
     </script>
+    <script src="/static/chatbot.js"></script>
 </body>
 </html>

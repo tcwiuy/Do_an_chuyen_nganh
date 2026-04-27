@@ -1,6 +1,6 @@
 // ==========================================
 // WIDGET CHATBOT CÚ MÈO TOÀN CỤC (GLOBAL)
-// Tích hợp Trí nhớ SessionStorage
+// Tích hợp Trí nhớ SessionStorage, Phân Lập Tài Khoản & Chống Mất Dữ Liệu
 // ==========================================
 
 const chatbotHTML = `
@@ -27,7 +27,10 @@ const chatbotHTML = `
             </div>
         </div>
 
-        <div style="padding: 15px; background-color: #1e1e2d; border-top: 1px solid #2a2a40; display: flex; gap: 10px;">
+        <div id="chatbotSuggestions" style="padding: 10px 15px; background-color: #1e1e2d; display: flex; gap: 10px; overflow-x: auto; border-top: 1px solid #2a2a40; scrollbar-width: none;">
+            </div>
+
+        <div style="padding: 10px 15px 15px 15px; background-color: #1e1e2d; display: flex; gap: 10px;">
             <input type="text" id="chatInput" placeholder="Hỏi tôi bất cứ điều gì..." style="flex: 1; padding: 10px 15px; border-radius: 20px; border: 1px solid #3a3a50; background-color: #151521; color: #ffffff; font-size: 14px; outline: none;">
             <button onclick="sendChatMessage()" id="chatSendBtn" style="background-color: #8a2be2; color: white; border: none; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s;">
                 <i class="fa-solid fa-paper-plane"></i>
@@ -36,23 +39,81 @@ const chatbotHTML = `
     </div>
 `;
 
-// 1. NẠP TRÍ NHỚ TỪ TRÌNH DUYỆT (Nếu không có thì tạo mảng rỗng)
-let conversationMemory = JSON.parse(sessionStorage.getItem('expenseOwl_memory')) || [];
+const chatPromptBank = [
+    "Tháng này tôi tiêu nhiều nhất vào khoản nào?",
+    "Tôi đang muốn mua trả góp điện thoại, có nên không?",
+    "Quy tắc quản lý tiền 50/30/20 là gì?",
+    "Gợi ý cho tôi vài mẹo tiết kiệm tiền ăn uống",
+    "Làm cách nào để bắt đầu đầu tư với số vốn nhỏ?",
+    "Hôm nay uống trà sữa 55k",
+    "Tôi muốn đổi mục tiêu sang Đầu tư mạo hiểm",
+    "Hãy lập kế hoạch để tôi trả dứt nợ",
+    "Phân tích sức khỏe tài chính của tôi hiện tại"
+];
+
+function loadChatbotSuggestions() {
+    const container = document.getElementById('chatbotSuggestions');
+    if (!container) return;
+    
+    const shuffled = [...chatPromptBank].sort(() => 0.5 - Math.random());
+    const selectedPrompts = shuffled.slice(0, 3);
+    
+    container.innerHTML = '';
+    selectedPrompts.forEach(prompt => {
+        const chip = document.createElement('span');
+        chip.style.cssText = `
+            background: rgba(138, 43, 226, 0.15); color: #d4a5ff; border: 1px solid #8a2be2; 
+            padding: 6px 12px; border-radius: 14px; font-size: 12px; cursor: pointer; 
+            white-space: nowrap; transition: 0.2s; user-select: none; display: inline-block;
+        `;
+        chip.textContent = prompt;
+        chip.onmouseover = () => { chip.style.background = 'rgba(138, 43, 226, 0.4)'; };
+        chip.onmouseout = () => { chip.style.background = 'rgba(138, 43, 226, 0.15)'; };
+        chip.onclick = () => {
+            const input = document.getElementById('chatInput');
+            input.value = prompt;
+            input.focus();
+        };
+        container.appendChild(chip);
+    });
+}
+
+// ==========================================
+// 1. TẠO KHÓA BỘ NHỚ THEO TỪNG TÀI KHOẢN (ISOLATION)
+// ==========================================
+function getChatUsername() {
+    const token = localStorage.getItem('token');
+    if (!token) return 'guest';
+    try {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        return JSON.parse(jsonPayload).sub || 'guest';
+    } catch(e) { return 'guest'; }
+}
+
+// Khóa bộ nhớ giờ đây có gắn tên đăng nhập ở cuối!
+const MEMORY_KEY = 'expenseOwl_memory_' + getChatUsername();
+let conversationMemory = JSON.parse(sessionStorage.getItem(MEMORY_KEY)) || [];
+
+// ==========================================
+// 2. BIẾN THEO DÕI TRẠNG THÁI AI ĐỂ KHÓA CHUYỂN TRANG
+// ==========================================
+let isAIGenerating = false;
 
 document.addEventListener("DOMContentLoaded", () => {
     document.body.insertAdjacentHTML('beforeend', chatbotHTML);
     
-    // 2. PHỤC HỒI TIN NHẮN CŨ LÊN MÀN HÌNH NẾU CÓ TRÍ NHỚ
     const messagesContainer = document.getElementById('chat-messages');
     if (conversationMemory.length > 0) {
         conversationMemory.forEach(turn => {
-            // In tin nhắn User
             messagesContainer.innerHTML += `
                 <div style="align-self: flex-end; max-width: 80%; background-color: #8a2be2; padding: 12px; border-radius: 15px 15px 0 15px; color: white; font-size: 14px; line-height: 1.5;">
                     ${turn.user}
                 </div>
             `;
-            // In tin nhắn AI (Có xử lý Markdown)
             let formattedReply = turn.ai.replace(/\*\*(.*?)\*\*/g, '<b style="color:#d4a5ff;">$1</b>').replace(/\n/g, '<br>');
             messagesContainer.innerHTML += `
                 <div style="align-self: flex-start; max-width: 80%; background-color: #2a2a40; padding: 12px; border-radius: 0 15px 15px 15px; color: #ffffff; font-size: 14px; line-height: 1.5;">
@@ -63,17 +124,62 @@ document.addEventListener("DOMContentLoaded", () => {
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }
 
-    // Bắt sự kiện Enter để gửi
     document.getElementById('chatInput').addEventListener('keypress', function (e) {
         if (e.key === 'Enter') sendChatMessage();
     });
+
+    // ----------------------------------------------------
+    // 🛡️ BẢO VỆ CHỐNG MẤT DỮ LIỆU KHI ĐANG ĐỢI AI
+    // ----------------------------------------------------
+    
+    // Ngăn người dùng bấm vào các Link chuyển menu
+    document.addEventListener('click', function(e) {
+        const link = e.target.closest('a');
+        if (link && link.href && !link.href.includes('javascript') && isAIGenerating) {
+            e.preventDefault(); // Chặn việc tải trang mới
+            if(window.showToast) {
+                showToast('Cú Mèo đang ghi chép, bạn đợi vài giây hẵng chuyển trang nhé!', 'error');
+            }
+            
+            // Tự động bật khung chat lên nếu họ đang đóng
+            const chatWin = document.getElementById('chat-window');
+            if (chatWin.style.display === 'none' || !chatWin.style.display) {
+                toggleChat();
+            }
+        }
+    });
+
+    // Ngăn người dùng bấm nút Reload (F5) hoặc tắt trình duyệt đột ngột
+    window.addEventListener('beforeunload', function (e) {
+        if (isAIGenerating) {
+            e.preventDefault();
+            e.returnValue = '';
+        }
+    });
+
+    // ----------------------------------------------------
+    // 🧹 TỰ ĐỘNG DỌN DẸP LỊCH SỬ KHI ĐĂNG XUẤT
+    // ----------------------------------------------------
+    const originalLogout = window.logout;
+    window.logout = function() {
+        sessionStorage.removeItem(MEMORY_KEY); // Xóa trí nhớ của user này
+        
+        // Trả lại chức năng đăng xuất nguyên thủy
+        if (typeof originalLogout === 'function') {
+            originalLogout();
+        } else {
+            localStorage.removeItem('token');
+            window.location.href = '/login';
+        }
+    }
 });
 
 window.toggleChat = function() {
     const chatWin = document.getElementById('chat-window');
-    if (chatWin.style.display === 'none') {
+    if (chatWin.style.display === 'none' || !chatWin.style.display) {
         chatWin.style.display = 'flex';
         document.getElementById('chatInput').focus();
+        loadChatbotSuggestions(); 
     } else {
         chatWin.style.display = 'none';
     }
@@ -87,7 +193,6 @@ window.sendChatMessage = async function() {
 
     if (!message) return;
 
-    // Hiển thị tin User
     messagesContainer.innerHTML += `
         <div style="align-self: flex-end; max-width: 80%; background-color: #8a2be2; padding: 12px; border-radius: 15px 15px 0 15px; color: white; font-size: 14px; line-height: 1.5;">
             ${message}
@@ -96,15 +201,17 @@ window.sendChatMessage = async function() {
     input.value = '';
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
-    // Hiển thị loading
     const loadingId = 'loading-' + Date.now();
     messagesContainer.innerHTML += `
         <div id="${loadingId}" style="align-self: flex-start; max-width: 80%; background-color: #2a2a40; padding: 12px; border-radius: 0 15px 15px 15px; color: #a0a0b0; font-size: 14px;">
-            <i class="fa-solid fa-ellipsis fa-fade"></i> Cú Mèo đang tính toán và ghi chép...
+            <i class="fa-solid fa-ellipsis fa-fade"></i> Cú Mèo đang suy nghĩ...
         </div>
     `;
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    
+    // BẬT KHÓA BẢO VỆ
     sendBtn.disabled = true;
+    isAIGenerating = true;
 
     try {
         const currentRate = (typeof exchangeRatesToVND !== 'undefined') ? (exchangeRatesToVND[currentCurrency] || 1) : 1;
@@ -120,12 +227,12 @@ window.sendChatMessage = async function() {
         if (res.ok) {
             const data = await res.json();
             
-            // 1. CẬP NHẬT TRÍ NHỚ VÀ LƯU VÀO TRÌNH DUYỆT
             conversationMemory.push({ user: message, ai: data.reply });
             if (conversationMemory.length > 5) conversationMemory.shift(); 
-            sessionStorage.setItem('expenseOwl_memory', JSON.stringify(conversationMemory));
             
-            // 2. IN CÂU TRẢ LỜI CỦA CÚ MÈO LÊN MÀN HÌNH CHAT
+            // LƯU LẠI VÀO ĐÚNG HỘP BỘ NHỚ CỦA USER ĐÓ
+            sessionStorage.setItem(MEMORY_KEY, JSON.stringify(conversationMemory));
+            
             let formattedReply = data.reply.replace(/\*\*(.*?)\*\*/g, '<b style="color:#d4a5ff;">$1</b>').replace(/\n/g, '<br>');
             messagesContainer.innerHTML += `
                 <div style="align-self: flex-start; max-width: 80%; background-color: #2a2a40; padding: 12px; border-radius: 0 15px 15px 15px; color: #ffffff; font-size: 14px; line-height: 1.5;">
@@ -134,17 +241,10 @@ window.sendChatMessage = async function() {
             `;
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
-            // ==========================================
-            // 🚦 3. KIỂM TRA BẤT THƯỜNG VÀ LƯU GIAO DỊCH (ĐÃ FIX TỶ GIÁ)
-            // ==========================================
             if (data.action === "save" && data.transaction_data) {
                 const parsedTxn = data.transaction_data;
-                
-                // LƯU Ý QUAN TRỌNG: AI ở Chatbot đã tự động quy đổi tiền ngoại tệ sang VND 
-                // theo lịch sử Database. Do đó parsedTxn.amount lúc này CHẮC CHẮN LÀ VND.
                 let amountInVND = Math.abs(parsedTxn.amount); 
                 
-                // 1. Xác định tỷ giá trên màn hình để "Dịch" ngược lại cho người dùng hiểu
                 let rate = 1;
                 let currencyName = 'VND';
                 if (typeof exchangeRatesToVND !== 'undefined') {
@@ -153,13 +253,11 @@ window.sendChatMessage = async function() {
                     currencyName = curr.toUpperCase(); 
                 }
                 
-                let finalAmountToSave = parsedTxn.amount; // Giữ nguyên gửi DB (vì DB cũng lưu VND)
+                let finalAmountToSave = parsedTxn.amount; 
                 let shouldSave = true;
 
-                // 2. Kiểm tra bất thường
                 if (parsedTxn.amount < 0) { 
                     let categoryAverageVND = 0;
-
                     if (typeof allExpenses !== 'undefined') {
                         const categoryExpenses = allExpenses.filter(exp => exp.amount < 0 && exp.category === parsedTxn.category);
                         if (categoryExpenses.length > 0) {
@@ -168,15 +266,12 @@ window.sendChatMessage = async function() {
                         }
                     }
 
-                    // Mốc an toàn cố định 50 USD quy ra tiền Việt
                     let minAlertAmountVND = 50 * 25400; 
                     if (typeof exchangeRatesToVND !== 'undefined' && exchangeRatesToVND['usd']) {
                         minAlertAmountVND = 50 * exchangeRatesToVND['usd'];
                     }
 
                     if (categoryAverageVND > 0 && amountInVND > (categoryAverageVND * 3) && amountInVND > minAlertAmountVND) {
-                        
-                        // SỬA Ở ĐÂY: CHIA NGƯỢC LẠI TỶ GIÁ ĐỂ HIỂN THỊ ĐÚNG ĐƠN VỊ LÊN POPUP
                         let amountDisplay = amountInVND / rate;
                         let avgDisplay = categoryAverageVND / rate;
                         
@@ -194,22 +289,14 @@ window.sendChatMessage = async function() {
 
                         if (!userConfirmed) {
                             shouldSave = false;
-                            
-                            // Tẩy não Cú Mèo
                             conversationMemory.pop();
-                            sessionStorage.setItem('expenseOwl_memory', JSON.stringify(conversationMemory));
-
-                            messagesContainer.innerHTML += `
-                                <div style="align-self: flex-start; max-width: 80%; background-color: #3f1d1d; border: 1px solid #ff4d4d; padding: 12px; border-radius: 0 15px 15px 15px; color: #ff4d4d; font-size: 14px; line-height: 1.5;">
-                                    ❌ Đã hủy lệnh lưu giao dịch! Cú Mèo cũng đã "quên" khoản tiền này.
-                                </div>
-                            `;
+                            sessionStorage.setItem(MEMORY_KEY, JSON.stringify(conversationMemory));
+                            messagesContainer.innerHTML += `<div style="align-self: flex-start; max-width: 80%; background-color: #3f1d1d; border: 1px solid #ff4d4d; padding: 12px; border-radius: 0 15px 15px 15px; color: #ff4d4d; font-size: 14px;">❌ Đã hủy lệnh lưu giao dịch!</div>`;
                             messagesContainer.scrollTop = messagesContainer.scrollHeight;
                         }
                     }
                 }
 
-                // 3. Gọi API lưu xuống Database
                 if (shouldSave) {
                     try {
                         const saveRes = await fetch('/api/expenses/', {
@@ -220,15 +307,15 @@ window.sendChatMessage = async function() {
                                 category: parsedTxn.category,
                                 amount: finalAmountToSave, 
                                 date: parsedTxn.date, 
-                                tags: parsedTxn.tags || ["AI Chatbot"]
+                                tags: parsedTxn.tags || ["AI Chatbot"],
+                                note: null,
+                                recurring_interval: null
                             })
                         });
 
                         if (saveRes.ok) {
                             if(window.showToast) showToast('Cú Mèo đã lưu giao dịch thành công!', 'success');
-                            if (typeof initialize === "function") {
-                                await initialize(); 
-                            }
+                            if (typeof initialize === "function") await initialize(); 
                         } else {
                             if(window.showToast) showToast('Có lỗi xảy ra khi Cú Mèo lưu dữ liệu.', 'error');
                         }
@@ -245,34 +332,27 @@ window.sendChatMessage = async function() {
         }
     } catch (error) {
         document.getElementById(loadingId).remove();
-        messagesContainer.innerHTML += `<div style="align-self: flex-start; background-color: #3f1d1d; padding: 12px; border-radius: 0 15px 15px 15px; color: #ff4d4d; font-size: 14px;">❌ Lỗi mạng hoặc máy chủ phản hồi quá chậm.</div>`;
+        messagesContainer.innerHTML += `<div style="align-self: flex-start; background-color: #3f1d1d; padding: 12px; border-radius: 0 15px 15px 15px; color: #ff4d4d; font-size: 14px;">❌ Lỗi kết nối. Không thể liên hệ Gemini lúc này.</div>`;
     } finally {
+        // TẮT KHÓA BẢO VỆ
         sendBtn.disabled = false;
-        input.focus(); // Trả lại con trỏ chuột vào ô nhập
+        isAIGenerating = false;
+        input.focus(); 
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }
 }
 
-// Thêm container chứa Toast vào body
 document.body.insertAdjacentHTML('beforeend', '<div id="toast-container"></div>');
-
-// Hàm hiển thị Toast
 window.showToast = function(message, type = 'success') {
     const container = document.getElementById('toast-container');
     const toast = document.createElement('div');
     toast.className = `toast ${type === 'error' ? 'error' : ''}`;
-    
     const icon = type === 'error' ? '<i class="fa-solid fa-circle-exclamation" style="color: #ff4d4d;"></i>' : '<i class="fa-solid fa-circle-check" style="color: #4ade80;"></i>';
-    
     toast.innerHTML = `${icon} <span>${message}</span>`;
     container.appendChild(toast);
-
-    // Hiệu ứng trượt vào
     setTimeout(() => toast.classList.add('show'), 10);
-
-    // Tự động biến mất sau 3 giây
     setTimeout(() => {
         toast.classList.remove('show');
-        setTimeout(() => toast.remove(), 300); // Đợi animation trượt ra rồi xóa
+        setTimeout(() => toast.remove(), 300); 
     }, 3000);
 }
