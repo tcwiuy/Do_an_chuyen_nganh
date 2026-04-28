@@ -65,3 +65,21 @@ class UserConfig(Base):
 
     financial_goal = Column(String, nullable=True, default="Chưa xác định")
     risk_tolerance = Column(String, nullable=True, default="Cân bằng")
+
+class Budget(Base):
+    __tablename__ = "budgets"
+    id = Column(Integer, primary_key=True, index=True)
+    category = Column(String, index=True)
+    limit_amount = Column(Float) # Hạn mức thiết lập
+    spent_amount = Column(Float, default=0.0) # Số tiền đã tiêu thực tế
+    month = Column(Integer)
+    year = Column(Integer)
+    user_id = Column(Integer, ForeignKey("users.id"))
+
+class Jar(Base):
+    __tablename__ = "jars"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String) 
+    balance = Column(Float, default=0.0)
+    percent = Column(Float, default=0.0) 
+    user_id = Column(Integer, ForeignKey("users.id"))

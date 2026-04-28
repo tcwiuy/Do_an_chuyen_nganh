@@ -27,6 +27,7 @@ app.include_router(expenses_router)
 app.include_router(recurring_router)
 app.include_router(auth_router)
 app.include_router(ai_router)
+app.include_router(routers.planning_router)
 app.include_router(routers.config_router, prefix="") 
 
 # ---------------------------------------------------------
@@ -68,4 +69,6 @@ def get_config():
         "currency": "usd",
         "startDate": 1
     }
-
+@app.get("/planning", response_class=HTMLResponse)
+async def read_planning(request: Request):
+    return templates.TemplateResponse(request=request, name="planning.html")
