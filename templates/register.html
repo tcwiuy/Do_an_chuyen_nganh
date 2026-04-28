@@ -5,15 +5,28 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="/static/style.css">
-    <title>Đăng Ký</title>
+    <script>
+        (function() {
+            const theme = localStorage.getItem('theme') || 'system';
+            if (theme === 'light') { document.documentElement.setAttribute('data-theme', 'light'); } 
+            else if (theme === 'dark') { document.documentElement.setAttribute('data-theme', 'dark'); }
+        })();
+    </script>
+    <title>Đăng Ký - ExpenseOwl</title>
     <style>
         .auth-container { max-width: 450px; margin: 5vh auto; }
-        .auth-toggle { text-align: center; margin-top: 20px; color: #b3b3b3; }
-        .auth-toggle a { color: #4ade80; text-decoration: none; font-weight: bold; transition: 0.2s; }
-        .auth-toggle a:hover { color: #ffffff; text-decoration: underline; }
+        .auth-toggle { text-align: center; margin-top: 25px; color: var(--text-secondary); }
+        .auth-toggle a { color: var(--accent); text-decoration: none; font-weight: bold; transition: 0.2s; }
+        .auth-toggle a:hover { color: var(--text-primary); text-decoration: underline; }
         
+        .auth-input {
+            width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border); 
+            background-color: var(--bg-primary); color: var(--text-primary); 
+            outline: none; box-sizing: border-box; font-family: inherit; margin-bottom: 20px;
+        }
+
         #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; }
-        .toast { background: linear-gradient(145deg, #1e1e2d, #2a2a40); border-left: 4px solid #4ade80; color: #fff; padding: 15px 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); display: flex; align-items: center; gap: 12px; font-weight: 500; transform: translateX(120%); opacity: 0; transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55); }
+        .toast { background-color: var(--bg-secondary); border-left: 4px solid #4ade80; color: var(--text-primary); padding: 15px 20px; border-radius: 8px; border-top: 1px solid var(--border); border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: flex; align-items: center; gap: 12px; font-weight: 500; transform: translateX(120%); opacity: 0; transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55); }
         .toast.show { transform: translateX(0); opacity: 1; }
         .toast.error { border-left-color: #ff4d4d; }
     </style>
@@ -22,55 +35,56 @@
     <div id="toast-container"></div>
 
     <div class="container auth-container">
-        <div style="text-align: center; margin-bottom: 2rem;">
-            <img src="/static/pwa/icon-192.png" alt="ExpenseOwl Logo" height="80">
-            <h2 style="margin-top: 10px;">ExpenseOwl</h2>
+        <div style="text-align: center; margin-bottom: 2.5rem;">
+            <h1 style="color: var(--text-primary); font-size: 2.5rem; margin: 0; display: flex; justify-content: center; align-items: center; gap: 10px;">
+                <i class="fa-solid fa-wallet" style="color: var(--accent);"></i> ExpenseOwl
+            </h1>
         </div>
 
-        <div class="form-container">
-            <h3 align="center" style="color: #4ade80;">Tạo Tài Khoản Mới</h3>
-            <form id="registerForm" class="expense-form">
-                <div class="form-group">
-                    <label>Họ và Tên</label>
-                    <input type="text" id="regFullName" placeholder="Nhập họ và tên..." required>
+        <div class="form-container" style="background-color: var(--bg-secondary); border: 1px solid var(--border); box-shadow: 0 4px 15px rgba(0,0,0,0.1); padding: 30px;">
+            <h3 align="center" style="color: var(--accent); margin-top: 0; margin-bottom: 25px; font-size: 1.5rem;">Tạo Tài Khoản Mới</h3>
+            <form id="registerForm">
+                <div>
+                    <label style="display: block; margin-bottom: 8px; color: var(--text-secondary); font-weight: bold;">Họ và Tên</label>
+                    <input type="text" id="regFullName" class="auth-input" placeholder="Nhập họ và tên..." required>
                 </div>
                 
-                <div class="form-group" style="display: flex; gap: 10px;">
+                <div style="display: flex; gap: 15px;">
                     <div style="flex: 1;">
-                        <label>Giới tính</label>
-                        <select id="regGender" required style="width: 100%; padding: 10px; border-radius: 8px; background: #151521; color: #fff; border: 1px solid #2a2a40; outline: none;">
+                        <label style="display: block; margin-bottom: 8px; color: var(--text-secondary); font-weight: bold;">Giới tính</label>
+                        <select id="regGender" class="auth-input" required>
                             <option value="Nam">Nam</option>
                             <option value="Nữ">Nữ</option>
                             <option value="Khác">Khác</option>
                         </select>
                     </div>
                     <div style="flex: 1;">
-                        <label>Ngày sinh</label>
-                        <input type="date" id="regDob" required>
+                        <label style="display: block; margin-bottom: 8px; color: var(--text-secondary); font-weight: bold;">Ngày sinh</label>
+                        <input type="date" id="regDob" class="auth-input" required>
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <label>Email</label>
-                    <input type="email" id="regEmail" placeholder="ví dụ: abc@gmail.com" required>
+                <div>
+                    <label style="display: block; margin-bottom: 8px; color: var(--text-secondary); font-weight: bold;">Email</label>
+                    <input type="email" id="regEmail" class="auth-input" placeholder="ví dụ: abc@gmail.com" required>
                 </div>
                 
-                <div class="form-group">
-                    <label>Tên đăng nhập</label>
-                    <input type="text" id="regUsername" placeholder="Viết liền không dấu..." required>
+                <div>
+                    <label style="display: block; margin-bottom: 8px; color: var(--text-secondary); font-weight: bold;">Tên đăng nhập</label>
+                    <input type="text" id="regUsername" class="auth-input" placeholder="Viết liền không dấu..." required>
                 </div>
                 
-                <div class="form-group">
-                    <label>Mật khẩu (Tối thiểu 6 ký tự)</label>
-                    <input type="password" id="regPassword" required minlength="6">
+                <div>
+                    <label style="display: block; margin-bottom: 8px; color: var(--text-secondary); font-weight: bold;">Mật khẩu (Tối thiểu 6 ký tự)</label>
+                    <input type="password" id="regPassword" class="auth-input" required minlength="6" oncopy="return false;" onpaste="return false;" oncut="return false;">
                 </div>
                 
-                <div class="form-group">
-                    <label>Nhập lại mật khẩu</label>
-                    <input type="password" id="regConfirmPassword" required minlength="6">
+                <div>
+                    <label style="display: block; margin-bottom: 8px; color: var(--text-secondary); font-weight: bold;">Nhập lại mật khẩu</label>
+                    <input type="password" id="regConfirmPassword" class="auth-input" required minlength="6" oncopy="return false;" onpaste="return false;" oncut="return false;">
                 </div>
                 
-                <button type="submit" class="nav-button" style="width: 100%; background-color: #4ade80; color: #1a1a1a;">Đăng Ký</button>
+                <button type="submit" class="nav-button" style="width: 100%; background-color: var(--accent); color: white; border: none; padding: 12px; font-size: 1.1rem; border-radius: 8px; margin-top: 10px;">Đăng Ký</button>
             </form>
             <div class="auth-toggle">
                 Đã có tài khoản? <a href="/login">Đăng nhập ngay</a>
@@ -83,16 +97,11 @@
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
             toast.className = `toast ${type === 'error' ? 'error' : ''}`;
-            const icon = type === 'error' 
-                ? '<i class="fa-solid fa-circle-exclamation" style="color: #ff4d4d; font-size: 18px;"></i>' 
-                : '<i class="fa-solid fa-circle-check" style="color: #4ade80; font-size: 18px;"></i>';
+            const icon = type === 'error' ? '<i class="fa-solid fa-circle-exclamation" style="color: #ff4d4d; font-size: 18px;"></i>' : '<i class="fa-solid fa-circle-check" style="color: #4ade80; font-size: 18px;"></i>';
             toast.innerHTML = `${icon} <span>${message}</span>`;
             container.appendChild(toast);
             setTimeout(() => toast.classList.add('show'), 10);
-            setTimeout(() => {
-                toast.classList.remove('show');
-                setTimeout(() => toast.remove(), 400); 
-            }, 3000);
+            setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 400); }, 3000);
         };
 
         document.getElementById('registerForm').addEventListener('submit', async (e) => {
@@ -106,48 +115,25 @@
             const password = document.getElementById('regPassword').value;
             const confirmPassword = document.getElementById('regConfirmPassword').value;
 
-            if (password !== confirmPassword) {
-                showToast("Mật khẩu nhập lại không khớp!", "error");
-                return;
-            }
+            if (password !== confirmPassword) { showToast("Mật khẩu nhập lại không khớp!", "error"); return; }
 
-            const payload = {
-                full_name: fullName,
-                gender: gender,
-                dob: dob,
-                email: email,
-                username: username,
-                password: password
-            };
-
+            const payload = { full_name: fullName, gender: gender, dob: dob, email: email, username: username, password: password };
             const btn = e.target.querySelector('button');
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang xử lý...';
-            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang xử lý...'; btn.disabled = true;
 
             try {
                 const res = await fetch('/api/auth/register', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(payload)
+                    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
                 });
                 const data = await res.json();
                 
                 if (res.ok) {
                     showToast("Đăng ký thành công! Đang chuyển hướng...", "success");
                     e.target.reset();
-                    // Tự động chuyển về trang đăng nhập sau khi đăng ký thành công
-                    setTimeout(() => {
-                        window.location.href = '/login';
-                    }, 1500);
-                } else {
-                    showToast(data.detail || "Lỗi đăng ký", "error");
-                }
-            } catch(error) {
-                showToast("Lỗi kết nối máy chủ", "error");
-            } finally {
-                btn.innerHTML = 'Đăng Ký';
-                btn.disabled = false;
-            }
+                    setTimeout(() => { window.location.href = '/login'; }, 1500);
+                } else { showToast(data.detail || "Lỗi đăng ký", "error"); }
+            } catch(error) { showToast("Lỗi kết nối máy chủ", "error"); } 
+            finally { btn.innerHTML = 'Đăng Ký'; btn.disabled = false; }
         });
     </script>
 </body>

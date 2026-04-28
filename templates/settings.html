@@ -16,6 +16,38 @@
         })();
     </script>
     <title>Cài Đặt</title>
+    <style>
+        .four-col-grid {
+            display: grid; 
+            grid-template-columns: repeat(4, 1fr); 
+            gap: 15px; 
+            align-items: start; 
+            margin-bottom: 20px;
+        }
+        @media (max-width: 768px) {
+            .four-col-grid { grid-template-columns: 1fr !important; }
+            .four-col-grid .form-group { grid-column: span 1 !important; }
+            .settings-container { flex-direction: column; }
+            .half-width { width: 100% !important; }
+        }
+        .tags-dropdown {
+            background-color: var(--bg-secondary) !important;
+            border: 1px solid var(--border) !important;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15) !important;
+        }
+        .tags-dropdown div {
+            padding: 8px 12px; color: var(--text-primary); cursor: pointer; transition: background 0.2s ease;
+        }
+        .tags-dropdown div:hover { background-color: var(--bg-primary); }
+        .tags-dropdown .new-tag { color: var(--accent); font-style: italic; font-weight: bold; }
+        .tag-pill {
+            background: var(--bg-primary) !important; color: var(--text-secondary) !important; border: 1px solid var(--border) !important;
+        }
+        /* Cân bằng form nhập liệu */
+        .themed-input {
+            width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border); background-color: var(--bg-primary); color: var(--text-primary); outline: none; box-sizing: border-box; font-family: inherit;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -40,34 +72,61 @@
             </div>
         </header>
 
-        <div class="form-container">
-            <h2 align="center">Bảo mật tài khoản</h2>
-            
-            <div class="form-group">
-                <label>Tên đăng nhập</label>
-                <input type="text" id="currentUsername" value="Đang tải..." disabled style="background-color: #151521; color: #a0a0b0; border-color: #2a2a40;">
+        <div class="settings-container" style="display: flex; gap: 20px; align-items: stretch; margin-bottom: 20px;">
+            <div class="form-container half-width" style="flex: 1; display: flex; flex-direction: column;">
+                <h2 align="center" style="color: var(--accent); margin-top: 0;"><i class="fa-solid fa-shield-halved"></i> Bảo mật tài khoản</h2>
+                <div style="flex: 1;">
+                    <div class="form-group">
+                        <label>Tên đăng nhập</label>
+                        <input type="text" id="currentUsername" value="Đang tải..." disabled style="background-color: var(--bg-primary); color: var(--text-secondary); border: 1px solid var(--border); cursor: not-allowed;" class="themed-input">
+                    </div>
+                    <form id="changePasswordForm">
+                        <div class="form-group">
+                            <label for="oldPassword">Mật khẩu hiện tại</label>
+                            <input type="password" id="oldPassword" placeholder="Nhập mật khẩu cũ..." class="themed-input" required oncopy="return false;" onpaste="return false;" oncut="return false;">
+                        </div>
+                        <div class="form-group">
+                            <label for="newPassword">Mật khẩu mới (Tối thiểu 6 ký tự)</label>
+                            <input type="password" id="newPassword" placeholder="Nhập mật khẩu mới..." class="themed-input" required minlength="6" oncopy="return false;" onpaste="return false;" oncut="return false;">
+                        </div>
+                        <div class="form-group">
+                            <label for="confirmPassword">Xác nhận mật khẩu mới</label>
+                            <input type="password" id="confirmPassword" placeholder="Nhập lại mật khẩu mới..." class="themed-input" required minlength="6" oncopy="return false;" onpaste="return false;" oncut="return false;">
+                        </div>
+                        <button type="submit" class="nav-button" style="width: 100%; margin-top: 15px; background-color: var(--accent); color: white; border: none;">
+                            <i class="fa-solid fa-key"></i> Đổi Mật Khẩu
+                        </button>
+                    </form>
+                </div>
             </div>
 
-            <form id="changePasswordForm" class="expense-form">
-                <div class="form-group">
-                    <label for="oldPassword">Mật khẩu hiện tại</label>
-                    <input type="password" id="oldPassword" placeholder="Nhập mật khẩu cũ..." required>
+            <div class="form-container half-width" style="flex: 1; display: flex; flex-direction: column;">
+                <h2 align="center" style="color: var(--accent); margin-top: 0;"><i class="fa-solid fa-brain"></i> Hồ Sơ Tài Chính AI</h2>
+                <p style="text-align: center; color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 20px;">Thông tin này giúp Trợ lý Cú Mèo đưa ra lời khuyên cá nhân hóa tốt hơn.</p>
+                <div style="flex: 1;">
+                    <div class="form-group">
+                        <label>Mục tiêu lớn nhất hiện tại</label>
+                        <select id="aiFinancialGoal" class="themed-input" style="cursor: pointer;">
+                            <option value="Chưa xác định">Chưa xác định</option>
+                            <option value="Tiết kiệm phòng thân">Tiết kiệm phòng thân</option>
+                            <option value="Đầu tư sinh lời">Đầu tư sinh lời</option>
+                            <option value="Trả dứt điểm nợ">Trả dứt điểm nợ</option>
+                            <option value="Mua sắm tài sản lớn (Xe, Nhà)">Mua sắm tài sản lớn (Xe, Nhà)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Khẩu vị rủi ro</label>
+                        <select id="aiRiskTolerance" class="themed-input" style="cursor: pointer;">
+                            <option value="An toàn (Không muốn mất tiền)">An toàn (Thích gửi tiết kiệm)</option>
+                            <option value="Cân bằng">Cân bằng</option>
+                            <option value="Mạo hiểm (Chấp nhận rủi ro cao)">Mạo hiểm (Thích Crypto, Cổ phiếu)</option>
+                        </select>
+                    </div>
                 </div>
-                
-                <div class="form-group">
-                    <label for="newPassword">Mật khẩu mới (Tối thiểu 6 ký tự)</label>
-                    <input type="password" id="newPassword" placeholder="Nhập mật khẩu mới..." required minlength="6">
-                </div>
-                
-                <div class="form-group">
-                    <label for="confirmPassword">Xác nhận mật khẩu mới</label>
-                    <input type="password" id="confirmPassword" placeholder="Nhập lại mật khẩu mới..." required minlength="6">
-                </div>
-                
-                <button type="submit" class="nav-button" style="width: 100%; margin-top: 15px; background-color: #8a2be2;">
-                    <i class="fa-solid fa-key"></i> Đổi Mật Khẩu
+                <button onclick="saveAIProfile()" class="nav-button" style="width: 100%; margin-top: 15px; background-color: var(--accent); color: white; border: none;">
+                    <i class="fa-solid fa-cloud-arrow-up"></i> Lưu Hồ Sơ AI
                 </button>
-            </form>
+            </div>
         </div>
 
         <div class="form-container">
@@ -80,33 +139,6 @@
                     <button id="addCategory" class="nav-button">Thêm</button>
                 </div>
             </div>
-        </div>
-
-        <div class="form-container">
-            <h2 align="center">Hồ Sơ Tài Chính AI</h2>
-            <p style="text-align: center; color: #a0a0b0; font-size: 0.9rem; margin-bottom: 20px;">Thông tin này giúp Trợ lý Cú Mèo đưa ra lời khuyên cá nhân hóa tốt hơn.</p>
-            
-            <div style="display: flex; gap: 20px; flex-wrap: wrap;">
-                <div class="form-group" style="flex: 1; min-width: 200px;">
-                    <label>Mục tiêu lớn nhất hiện tại</label>
-                    <select id="aiFinancialGoal" class="wizard-input" style="cursor: pointer;">
-                        <option value="Chưa xác định">Chưa xác định</option>
-                        <option value="Tiết kiệm phòng thân">Tiết kiệm phòng thân</option>
-                        <option value="Đầu tư sinh lời">Đầu tư sinh lời</option>
-                        <option value="Trả dứt điểm nợ">Trả dứt điểm nợ</option>
-                        <option value="Mua sắm tài sản lớn (Xe, Nhà)">Mua sắm tài sản lớn (Xe, Nhà)</option>
-                    </select>
-                </div>
-                <div class="form-group" style="flex: 1; min-width: 200px;">
-                    <label>Khẩu vị rủi ro</label>
-                    <select id="aiRiskTolerance" class="wizard-input" style="cursor: pointer;">
-                        <option value="An toàn (Không muốn mất tiền)">An toàn (Thích gửi tiết kiệm)</option>
-                        <option value="Cân bằng">Cân bằng</option>
-                        <option value="Mạo hiểm (Chấp nhận rủi ro cao)">Mạo hiểm (Thích Crypto, Cổ phiếu)</option>
-                    </select>
-                </div>
-            </div>
-            <button onclick="saveAIProfile()" class="nav-button" style="width: 100%; background-color: #8a2be2;"><i class="fa-solid fa-brain"></i> Lưu Hồ Sơ AI</button>
         </div>
 
         <div class="settings-container">
@@ -141,152 +173,154 @@
             </div>
             <div class="form-container half-width">
                 <h2 align="center">Nhập/Xuất Dữ Liệu</h2>
-                
                 <div class="export-buttons" style="display: flex; justify-content: center; align-items: center; gap: 15px; margin-bottom: 20px; flex-wrap: wrap;">
-                    
                     <a href="javascript:void(0)" id="csv-export-file" class="nav-button" style="margin: 0; text-align: center;">
                         <i class="fa-solid fa-download"></i> Xuất ra file CSV
                     </a>
-                    
                     <div>
                         <label for="csv-import-file" class="nav-button" style="margin: 0; cursor: pointer; display: inline-block; text-align: center;">
                             <i class="fa-solid fa-file-csv"></i> Nhập từ file CSV
                         </label>
                         <input type="file" id="csv-import-file" accept=".csv" style="display: none;">
                     </div>
-
                 </div>
 
-                <div id="importSummary" class="import-summary" style="display: none; background: #151521; padding: 15px; border-radius: 8px; border: 1px solid #2a2a40;">
-                    <h3 style="color: #4ade80; margin-top: 0;"><i class="fa-solid fa-clipboard-check"></i> Tổng kết nhập dữ liệu</h3>
-                    <p>Tổng số dòng: <strong style="color:#fff;" id="summary-processed"></strong></p>
-                    <p>Thành công: <strong style="color:#4ade80;" id="summary-imported"></strong></p>
-                    <p>Bỏ qua (Lỗi/Trùng): <strong style="color:#ff4d4d;" id="summary-skipped"></strong></p>
-                    <p style="margin-bottom: 0;">Danh mục mới: <strong style="color:#d4a5ff;" id="summary-new-categories"></strong></p>
+                <div id="importSummary" class="import-summary" style="display: none; background: var(--bg-primary); padding: 15px; border-radius: 8px; border: 1px solid var(--border);">
+                    <h3 style="color: var(--accent); margin-top: 0;"><i class="fa-solid fa-clipboard-check"></i> Tổng kết nhập dữ liệu</h3>
+                    <p style="color: var(--text-secondary);">Tổng số dòng: <strong style="color:var(--text-primary);" id="summary-processed"></strong></p>
+                    <p style="color: var(--text-secondary);">Thành công: <strong style="color:#4ade80;" id="summary-imported"></strong></p>
+                    <p style="color: var(--text-secondary);">Bỏ qua (Lỗi/Trùng): <strong style="color:#ff4d4d;" id="summary-skipped"></strong></p>
+                    <p style="margin-bottom: 0; color: var(--text-secondary);">Danh mục mới: <strong style="color:var(--accent);" id="summary-new-categories"></strong></p>
                 </div>
             </div>
         </div>
         
         <div class="form-container">
             <h2 align="center">Giao Dịch Định Kỳ</h2>
-            <form id="recurringExpenseForm" class="expense-form recurring-expense-form">
-                <div class="form-group">
-                    <label for="recurringName">Mô tả</label>
-                    <input type="text" id="recurringName" required>
-                </div>
-                <div class="form-group">
-                    <label for="recurringAmount">Số tiền</label>
-                    <input type="number" id="recurringAmount" step="0.01" min="0.01" max="9000000000000000" required>
-                </div>
-                <div class="form-group">
-                    <label for="recurringCategory">Danh mục</label>
-                    <select id="recurringCategory" required></select>
-                </div>
-                <div class="form-group">
-                    <label for="tags-input">Nhãn (Tags)</label>
-                    <div class="tags-input-container">
-                        <div id="selected-tags" class="selected-tags"></div>
-                        <input type="text" id="tags-input" placeholder="(tùy chọn)">
+            <form id="recurringExpenseForm">
+                <div class="four-col-grid">
+                    <div class="form-group">
+                        <label for="recurringName">Mô tả</label>
+                        <input type="text" id="recurringName" placeholder="Ví dụ: Tiền nhà" required>
                     </div>
-                    <div id="tags-dropdown" class="tags-dropdown"></div>
+                    <div class="form-group">
+                        <label for="recurringCategory">Danh mục</label>
+                        <select id="recurringCategory" required></select>
+                    </div>
+                    <div class="form-group">
+                        <label for="recurringAmount">Số tiền</label>
+                        <input type="number" id="recurringAmount" step="0.01" min="0.01" max="9000000000000000" placeholder="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="recurringStartDate">Ngày bắt đầu</label>
+                        <input type="date" id="recurringStartDate" required>
+                        <script>
+                            const today = new Date();
+                            const year = today.getFullYear();
+                            const month = String(today.getMonth() + 1).padStart(2, '0');
+                            const day = String(today.getDate()).padStart(2, '0');
+                            document.getElementById('recurringStartDate').value = `${year}-${month}-${day}`;
+                        </script>
+                    </div>
+                    <div class="form-group">
+                        <label for="recurringInterval">Chu kỳ</label>
+                        <select id="recurringInterval" required>
+                            <option value="daily">Hằng ngày</option>
+                            <option value="weekly">Hằng tuần</option>
+                            <option value="monthly">Hằng tháng</option>
+                            <option value="yearly">Hằng năm</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="position: relative;">
+                        <label for="tags-input">Nhãn (Tags)</label>
+                        <div class="tags-input-container" style="width: 100%; display: flex; flex-wrap: wrap; border: 1px solid var(--border); border-radius: 4px; background-color: var(--bg-primary); cursor: text; padding: 0.25rem;">
+                            <div id="selected-tags" class="selected-tags" style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 2px;"></div>
+                            <input type="text" id="tags-input" placeholder="Nhập & Enter..." autocomplete="off" style="flex: 1; min-width: 100px; border: none; background: none; outline: none; padding: 0.25rem; color: var(--text-primary);">
+                        </div>
+                        <div id="tags-dropdown" class="tags-dropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; z-index: 100; max-height: 150px; overflow-y: auto; border-radius: 8px; padding: 5px 0;"></div>
+                    </div>
+                    <div class="form-group">
+                        <label for="recurringOccurrences">Số lần lặp lại (Nhập 0 nếu vô hạn)</label>
+                        <input type="number" id="recurringOccurrences" min="0" value="0" required>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="recurringInterval">Chu kỳ</label>
-                    <select id="recurringInterval" required>
-                        <option value="daily">Hằng ngày</option>
-                        <option value="weekly">Hằng tuần</option>
-                        <option value="monthly">Hằng tháng</option>
-                        <option value="yearly">Hằng năm</option>
-                    </select>
+                <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 15px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <label for="recurringReportGain" style="margin: 0; color: var(--text-secondary);">Khoản thu</label>
+                        <input type="checkbox" id="recurringReportGain" style="transform: scale(1.2); cursor: pointer;">
+                    </div>
+                    <button type="submit" class="nav-button" style="padding: 10px 25px; font-weight: bold;">Thêm Giao Dịch Định Kỳ</button>
                 </div>
-                <div class="form-group">
-                    <label for="recurringStartDate">Ngày bắt đầu</label>
-                    <input type="date" id="recurringStartDate" required>
-                    <script>
-                        const today = new Date();
-                        const year = today.getFullYear();
-                        const month = String(today.getMonth() + 1).padStart(2, '0');
-                        const day = String(today.getDate()).padStart(2, '0');
-                        document.getElementById('recurringStartDate').value = `${year}-${month}-${day}`;
-                    </script>
-                </div>
-                <div class="form-group">
-                    <label for="recurringOccurrences">Số lần lặp lại</label>
-                    <input type="number" id="recurringOccurrences" min="2" value="2" required>
-                </div>
-                <div class="form-group form-group-checkbox">
-                    <label for="recurringReportGain">Khoản thu (Thu nhập)</label>
-                    <input type="checkbox" id="recurringReportGain" class="styled-checkbox">
-                </div>
-                <button type="submit" class="nav-button">Thêm Giao Dịch Định Kỳ</button>
             </form>
-            <h3 align="center" style="margin-top: 2rem;">Danh Sách Giao Dịch Định Kỳ</h3>
-            <div id="recurring-expenses-list">
+            <h3 align="center" style="margin-top: 2rem; color: var(--accent);">Danh Sách Giao Dịch Định Kỳ</h3>
+            <div id="recurring-expenses-list" style="overflow-x: auto;">
             </div>
         </div>
     </div>
 
     <div id="deleteRecurringModal" class="modal">
-        <div class="modal-content">
-            <h3>Xóa Giao Dịch Định Kỳ</h3>
-            <p>Bạn muốn xóa tất cả các giao dịch này, hay chỉ xóa những giao dịch trong tương lai?</p>
+        <div class="modal-content" style="background: var(--bg-secondary); border: 1px solid var(--border);">
+            <h3 style="color: var(--text-primary);">Xóa Giao Dịch Định Kỳ</h3>
+            <p style="color: var(--text-secondary);">Bạn muốn xóa tất cả các giao dịch này, hay chỉ xóa những giao dịch trong tương lai?</p>
             <div class="modal-buttons">
-                <button class="modal-button" onclick="closeRecurringDeleteModal()">Hủy bỏ</button>
-                <button class="modal-button" onclick="confirmRecurringDelete(false)">Chỉ xóa tương lai</button>
+                <button class="modal-button" style="background: var(--bg-primary); border: 1px solid var(--border); color: var(--text-primary);" onclick="closeRecurringDeleteModal()">Hủy bỏ</button>
+                <button class="modal-button" style="background: var(--bg-primary); border: 1px solid var(--border); color: var(--accent);" onclick="confirmRecurringDelete(false)">Chỉ xóa tương lai</button>
                 <button class="modal-button confirm" onclick="confirmRecurringDelete(true)">Xóa tất cả</button>
             </div>
         </div>
     </div>
 
     <div id="editRecurringModal" class="modal">
-        <div class="modal-content">
-            <h3>Sửa Giao Dịch Định Kỳ</h3>
-            <form id="editRecurringExpenseForm" class="expense-form recurring-expense-form">
-                 <div class="form-group">
-                    <label for="editRecurringName">Mô tả</label>
-                    <input type="text" id="editRecurringName" required>
-                </div>
-                <div class="form-group">
-                    <label for="editRecurringAmount">Số tiền</label>
-                    <input type="number" id="editRecurringAmount" step="0.01" min="0" required>
-                </div>
-                <div class="form-group">
-                    <label for="editRecurringCategory">Danh mục</label>
-                    <select id="editRecurringCategory" required></select>
-                </div>
-                <div class="form-group">
-                    <label for="edit-tags-input">Nhãn (Tags)</label>
-                    <div class="tags-input-container">
-                        <div id="edit-selected-tags" class="selected-tags"></div>
-                        <input type="text" id="edit-tags-input" placeholder="(tùy chọn)">
+        <div class="modal-content" style="background: var(--bg-secondary); border: 1px solid var(--border); max-width: 600px; width: 90%;">
+            <h3 style="color: var(--accent); margin-top: 0;"><i class="fa-solid fa-pen-to-square"></i> Sửa Giao Dịch Định Kỳ</h3>
+            <form id="editRecurringExpenseForm">
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">
+                    <div class="form-group">
+                        <label for="editRecurringName">Mô tả</label>
+                        <input type="text" id="editRecurringName" required>
                     </div>
-                    <div id="edit-tags-dropdown" class="tags-dropdown"></div>
-                </div>
-                <div class="form-group">
-                    <label for="editRecurringInterval">Chu kỳ</label>
-                    <select id="editRecurringInterval" required>
-                        <option value="daily">Hằng ngày</option>
-                        <option value="weekly">Hằng tuần</option>
-                        <option value="monthly">Hằng tháng</option>
-                        <option value="yearly">Hằng năm</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="editRecurringStartDate">Ngày bắt đầu</label>
-                    <input type="date" id="editRecurringStartDate" required>
-                </div>
-                <div class="form-group">
-                    <label for="editRecurringOccurrences">Số lần lặp lại (Nhập 0 nếu lặp vô hạn)</label>
-                    <input type="number" id="editRecurringOccurrences" min="0" value="0" required>
-                </div>
-                <div class="form-group form-group-checkbox">
-                    <label for="editRecurringReportGain">Khoản thu (Thu nhập)</label>
-                    <input type="checkbox" id="editRecurringReportGain" class="styled-checkbox">
+                    <div class="form-group">
+                        <label for="editRecurringCategory">Danh mục</label>
+                        <select id="editRecurringCategory" required></select>
+                    </div>
+                    <div class="form-group">
+                        <label for="editRecurringAmount">Số tiền</label>
+                        <input type="number" id="editRecurringAmount" step="0.01" min="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="editRecurringStartDate">Ngày bắt đầu</label>
+                        <input type="date" id="editRecurringStartDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="editRecurringInterval">Chu kỳ</label>
+                        <select id="editRecurringInterval" required>
+                            <option value="daily">Hằng ngày</option>
+                            <option value="weekly">Hằng tuần</option>
+                            <option value="monthly">Hằng tháng</option>
+                            <option value="yearly">Hằng năm</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="position: relative;">
+                        <label for="edit-tags-input">Nhãn (Tags)</label>
+                        <div class="tags-input-container" style="width: 100%; display: flex; flex-wrap: wrap; border: 1px solid var(--border); border-radius: 4px; background-color: var(--bg-primary); cursor: text; padding: 0.25rem;">
+                            <div id="edit-selected-tags" class="selected-tags" style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 2px;"></div>
+                            <input type="text" id="edit-tags-input" placeholder="(tùy chọn)" autocomplete="off" style="flex: 1; min-width: 100px; border: none; background: none; outline: none; padding: 0.25rem; color: var(--text-primary);">
+                        </div>
+                        <div id="edit-tags-dropdown" class="tags-dropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; z-index: 100; max-height: 150px; overflow-y: auto; border-radius: 8px; padding: 5px 0;"></div>
+                    </div>
+                    <div class="form-group">
+                        <label for="editRecurringOccurrences">Số lần lặp lại (Nhập 0 nếu vô hạn)</label>
+                        <input type="number" id="editRecurringOccurrences" min="0" value="0" required>
+                    </div>
+                    <div class="form-group form-group-checkbox" style="display: flex; align-items: center; gap: 10px;">
+                        <input type="checkbox" id="editRecurringReportGain" class="styled-checkbox">
+                        <label for="editRecurringReportGain" style="margin: 0; color: var(--text-secondary);">Khoản thu (Thu nhập)</label>
+                    </div>
                 </div>
             </form>
-            <div class="modal-buttons">
-                <button class="modal-button" onclick="closeRecurringEditModal()">Hủy bỏ</button>
-                <button class="modal-button" onclick="confirmRecurringUpdate(false)">Cập nhật tương lai</button>
+            <div class="modal-buttons" style="margin-top: 20px;">
+                <button class="modal-button" style="background: var(--bg-primary); border: 1px solid var(--border); color: var(--text-primary);" onclick="closeRecurringEditModal()">Hủy bỏ</button>
+                <button class="modal-button" style="background: var(--bg-primary); border: 1px solid var(--border); color: var(--accent);" onclick="confirmRecurringUpdate(false)">Cập nhật tương lai</button>
                 <button class="modal-button confirm" onclick="confirmRecurringUpdate(true)">Cập nhật tất cả</button>
             </div>
         </div>
@@ -342,10 +376,7 @@
             try {
                 const res = await fetch('/api/auth/change-password', {
                     method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                     body: JSON.stringify({ old_password: oldPassword, new_password: newPassword })
                 });
 
@@ -392,30 +423,16 @@
         }
 
         function handleDragStart(e) {
-            this.classList.add('dragging');
-            draggedItem = this;
-            e.dataTransfer.effectAllowed = 'move';
-            e.dataTransfer.setData('text/html', this.innerHTML);
-            removePlaceholders();
+            this.classList.add('dragging'); draggedItem = this; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/html', this.innerHTML); removePlaceholders();
         }
 
         function handleDragOver(e) {
-            e.preventDefault();
-            e.dataTransfer.dropEffect = 'move';
-            this.classList.add('drag-over');
+            e.preventDefault(); e.dataTransfer.dropEffect = 'move'; this.classList.add('drag-over');
             if (this === draggedItem) return false;
-            const rect = this.getBoundingClientRect();
-            const clientY = e.clientY;
-            const threshold = rect.top + (rect.height / 2);
-            const isBefore = clientY < threshold;
+            const rect = this.getBoundingClientRect(); const clientY = e.clientY; const threshold = rect.top + (rect.height / 2); const isBefore = clientY < threshold;
             removePlaceholders();
-            const placeholder = document.createElement('div');
-            placeholder.className = 'placeholder';
-            if (isBefore) {
-                this.parentNode.insertBefore(placeholder, this);
-            } else {
-                this.parentNode.insertBefore(placeholder, this.nextSibling);
-            }
+            const placeholder = document.createElement('div'); placeholder.className = 'placeholder';
+            if (isBefore) { this.parentNode.insertBefore(placeholder, this); } else { this.parentNode.insertBefore(placeholder, this.nextSibling); }
             return false;
         }
 
@@ -428,9 +445,7 @@
         function removePlaceholders() { document.querySelectorAll('.placeholder').forEach(p => p.remove()); }
 
         function handleDrop(e) {
-            e.stopPropagation();
-            e.preventDefault();
-            removePlaceholders();
+            e.stopPropagation(); e.preventDefault(); removePlaceholders();
             if (draggedItem !== this) {
                 const fromIndex = parseInt(draggedItem.dataset.index, 10);
                 let toIndex = parseInt(this.dataset.index, 10);
@@ -441,9 +456,7 @@
                 const list = categories;
                 const movedItem = list.splice(fromIndex, 1)[0];
                 list.splice(toIndex, 0, movedItem);
-                
-                renderCategories();
-                saveCategories(false); 
+                renderCategories(); saveCategories(false); 
             }
             return false;
         }
@@ -453,10 +466,7 @@
             let category = input.value.trim();
             category = category.replace(/[<>]/g, ' ').trim();
             if (category && !categories.includes(category)) {
-                categories.push(category);
-                renderCategories();
-                input.value = '';
-                saveCategories(true, 'Đã thêm danh mục mới'); 
+                categories.push(category); renderCategories(); input.value = ''; saveCategories(true, 'Đã thêm danh mục mới'); 
             } else if (categories.includes(category)) {
                 if(window.showToast) showToast('Danh mục đã tồn tại', "error");
             } else if (!category) {
@@ -469,115 +479,57 @@
                 if(window.showToast) showToast('Cần giữ lại ít nhất một danh mục!', "error");
                 return;
             }
-            categories.splice(index, 1);
-            renderCategories();
-            saveCategories(true, 'Đã xóa danh mục'); 
+            categories.splice(index, 1); renderCategories(); saveCategories(true, 'Đã xóa danh mục'); 
         }
 
         async function saveCategories(showNotification = true, customMsg = 'Đã cập nhật danh mục') {
             if (categories.length === 0) return;
             try {
-                const response = await fetch('/api/categories/edit', {
-                    method: 'POST', 
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(categories)
-                });   
-                if (response.ok) {
-                    if(showNotification && window.showToast) showToast(customMsg, "success");
-                } else {
-                    const error = await response.json();
-                    if(window.showToast) showToast(`Lỗi: ${error.error}`, "error");
-                }
-            } catch (error) {
-                if(window.showToast) showToast('Lỗi khi lưu danh mục', "error");
-            }
+                const response = await fetch('/api/categories/edit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(categories) });   
+                if (response.ok) { if(showNotification && window.showToast) showToast(customMsg, "success"); } 
+                else { const error = await response.json(); if(window.showToast) showToast(`Lỗi: ${error.error}`, "error"); }
+            } catch (error) { if(window.showToast) showToast('Lỗi khi lưu danh mục', "error"); }
         }
         
         // --- Tag Input Component ---
         function createTagInput(inputId, selectedContainerId, dropdownId, selectedTagsSet) {
-            const input = document.getElementById(inputId);
-            const selectedContainer = document.getElementById(selectedContainerId);
-            const dropdown = document.getElementById(dropdownId);
-
+            const input = document.getElementById(inputId); const selectedContainer = document.getElementById(selectedContainerId); const dropdown = document.getElementById(dropdownId);
             const renderSelected = () => {
                 selectedContainer.innerHTML = '';
                 selectedTagsSet.forEach(tag => {
-                    const pill = document.createElement('div');
-                    pill.className = 'tag-pill';
-                    pill.textContent = tag;
-                    const removeBtn = document.createElement('span');
-                    removeBtn.className = 'remove-tag';
-                    removeBtn.textContent = '×';
-                    removeBtn.onclick = (e) => {
-                        e.stopPropagation();
-                        selectedTagsSet.delete(tag);
-                        renderSelected();
-                    };
-                    pill.appendChild(removeBtn);
-                    selectedContainer.appendChild(pill);
+                    const pill = document.createElement('div'); pill.className = 'tag-pill'; pill.textContent = tag;
+                    const removeBtn = document.createElement('span'); removeBtn.className = 'remove-tag'; removeBtn.textContent = '×';
+                    removeBtn.onclick = (e) => { e.stopPropagation(); selectedTagsSet.delete(tag); renderSelected(); };
+                    pill.appendChild(removeBtn); selectedContainer.appendChild(pill);
                 });
             };
 
             const addTag = (tag) => {
                 tag = tag.trim().replace(/[<>]/g, ' ').trim();
-                if (tag) {
-                    selectedTagsSet.add(tag);
-                    renderSelected();
-                }
-                input.value = '';
-                dropdown.style.display = 'none';
+                if (tag) { selectedTagsSet.add(tag); renderSelected(); }
+                input.value = ''; dropdown.style.display = 'none';
             };
             
             input.addEventListener('focus', () => {
-                const value = input.value.trim().toLowerCase();
-                dropdown.innerHTML = '';
-                const availableTags = [...allTags].filter(tag => !selectedTagsSet.has(tag));
+                dropdown.innerHTML = ''; const availableTags = [...allTags].filter(tag => !selectedTagsSet.has(tag));
                 if (availableTags.length > 0) {
-                    availableTags.forEach(tag => {
-                        const item = document.createElement('div');
-                        item.textContent = tag;
-                        item.onclick = () => addTag(tag);
-                        dropdown.appendChild(item);
-                    });
+                    availableTags.forEach(tag => { const item = document.createElement('div'); item.textContent = tag; item.onclick = () => addTag(tag); dropdown.appendChild(item); });
                     dropdown.style.display = 'block';
                 }
             });
 
             input.addEventListener('input', () => {
-                const value = input.value.trim().toLowerCase();
-                dropdown.innerHTML = '';
+                const value = input.value.trim().toLowerCase(); dropdown.innerHTML = '';
                 const filteredTags = [...allTags].filter(tag => tag.toLowerCase().includes(value) && !selectedTagsSet.has(tag));
-
                 if (value && ![...allTags].map(t => t.toLowerCase()).includes(value)) {
-                    const newItem = document.createElement('div');
-                    newItem.textContent = `+ Thêm nhãn "${input.value.trim()}"`;
-                    newItem.className = 'new-tag';
-                    newItem.onclick = () => addTag(input.value.trim());
-                    dropdown.appendChild(newItem);
+                    const newItem = document.createElement('div'); newItem.textContent = `+ Thêm nhãn "${input.value.trim()}"`; newItem.className = 'new-tag'; newItem.onclick = () => addTag(input.value.trim()); dropdown.appendChild(newItem);
                 }
-                
-                filteredTags.forEach(tag => {
-                    const item = document.createElement('div');
-                    item.textContent = tag;
-                    item.onclick = () => addTag(tag);
-                    dropdown.appendChild(item);
-                });
+                filteredTags.forEach(tag => { const item = document.createElement('div'); item.textContent = tag; item.onclick = () => addTag(tag); dropdown.appendChild(item); });
                 dropdown.style.display = dropdown.children.length > 0 ? 'block' : 'none';
             });
 
-            input.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    if (input.value.trim()) addTag(input.value.trim());
-                }
-            });
-
-            document.addEventListener('click', (e) => {
-                const container = input.closest('.tags-input-container');
-                if (container && !container.contains(e.target)) {
-                    dropdown.style.display = 'none';
-                }
-            });
+            input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); if (input.value.trim()) addTag(input.value.trim()); } });
+            document.addEventListener('click', (e) => { const container = input.closest('.tags-input-container'); if (container && !container.contains(e.target)) { dropdown.style.display = 'none'; } });
             return { renderSelected };
         }
 
@@ -585,52 +537,27 @@
         function populateCurrencySelect() {
             const select = document.getElementById('currencySelect');
             select.innerHTML = Object.keys(currencyBehaviors).map(code => 
-                `<option value="${code}" ${code === currentCurrency ? 'selected' : ''}>
-                    ${code.toUpperCase()} (${currencyBehaviors[code].symbol})
-                </option>`
+                `<option value="${code}" ${code === currentCurrency ? 'selected' : ''}>${code.toUpperCase()} (${currencyBehaviors[code].symbol})</option>`
             ).join('');
         }
         
         async function saveCurrency() {
             const currencyCode = document.getElementById('currencySelect').value;
             try {
-                const response = await fetch('/api/currency/edit', {
-                    method: 'POST', 
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(currencyCode)
-                });
-                if (response.ok) {
-                    if(window.showToast) showToast('Đã lưu tiền tệ thành công', "success");
-                    currentCurrency = currencyCode;
-                } else {
-                    if(window.showToast) showToast('Lỗi khi lưu tiền tệ', "error");
-                }
-            } catch (error) {
-                console.error('Error saving currency:', error);
-                if(window.showToast) showToast('Lỗi khi lưu tiền tệ', "error");
-            }
+                const response = await fetch('/api/currency/edit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(currencyCode) });
+                if (response.ok) { if(window.showToast) showToast('Đã lưu tiền tệ thành công', "success"); currentCurrency = currencyCode; } 
+                else { if(window.showToast) showToast('Lỗi khi lưu tiền tệ', "error"); }
+            } catch (error) { if(window.showToast) showToast('Lỗi khi lưu tiền tệ', "error"); }
         }
 
-        function populateStartDateInput() {
-            document.getElementById("startDate").value = currentStartDate;
-        }
+        function populateStartDateInput() { document.getElementById("startDate").value = currentStartDate; }
 
         async function saveStartDate() {
             const startDateValue = document.getElementById("startDate").value;
             try {
-                const response = await fetch('/api/startdate/edit', {
-                    method: 'POST', 
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(parseInt(startDateValue, 10))
-                });
-                if(window.showToast) {
-                   if(response.ok) showToast('Đã lưu ngày bắt đầu thành công', "success");
-                   else showToast('Lỗi khi lưu ngày bắt đầu', "error");
-                }
-            } catch (error) {
-                console.error('Error saving start date:', error);
-                if(window.showToast) showToast('Lỗi khi lưu ngày bắt đầu', "error");
-            }
+                const response = await fetch('/api/startdate/edit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(parseInt(startDateValue, 10)) });
+                if(window.showToast) { if(response.ok) showToast('Đã lưu ngày bắt đầu thành công', "success"); else showToast('Lỗi khi lưu ngày bắt đầu', "error"); }
+            } catch (error) { if(window.showToast) showToast('Lỗi khi lưu ngày bắt đầu', "error"); }
         }
         
         async function fetchAndRenderRecurringExpenses() {
@@ -639,21 +566,17 @@
                 if (!response.ok) throw new Error('Failed to fetch recurring expenses');
                 recurringExpenses = await response.json() || [];
                 renderRecurringExpenses(recurringExpenses);
-            } catch (error) {
-                console.error('Error fetching recurring expenses:', error);
-                document.getElementById('recurring-expenses-list').innerHTML = '<p>Lỗi tải danh sách giao dịch định kỳ.</p>';
-            }
+            } catch (error) { document.getElementById('recurring-expenses-list').innerHTML = '<p style="color:var(--text-secondary);">Lỗi tải danh sách giao dịch định kỳ.</p>'; }
         }
 
         function findNextOccurrence(r) {
-            let nextDate = new Date(r.startDate);
-            const today = new Date();
+            let nextDate = new Date(r.startDate); const today = new Date();
             if (nextDate >= today) return nextDate.toLocaleDateString('vi-VN');
             if (r.occurrences > 0) {
                 let occurrencesCount = 0;
                 while (nextDate < today) {
                     occurrencesCount++;
-                    if (occurrencesCount >= r.occurrences) return 'Đã kết thúc';
+                    if (occurrencesCount >= r.occurrences) return '<span style="color:var(--text-secondary);">Đã kết thúc</span>';
                     switch(r.interval) {
                         case 'daily': nextDate.setDate(nextDate.getDate() + 1); break;
                         case 'weekly': nextDate.setDate(nextDate.getDate() + 7); break;
@@ -678,21 +601,21 @@
         function renderRecurringExpenses(recurring) {
             const list = document.getElementById('recurring-expenses-list');
             if (!recurring || recurring.length === 0) {
-                list.innerHTML = '<p>Chưa có giao dịch định kỳ nào.</p>';
+                list.innerHTML = '<p style="color:var(--text-secondary); text-align:center; padding: 20px;">Chưa có giao dịch định kỳ nào được thiết lập.</p>';
                 return;
             }
-            
             const intervalMap = { daily: "Hằng ngày", weekly: "Hằng tuần", monthly: "Hằng tháng", yearly: "Hằng năm" };
-
             list.innerHTML = `
-                <table class="expense-table">
+                <table class="expense-table" style="width: 100%;">
                     <thead><tr><th>Mô tả</th><th>Số tiền</th><th>Danh mục</th><th>Chu kỳ</th><th>Lần lặp tiếp theo</th><th></th></tr></thead>
                     <tbody>
-                        ${recurring.map(r => `
+                        ${recurring.map(r => {
+                            const isIncome = r.amount > 0;
+                            return `
                             <tr>
-                                <td>${r.name}</td>
-                                <td>${formatCurrency(r.amount)}</td>
-                                <td>${r.category}</td>
+                                <td>${escapeHTML(r.name)}</td>
+                                <td class="amount ${isIncome ? 'positive' : 'negative'}" style="font-weight:bold;">${formatCurrency(r.amount)}</td>
+                                <td><span style="background: var(--bg-primary); padding: 4px 10px; border-radius: 6px; font-size: 0.85rem; border: 1px solid var(--border);">${escapeHTML(r.category)}</span></td>
                                 <td>${intervalMap[r.interval] || r.interval}</td>
                                 <td>${findNextOccurrence(r)}</td>
                                 <td>
@@ -700,20 +623,13 @@
                                     <button class="delete-button" onclick="showRecurringDeleteModal('${r.id}')"><i class="fa-solid fa-trash-can"></i></button>
                                 </td>
                             </tr>
-                        `).join('')}
+                        `}).join('')}
                     </tbody>
                 </table>`;
         }
 
-        function showRecurringDeleteModal(id) {
-            recurringExpenseToDelete = id;
-            document.getElementById('deleteRecurringModal').classList.add('active');
-        }
-
-        function closeRecurringDeleteModal() {
-            recurringExpenseToDelete = null;
-            document.getElementById('deleteRecurringModal').classList.remove('active');
-        }
+        function showRecurringDeleteModal(id) { recurringExpenseToDelete = id; document.getElementById('deleteRecurringModal').classList.add('active'); }
+        function closeRecurringDeleteModal() { recurringExpenseToDelete = null; document.getElementById('deleteRecurringModal').classList.remove('active'); }
 
         async function confirmRecurringDelete(removeAll) {
             if (!recurringExpenseToDelete) return;
@@ -722,55 +638,33 @@
                 if (!response.ok) throw new Error('Failed to delete recurring expense');
                 if(window.showToast) showToast('Đã xóa giao dịch định kỳ thành công', "success");
                 fetchAndRenderRecurringExpenses();
-            } catch (error) {
-                console.error('Error deleting recurring expense:', error);
-                if(window.showToast) showToast('Lỗi khi xóa giao dịch định kỳ', "error");
-            } finally {
-                closeRecurringDeleteModal();
-            }
+            } catch (error) { if(window.showToast) showToast('Lỗi khi xóa giao dịch định kỳ', "error"); } 
+            finally { closeRecurringDeleteModal(); }
         }
         
-        // --- HIỂN THỊ MODAL SỬA GIAO DỊCH (FIX TỶ GIÁ & NGÀY UTC) ---
         function showRecurringEditModal(id) {
             recurringExpenseToEdit = recurringExpenses.find(r => r.id === id);
             if (!recurringExpenseToEdit) return;
-            
             document.getElementById('editRecurringName').value = recurringExpenseToEdit.name;
-            
-            // FIX TỶ GIÁ: Hiển thị đúng số tiền theo tỷ giá chọn
             const rate = exchangeRatesToVND[currentCurrency] || 1;
             document.getElementById('editRecurringAmount').value = parseFloat((Math.abs(recurringExpenseToEdit.amount) / rate).toFixed(2));
-            
             document.getElementById('editRecurringReportGain').checked = recurringExpenseToEdit.amount > 0;
             document.getElementById('editRecurringCategory').value = recurringExpenseToEdit.category;
             document.getElementById('editRecurringInterval').value = recurringExpenseToEdit.interval;
-            
-            // FIX NGÀY THÁNG: Lấy an toàn YYYY-MM-DD từ DB không lo lệch múi giờ
             document.getElementById('editRecurringStartDate').value = recurringExpenseToEdit.startDate.split('T')[0];
-            
             document.getElementById('editRecurringOccurrences').value = recurringExpenseToEdit.occurrences;
             editFormSelectedTags = new Set(recurringExpenseToEdit.tags || []);
             createTagInput('edit-tags-input', 'edit-selected-tags', 'edit-tags-dropdown', editFormSelectedTags).renderSelected();
             document.getElementById('editRecurringModal').classList.add('active');
         }
         
-        function closeRecurringEditModal() {
-            recurringExpenseToEdit = null;
-            document.getElementById('editRecurringModal').classList.remove('active');
-        }
+        function closeRecurringEditModal() { recurringExpenseToEdit = null; document.getElementById('editRecurringModal').classList.remove('active'); }
 
-        // --- SUBMIT CẬP NHẬT GIAO DỊCH (FIX TỶ GIÁ & NGÀY UTC) ---
         async function confirmRecurringUpdate(updateAll) {
             if (!recurringExpenseToEdit) return;
-            
-            // FIX TỶ GIÁ: Nhân với rate để lưu vào DB (VND)
             const rate = exchangeRatesToVND[currentCurrency] || 1;
             let amount = parseFloat(document.getElementById('editRecurringAmount').value) * rate;
-            if (!document.getElementById('editRecurringReportGain').checked) {
-                amount *= -1;
-            }
-
-            // FIX NGÀY THÁNG: Nối thêm T00:00:00Z để khóa chặt múi giờ UTC
+            if (!document.getElementById('editRecurringReportGain').checked) { amount *= -1; }
             const safeDateISO = new Date(document.getElementById('editRecurringStartDate').value + "T00:00:00Z").toISOString();
 
             const updatedData = {
@@ -786,27 +680,18 @@
             
             try {
                 const response = await fetch(`/api/recurring-expenses/edit?id=${recurringExpenseToEdit.id}&updateAll=${updateAll}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(updatedData)
+                    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updatedData)
                 });
                 if (!response.ok) throw new Error('Failed to update recurring expense');
                 if(window.showToast) showToast('Đã cập nhật giao dịch định kỳ thành công', "success");
                 fetchAndRenderRecurringExpenses();
-            } catch(error) {
-                console.error('Error updating recurring expense:', error);
-                if(window.showToast) showToast('Lỗi khi cập nhật giao dịch định kỳ', "error");
-            } finally {
-                closeRecurringEditModal();
-            }
+            } catch(error) { if(window.showToast) showToast('Lỗi khi cập nhật giao dịch định kỳ', "error"); } 
+            finally { closeRecurringEditModal(); }
         }
 
-        // --- Import/Export CSV ---
         async function handleCsvImport(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            const formData = new FormData();
-            formData.append('file', file);
+            const file = event.target.files[0]; if (!file) return;
+            const formData = new FormData(); formData.append('file', file);
             const summaryDiv = document.getElementById('importSummary');
 
             if(window.showToast) showToast('Đang nhập dữ liệu... Vui lòng đợi trong giây lát nếu file lớn.', "success");
@@ -824,59 +709,29 @@
                     document.getElementById('summary-skipped').textContent = result.skipped;
                     document.getElementById('summary-new-categories').textContent = (result.new_categories || []).join(', ') || 'Không có';
                     await initialize();
-                } else {
-                    if(window.showToast) showToast(`Lỗi: ${result.error || 'Lỗi khi nhập CSV'}`, "error");
-                }
-            } catch (error) {
-                console.error('Error importing CSV:', error);
-                if(window.showToast) showToast('Lỗi: Đã xảy ra lỗi không xác định khi nhập dữ liệu.', "error");
-            } finally {
-                event.target.value = '';
-            }
+                } else { if(window.showToast) showToast(`Lỗi: ${result.error || 'Lỗi khi nhập CSV'}`, "error"); }
+            } catch (error) { if(window.showToast) showToast('Lỗi: Đã xảy ra lỗi không xác định khi nhập dữ liệu.', "error"); } 
+            finally { event.target.value = ''; }
         }
 
         document.getElementById('csv-export-file').addEventListener('click', async () => {
-            const btn = document.getElementById('csv-export-file');
-            const originalHTML = btn.innerHTML;
+            const btn = document.getElementById('csv-export-file'); const originalHTML = btn.innerHTML;
             const token = localStorage.getItem('token');
-            if (!token) {
-                if(window.showToast) showToast('Lỗi: Bạn chưa đăng nhập. Vui lòng đăng nhập lại!', 'error');
-                setTimeout(() => window.location.href = '/login', 1500); 
-                return;
-            }
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang xuất dữ liệu...';
-            btn.style.pointerEvents = 'none';
+            if (!token) { if(window.showToast) showToast('Lỗi: Bạn chưa đăng nhập. Vui lòng đăng nhập lại!', 'error'); setTimeout(() => window.location.href = '/login', 1500); return; }
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang xuất dữ liệu...'; btn.style.pointerEvents = 'none';
             try {
-                const response = await fetch('/api/expenses/export/csv', {
-                    method: 'GET',
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-
+                const response = await fetch('/api/expenses/export/csv', { method: 'GET', headers: { 'Authorization': `Bearer ${token}` } });
                 if (response.ok) {
-                    const blob = await response.blob();
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.style.display = 'none';
-                    a.href = url;
-                    a.download = 'ExpenseOwl_Data.csv';
-                    document.body.appendChild(a);
-                    a.click();
-                    window.URL.revokeObjectURL(url);
+                    const blob = await response.blob(); const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a'); a.style.display = 'none'; a.href = url; a.download = 'ExpenseOwl_Data.csv';
+                    document.body.appendChild(a); a.click(); window.URL.revokeObjectURL(url);
                     if(window.showToast) showToast('Xuất dữ liệu thành công!', 'success');
                 } else if (response.status === 401) {
                     if(window.showToast) showToast('Lỗi: Phiên đăng nhập hết hạn. Đang chuyển hướng...', 'error');
-                    localStorage.removeItem('token'); 
-                    setTimeout(() => window.location.href = '/login', 1500);
-                } else {
-                    if(window.showToast) showToast('Lỗi xử lý từ máy chủ.', 'error');
-                }
-            } catch (error) {
-                console.error('Lỗi xuất CSV:', error);
-                if(window.showToast) showToast('Lỗi kết nối khi xuất file', 'error');
-            } finally {
-                btn.innerHTML = originalHTML;
-                btn.style.pointerEvents = 'auto';
-            }
+                    localStorage.removeItem('token'); setTimeout(() => window.location.href = '/login', 1500);
+                } else { if(window.showToast) showToast('Lỗi xử lý từ máy chủ.', 'error'); }
+            } catch (error) { if(window.showToast) showToast('Lỗi kết nối khi xuất file', 'error'); } 
+            finally { btn.innerHTML = originalHTML; btn.style.pointerEvents = 'auto'; }
         });
 
         // --- Initialization ---
@@ -888,11 +743,8 @@
                 if (!configResponse.ok) throw new Error('Failed to fetch configuration');
                 const config = await configResponse.json();
                 
-                let expenses = [];
-                if (expensesResponse.ok) expenses = await expensesResponse.json();
-                
-                let recurringExpensesList = [];
-                if (recurringExpensesResponse.ok) recurringExpensesList = await recurringExpensesResponse.json();
+                let expenses = []; if (expensesResponse.ok) expenses = await expensesResponse.json();
+                let recurringExpensesList = []; if (recurringExpensesResponse.ok) recurringExpensesList = await recurringExpensesResponse.json();
 
                 recurringExpenses = recurringExpensesList || [];
                 categories = [...(config.categories || [])];
@@ -904,19 +756,13 @@
                 (expenses || []).forEach(exp => (exp.tags || []).forEach(tag => allTags.add(tag)));
                 (recurringExpenses || []).forEach(exp => (exp.tags || []).forEach(tag => allTags.add(tag)));
 
-                renderCategories();
-                populateCurrencySelect();
-                populateStartDateInput();
+                renderCategories(); populateCurrencySelect(); populateStartDateInput();
                 document.getElementById('recurringCategory').innerHTML = categories.map(c => `<option value="${c}">${c}</option>`).join('');
                 document.getElementById('editRecurringCategory').innerHTML = categories.map(c => `<option value="${c}">${c}</option>`).join('');
                 renderRecurringExpenses(recurringExpenses);
-
                 createTagInput('tags-input', 'selected-tags', 'tags-dropdown', addFormSelectedTags);
                 
-            } catch (error) {
-                console.error('Failed to initialize settings:', error);
-                if(window.showToast) showToast('Lỗi tải trang cài đặt', "error");
-            }
+            } catch (error) { if(window.showToast) showToast('Lỗi tải trang cài đặt', "error"); }
         }
         
         // --- Theme Management ---
@@ -924,19 +770,13 @@
         const currentTheme = localStorage.getItem('theme') || 'system';
         themeSelect.value = currentTheme;
         function applyTheme(theme) {
-            if (theme === 'light') {
-                document.documentElement.setAttribute('data-theme', 'light');
-            } else if (theme === 'dark') {
-                document.documentElement.setAttribute('data-theme', 'dark');
-            } else {
-                document.documentElement.removeAttribute('data-theme');
-            }
+            if (theme === 'light') { document.documentElement.setAttribute('data-theme', 'light'); } 
+            else if (theme === 'dark') { document.documentElement.setAttribute('data-theme', 'dark'); } 
+            else { document.documentElement.removeAttribute('data-theme'); }
         }
         themeSelect.addEventListener('change', (e) => {
-            const selectedTheme = e.target.value;
-            localStorage.setItem('theme', selectedTheme);
-            applyTheme(selectedTheme);
-            if(window.showToast) showToast('Đã cập nhật giao diện.', "success");
+            const selectedTheme = e.target.value; localStorage.setItem('theme', selectedTheme);
+            applyTheme(selectedTheme); if(window.showToast) showToast('Đã cập nhật giao diện.', "success");
         });
 
         // --- Event Listeners ---
@@ -946,77 +786,49 @@
         document.getElementById('csv-import-file').addEventListener('change', handleCsvImport);
         document.getElementById('newCategory').addEventListener('keypress', e => e.key === 'Enter' && addCategory());
 
-        // --- SUBMIT TẠO GIAO DỊCH ĐỊNH KỲ (FIX TỶ GIÁ & NGÀY UTC) ---
+        // --- SUBMIT TẠO GIAO DỊCH ĐỊNH KỲ ---
         document.getElementById('recurringExpenseForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const isGain = document.getElementById('recurringReportGain').checked;
-            
-            // FIX TỶ GIÁ
             const rate = exchangeRatesToVND[currentCurrency] || 1;
             let amount = parseFloat(document.getElementById('recurringAmount').value) * rate;
             if (!isGain) amount *= -1;
 
-            // FIX NGÀY UTC: Ép ngày nhập vào 00:00:00Z
             const safeDateISO = new Date(document.getElementById('recurringStartDate').value + "T00:00:00Z").toISOString();
-
             const formData = {
-                name: document.getElementById('recurringName').value,
-                amount: amount,
-                category: document.getElementById('recurringCategory').value,
-                tags: Array.from(addFormSelectedTags),
-                interval: document.getElementById('recurringInterval').value,
-                startDate: safeDateISO,
-                occurrences: parseInt(document.getElementById('recurringOccurrences').value, 10)
+                name: document.getElementById('recurringName').value, amount: amount, category: document.getElementById('recurringCategory').value,
+                tags: Array.from(addFormSelectedTags), interval: document.getElementById('recurringInterval').value,
+                startDate: safeDateISO, occurrences: parseInt(document.getElementById('recurringOccurrences').value, 10)
             };
 
             try {
-                const response = await fetch('/api/recurring-expenses/', {
-                    method: 'POST', 
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(formData)
-                });
+                const response = await fetch('/api/recurring-expenses/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData) });
                 if (response.ok) {
                     if(window.showToast) showToast('Đã thêm giao dịch định kỳ thành công!', "success");
-                    document.getElementById('recurringExpenseForm').reset();
-                    document.getElementById('selected-tags').innerHTML = '';
-                    addFormSelectedTags.clear();
-                    fetchAndRenderRecurringExpenses();
-                } else {
-                    const error = await response.json();
-                    if(window.showToast) showToast(`Lỗi: ${error.error || 'Lỗi khi thêm giao dịch định kỳ'}`, "error");
-                }
-            } catch (error) {
-                console.error('Error adding recurring expense:', error);
-                if(window.showToast) showToast('Lỗi: Không thể thêm giao dịch định kỳ', "error");
-            }
+                    document.getElementById('recurringExpenseForm').reset(); document.getElementById('selected-tags').innerHTML = '';
+                    addFormSelectedTags.clear(); fetchAndRenderRecurringExpenses();
+                } else { const error = await response.json(); if(window.showToast) showToast(`Lỗi: ${error.error || 'Lỗi khi thêm giao dịch định kỳ'}`, "error"); }
+            } catch (error) { if(window.showToast) showToast('Lỗi: Không thể thêm giao dịch định kỳ', "error"); }
         });
 
         async function saveAIProfile() {
-            const goal = document.getElementById('aiFinancialGoal').value;
-            const risk = document.getElementById('aiRiskTolerance').value;
-            
-            const btn = event.target;
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang lưu...';
-            btn.disabled = true;
-
+            const goal = document.getElementById('aiFinancialGoal').value; const risk = document.getElementById('aiRiskTolerance').value; const btn = event.target;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang lưu...'; btn.disabled = true;
             try {
-                const res = await fetch('/api/profile/edit', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ goal: goal, risk: risk })
-                });
-                if (res.ok) {
-                    if(window.showToast) showToast('Đã lưu hồ sơ AI! Cú Mèo đã nhớ tính cách của bạn.', 'success');
-                } else {
-                    if(window.showToast) showToast('Lỗi khi lưu hồ sơ AI', 'error');
-                }
-            } catch (e) {
-                if(window.showToast) showToast('Lỗi kết nối máy chủ', 'error');
-            } finally {
-                btn.innerHTML = '<i class="fa-solid fa-brain"></i> Lưu Hồ Sơ AI';
-                btn.disabled = false;
-            }
+                const res = await fetch('/api/profile/edit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ goal: goal, risk: risk }) });
+                if (res.ok) { if(window.showToast) showToast('Đã lưu hồ sơ AI! Cú Mèo đã nhớ tính cách của bạn.', 'success'); } 
+                else { if(window.showToast) showToast('Lỗi khi lưu hồ sơ AI', 'error'); }
+            } catch (e) { if(window.showToast) showToast('Lỗi kết nối máy chủ', 'error'); } 
+            finally { btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Lưu Hồ Sơ AI'; btn.disabled = false; }
         }
+
+        window.escapeHTML = function(str) {
+            if (str === null || str === undefined) return '';
+            if (typeof str !== 'string') return String(str);
+            return str.replace(/[&<>'"]/g, function(tag) {
+                const charsToReplace = { '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }; return charsToReplace[tag] || tag;
+            });
+        };
 
         document.addEventListener('DOMContentLoaded', initialize);
         window.removeCategory = removeCategory;
