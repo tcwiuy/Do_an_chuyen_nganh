@@ -885,12 +885,11 @@ config_router = APIRouter(prefix="/api", tags=["User Config"])
 def get_config(db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
     user_config = db.query(models.UserConfig).filter(models.UserConfig.user_id == current_user.id).first()
     
-    # Nếu là người dùng mới chưa chỉnh Settings bao giờ, trả về bộ mặc định
     if not user_config:
         return {
             "currency": "usd",
             "startDate": 1,
-            "categories": ["Ăn uống", "Đi lại", "Mua sắm", "Hóa đơn", "Giải trí"]
+            "categories": ["Food", "Transport", "Shopping", "Bills", "Entertainment"]
         }
         
     return {

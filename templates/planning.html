@@ -107,9 +107,6 @@
 
     <script src="/static/functions.js"></script>
     <script>
-        // ==========================================
-        // KHAI BÁO BIẾN & HỆ THỐNG TOAST
-        // ==========================================
         if (typeof window.planCurrency === 'undefined') window.planCurrency = "usd";
         if (typeof window.planRates === 'undefined') window.planRates = { "vnd": 1, "usd": 25400 };
         window.categoriesList = ["Ăn uống", "Đi lại", "Mua sắm", "Hóa đơn", "Giải trí"];
@@ -148,9 +145,6 @@
             return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
         }
 
-        // ==========================================
-        // ĐỒNG BỘ DỮ LIỆU
-        // ==========================================
         async function syncSettingsAndData() {
             const token = localStorage.getItem('token');
             try {

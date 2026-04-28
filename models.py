@@ -61,7 +61,7 @@ class UserConfig(Base):
     user_id = Column(Integer, index=True, unique=True) # ID của người dùng
     currency = Column(String, default="usd")
     startDate = Column(Integer, default=1)
-    categories = Column(JSON, default=["Ăn uống", "Đi lại", "Mua sắm", "Hóa đơn", "Giải trí"])
+    categories = Column(JSON, default=["Food", "Transport", "Shopping", "Bills", "Entertainment"])
 
     financial_goal = Column(String, nullable=True, default="Chưa xác định")
     risk_tolerance = Column(String, nullable=True, default="Cân bằng")
