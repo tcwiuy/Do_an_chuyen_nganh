@@ -17,8 +17,12 @@ import random
 import models, schemas, auth
 from database import get_db
 
+#OCR quét hóa đơn 
 from google import genai
 from google.genai import types
+from PIL import Image
+import io
+import base64
  
 # Simple in-memory TTL cache for AI responses to reduce repeated GPT calls
 import threading
@@ -28,6 +32,9 @@ import uuid
 from datetime import datetime
 from fastapi import UploadFile, File
 from fastapi.responses import StreamingResponse
+
+# OCR cho PDF
+import fitz
 
 _ai_cache = {}
 _ai_cache_lock = threading.Lock()
@@ -1037,13 +1044,23 @@ async def scan_receipt(
         )
 
     try:
-        image_data = await file.read()
+        original_bytes = await file.read()
+        img = Image.open(io.BytesIO(original_bytes))
+        
+        # Chuyển đổi sang RGB 
+        if img.mode in ("RGBA", "P"):
+            img = img.convert("RGB")
+            
+        # Thu nhỏ ảnh nếu quá lớn 
+        img.thumbnail((1024, 1024), Image.Resampling.LANCZOS)
+        
+        # Lưu ảnh đã nén vào cache
+        output_buffer = io.BytesIO()
+        img.save(output_buffer, format="JPEG", quality=85) 
+        compressed_bytes = output_buffer.getvalue()
+        base64_image = base64.b64encode(compressed_bytes).decode('utf-8')
+        mime_type = "image/jpeg"
 
-        # Kiểm tra dung lượng (tối đa 10MB)
-        if len(image_data) > 10 * 1024 * 1024:
-            raise HTTPException(status_code=400, detail="File quá lớn! Tối đa 10MB.")
-
-        image_base64 = base64.b64encode(image_data).decode("utf-8")
 
         prompt = f"""Hôm nay là {today_str}.
 Phân tích hóa đơn trong ảnh và trích xuất thông tin tài chính.
@@ -1065,15 +1082,16 @@ Quy tắc quan trọng:
 - Nếu không đọc được số tiền, đặt amount = -1
 - Đơn vị là VND (Việt Nam Đồng), không cần dấu phẩy hay chấm phân cách"""
 
-        url = f"[https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=](https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=){api_key}"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+        
         payload = {
             "contents": [{
                 "parts": [
                     {"text": prompt},
                     {
-                        "inline_data": {
-                            "mime_type": content_type,
-                            "data": image_base64
+                        "inlineData": {
+                            "mimeType": mime_type, 
+                            "data": base64_image
                         }
                     }
                 ]
@@ -1225,6 +1243,109 @@ async def confirm_scan_receipt(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Lỗi lưu giao dịch: {str(e)}")
+
+# =============================================================
+# ROUTER OCR - QUÉT HÓA ĐƠN TỪ FILE PDF 
+# =============================================================
+@router.post("/api/scan-pdf")
+async def scan_pdf_receipt(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    api_key = get_random_api_key()
+    if not api_key:
+        raise HTTPException(status_code=500, detail="Chưa cấu hình GEMINI_API_KEY trong file .env")
+
+    # 1. Kiểm tra định dạng file phải là PDF
+    if not file.filename.lower().endswith('.pdf'):
+        raise HTTPException(status_code=400, detail="Định dạng không hỗ trợ. Vui lòng tải lên file .pdf")
+
+    # 2. Lấy danh mục của user (giống logic OCR cũ)
+    user_config = db.query(models.UserConfig).filter(models.UserConfig.user_id == current_user.id).first()
+    categories_str = ", ".join(user_config.categories) if user_config and user_config.categories else "Ăn uống, Đi lại, Mua sắm, Hóa đơn, Giải trí, Thu nhập"
+    today_str = datetime.now().strftime("%Y-%m-%d")
+
+    try:
+        # 3. Đọc file PDF và rút trích Text bằng PyMuPDF
+        pdf_bytes = await file.read()
+        
+        # Kiểm tra dung lượng (tối đa 15MB cho PDF)
+        if len(pdf_bytes) > 15 * 1024 * 1024:
+            raise HTTPException(status_code=400, detail="File PDF quá lớn! Tối đa 15MB.")
+
+        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+        extracted_text = ""
+        for page in doc:
+            extracted_text += page.get_text()
+            
+        doc.close()
+
+        if not extracted_text.strip():
+            raise HTTPException(status_code=422, detail="Không thể đọc được chữ trong file PDF này. File có thể là ảnh quét mờ.")
+
+        # 4. Viết Prompt riêng cho dữ liệu Text (không dùng inline_data hình ảnh)
+        prompt = f"""Hôm nay là {today_str}.
+Dưới đây là nội dung văn bản được trích xuất từ một file PDF hóa đơn/sao kê. 
+Hãy phân tích và trích xuất thông tin tài chính.
+Danh mục hợp lệ của người dùng: {categories_str}
+
+NỘI DUNG PDF:
+{extracted_text[:3000]} # Giới hạn 3000 ký tự đầu để tránh tràn token nếu file quá dài
+
+Trả về CHỈ một JSON object thuần túy (không markdown):
+{{
+    "name": "Tên cửa hàng/dịch vụ (tối đa 60 ký tự)",
+    "category": "Chọn ĐÚNG MỘT danh mục từ danh sách: {categories_str}",
+    "amount": số_âm_đại_diện_chi_tiêu (ví dụ -54000),
+    "date": "YYYY-MM-DD",
+    "tags": ["PDF_Scan"],
+    "notes": "ghi chú ngắn"
+}}
+"""
+        # 5. Gọi AI bằng hàm backoff có sẵn của bạn
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+        payload = {
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {"temperature": 0.1}
+        }
+
+        response = call_gemini_with_backoff(url, payload, headers={"Content-Type": "application/json"}, timeout=30, retries=3)
+        _handle_gemini_http_status(response)
+        result_data = response.json()
+
+        if not result_data.get("candidates"):
+            raise HTTPException(status_code=422, detail="AI không thể xử lý file PDF này.")
+
+        ai_text = result_data["candidates"][0]["content"]["parts"][0]["text"]
+
+        # Làm sạch JSON
+        clean_text = ai_text.strip()
+        if clean_text.startswith("```"):
+            clean_text = "\n".join(clean_text.split("\n")[1:-1]).strip()
+        clean_text = clean_text.replace("```json", "").replace("```", "").strip()
+
+        extracted_data = json.loads(clean_text)
+
+        return {
+            "status": "success",
+            "data": {
+                "name": str(extracted_data.get("name", "Hóa đơn PDF"))[:100],
+                "amount": float(extracted_data.get("amount", -1)),
+                "date": str(extracted_data.get("date", today_str)),
+                "category": str(extracted_data.get("category", categories_str.split(",")[0])),
+                "tags": extracted_data.get("tags", ["PDF_Scan"]),
+                "notes": str(extracted_data.get("notes", ""))
+            },
+            "message": "Đọc PDF thành công! Vui lòng xác nhận."
+        }
+
+    except HTTPException:
+        raise
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=422, detail="AI trả về dữ liệu không hợp lệ. Vui lòng kiểm tra lại file PDF.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Lỗi xử lý file PDF: {str(e)}")
 
 # ---------------------------------------------------------
 # ROUTER CHO LẬP KẾ HOẠCH (BUDGETS & JARS)
