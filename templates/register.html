@@ -76,12 +76,12 @@
                 
                 <div>
                     <label style="display: block; margin-bottom: 8px; color: var(--text-secondary); font-weight: bold;">Mật khẩu (Tối thiểu 6 ký tự)</label>
-                    <input type="password" id="regPassword" class="auth-input" required minlength="6">
+                    <input type="password" id="regPassword" class="auth-input" required minlength="6" oncopy="return false;" onpaste="return false;" oncut="return false;">
                 </div>
                 
                 <div>
                     <label style="display: block; margin-bottom: 8px; color: var(--text-secondary); font-weight: bold;">Nhập lại mật khẩu</label>
-                    <input type="password" id="regConfirmPassword" class="auth-input" required minlength="6">
+                    <input type="password" id="regConfirmPassword" class="auth-input" required minlength="6" oncopy="return false;" onpaste="return false;" oncut="return false;">
                 </div>
                 
                 <button type="submit" class="nav-button" style="width: 100%; background-color: var(--accent); color: white; border: none; padding: 12px; font-size: 1.1rem; border-radius: 8px; margin-top: 10px;">Đăng Ký</button>

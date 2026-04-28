@@ -82,15 +82,15 @@
                     <form id="changePasswordForm">
                         <div class="form-group">
                             <label for="oldPassword">Mật khẩu hiện tại</label>
-                            <input type="password" id="oldPassword" placeholder="Nhập mật khẩu cũ..." class="themed-input" required>
+                            <input type="password" id="oldPassword" placeholder="Nhập mật khẩu cũ..." class="themed-input" required oncopy="return false;" onpaste="return false;" oncut="return false;">
                         </div>
                         <div class="form-group">
                             <label for="newPassword">Mật khẩu mới (Tối thiểu 6 ký tự)</label>
-                            <input type="password" id="newPassword" placeholder="Nhập mật khẩu mới..." class="themed-input" required minlength="6">
+                            <input type="password" id="newPassword" placeholder="Nhập mật khẩu mới..." class="themed-input" required minlength="6" oncopy="return false;" onpaste="return false;" oncut="return false;">
                         </div>
                         <div class="form-group">
                             <label for="confirmPassword">Xác nhận mật khẩu mới</label>
-                            <input type="password" id="confirmPassword" placeholder="Nhập lại mật khẩu mới..." class="themed-input" required minlength="6">
+                            <input type="password" id="confirmPassword" placeholder="Nhập lại mật khẩu mới..." class="themed-input" required minlength="6" oncopy="return false;" onpaste="return false;" oncut="return false;">
                         </div>
                         <button type="submit" class="nav-button" style="width: 100%; margin-top: 15px; background-color: var(--accent); color: white; border: none;">
                             <i class="fa-solid fa-key"></i> Đổi Mật Khẩu

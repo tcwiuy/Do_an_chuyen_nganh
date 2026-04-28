@@ -69,3 +69,12 @@ def get_config():
         "startDate": 1
     }
 
+# Mở trang Quên mật khẩu
+@app.get("/forgot-password", response_class=HTMLResponse)
+async def forgot_password_page(request: Request):
+    return templates.TemplateResponse(request=request, name="forgot_password.html")
+
+# Mở trang Đăng ký
+@app.get("/register", response_class=HTMLResponse)
+async def register_page(request: Request):
+    return templates.TemplateResponse(request=request, name="register.html")

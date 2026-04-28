@@ -25,6 +25,23 @@
             outline: none; box-sizing: border-box; font-family: inherit; margin-bottom: 20px;
         }
 
+        /* Thêm style cho link Quên mật khẩu */
+        .forgot-password-link {
+            display: block;
+            text-align: right;
+            margin-top: -10px; /* Bù trừ lại margin-bottom 20px của auth-input */
+            margin-bottom: 20px;
+            color: var(--accent);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: bold;
+            transition: 0.2s;
+        }
+        .forgot-password-link:hover {
+            color: var(--text-primary);
+            text-decoration: underline;
+        }
+
         #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; }
         .toast { background-color: var(--bg-secondary); border-left: 4px solid #4ade80; color: var(--text-primary); padding: 15px 20px; border-radius: 8px; border-top: 1px solid var(--border); border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: flex; align-items: center; gap: 12px; font-weight: 500; transform: translateX(120%); opacity: 0; transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55); }
         .toast.show { transform: translateX(0); opacity: 1; }
@@ -50,8 +67,11 @@
                 </div>
                 <div>
                     <label for="loginPassword" style="display: block; margin-bottom: 8px; color: var(--text-secondary); font-weight: bold;">Mật khẩu</label>
-                    <input type="password" id="loginPassword" class="auth-input" required>
+                    <input type="password" id="loginPassword" class="auth-input" required oncopy="return false;" onpaste="return false;" oncut="return false;">
                 </div>
+                
+                <a href="/forgot-password" class="forgot-password-link">Quên mật khẩu?</a>
+
                 <button type="submit" class="nav-button" style="width: 100%; background-color: var(--accent); color: white; border: none; padding: 12px; font-size: 1.1rem; border-radius: 8px;">Đăng Nhập</button>
             </form>
             <div class="auth-toggle">
