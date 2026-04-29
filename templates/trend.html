@@ -6,7 +6,7 @@
     <title>Biến động Thu Chi</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="/static/style.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="/static/chart.min.js"></script>
     <script>
         (function() {
             const theme = localStorage.getItem('theme') || 'system';
@@ -51,9 +51,7 @@
         .progress-bar-bg { width: 100%; background: rgba(105, 175, 222, 0.20); height: 6px; border-radius: 3px; margin-top: 8px; overflow: hidden; }
         .progress-bar-fill { height: 100%; border-radius: 3px; transition: width 0.5s ease; }
 
-        .container {
-            max-width: 760px;
-        }
+        /* Dùng layout container chung trong /static/style.css để đồng bộ kích thước */
 
         .nav-button,
         .view-button {
@@ -257,11 +255,11 @@
     <div class="container">
         <header>
             <div class="nav-bar">
-                <a href="/" class="view-button" data-tooltip="Dashboard"><i class="fa-solid fa-chart-pie"></i></a>
+                <a href="/" class="view-button" data-tooltip="Trang Chủ"><i class="fa-solid fa-chart-pie"></i></a>
                 <a href="/history" class="view-button" data-tooltip="Hoạt động"><i class="fa-solid fa-clock-rotate-left"></i></a>
-                <a href="/lich" class="view-button" data-tooltip="Lịch"><i class="fa-solid fa-calendar-days"></i></a>
                 <a href="/trends" class="view-button active" data-tooltip="Biến động"><i class="fa-solid fa-chart-line"></i></a>
                 <a href="/suggestions" class="view-button" data-tooltip="Gợi Ý AI"><i class="fa-solid fa-lightbulb"></i></a>
+                <a href="/planning" class="view-button" data-tooltip="Lập kế hoạch"><i class="fa-solid fa-piggy-bank"></i></a>
                 <a href="/settings" class="view-button" data-tooltip="Cài Đặt"><i class="fa-solid fa-gear"></i></a>
                 <a href="javascript:void(0)" class="view-button" onclick="logout()" data-tooltip="Đăng Xuất" style="margin-left: auto; color: #ff4d4d;"><i class="fa-solid fa-right-from-bracket"></i></a>
             </div>
@@ -319,5 +317,6 @@
     
     <script src="/static/functions.js"></script>
     <script src="/static/trend.js"></script>
+    <script src="/static/chatbot.js"></script>
 </body>
 </html>

@@ -497,12 +497,17 @@ function updateChartFromSeries(labels, curData, prevData, period, meta) {
     const handleClick = (evt) => {
         if (!trendChartInstance) return;
         const nativeEvt = (evt && evt.native) ? evt.native : evt;
-        const rect = trendChartInstance.canvas?.getBoundingClientRect?.();
-        const x = rect && nativeEvt ? (nativeEvt.clientX - rect.left) : undefined;
-        const y = rect && nativeEvt ? (nativeEvt.clientY - rect.top) : undefined;
-        const chartEvt = (evt && evt.native) ? evt : { native: nativeEvt, x, y };
+        let points = trendChartInstance.getElementsAtEventForMode(nativeEvt, 'nearest', { intersect: true }, true);
 
-        const points = trendChartInstance.getElementsAtEventForMode(chartEvt, 'nearest', { intersect: true }, true);
+        // Fallback for some Chart.js builds that expect a chartEvent-like object with x/y.
+        if ((!points || points.length === 0) && nativeEvt && nativeEvt.clientX != null && nativeEvt.clientY != null) {
+            const rect = trendChartInstance.canvas?.getBoundingClientRect?.();
+            if (rect) {
+                const x = nativeEvt.clientX - rect.left;
+                const y = nativeEvt.clientY - rect.top;
+                points = trendChartInstance.getElementsAtEventForMode({ native: nativeEvt, x, y }, 'nearest', { intersect: true }, true);
+            }
+        }
 
         // Click outside bars: reset to base period categories
         if (!points || points.length === 0) {
