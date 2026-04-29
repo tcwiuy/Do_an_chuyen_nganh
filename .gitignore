@@ -26,3 +26,6 @@ __pycache__/
 .DS_Store
 .vscode/
 requirements.txt
+
+# Local seed scripts (do not commit)
+scripts/
