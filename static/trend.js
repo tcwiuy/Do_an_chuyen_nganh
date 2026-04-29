@@ -124,6 +124,12 @@ function setupTrendEventListeners() {
     setActiveMetricBtn(currentMetric);
 }
 
+function metricContribution(amount) {
+    if (currentMetric === 'income') return amount > 0 ? amount : 0;
+    if (currentMetric === 'expense') return amount < 0 ? Math.abs(amount) : 0;
+    return amount;
+}
+
 function processAndRenderTrends(period, anchorDate) {
     currentPeriod = period;
     const anchor = anchorDate ? new Date(anchorDate) : new Date();
@@ -132,28 +138,28 @@ function processAndRenderTrends(period, anchorDate) {
     if (period === 'week') {
         const day = anchor.getDay();
         const diff = anchor.getDate() - day + (day === 0 ? -6 : 1);
-        cS = new Date(anchor.getFullYear(), anchor.getMonth(), diff); cS.setHours(0,0,0,0);
-        cE = new Date(cS); cE.setDate(cE.getDate() + 6); cE.setHours(23,59,59,999);
-        pS = new Date(cS); pS.setDate(pS.getDate() - 7); pS.setHours(0,0,0,0);
-        pE = new Date(cE); pE.setDate(pE.getDate() - 7); pE.setHours(23,59,59,999);
+        cS = new Date(anchor.getFullYear(), anchor.getMonth(), diff); cS.setHours(0, 0, 0, 0);
+        cE = new Date(cS); cE.setDate(cE.getDate() + 6); cE.setHours(23, 59, 59, 999);
+        pS = new Date(cS); pS.setDate(pS.getDate() - 7); pS.setHours(0, 0, 0, 0);
+        pE = new Date(cE); pE.setDate(pE.getDate() - 7); pE.setHours(23, 59, 59, 999);
     } else if (period === 'month') {
-        cS = new Date(anchor.getFullYear(), anchor.getMonth(), 1); cS.setHours(0,0,0,0);
-        cE = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0); cE.setHours(23,59,59,999);
-        pS = new Date(cS.getFullYear(), cS.getMonth() - 1, 1); pS.setHours(0,0,0,0);
-        pE = new Date(pS.getFullYear(), pS.getMonth() + 1, 0); pE.setHours(23,59,59,999);
+        cS = new Date(anchor.getFullYear(), anchor.getMonth(), 1); cS.setHours(0, 0, 0, 0);
+        cE = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0); cE.setHours(23, 59, 59, 999);
+        pS = new Date(cS.getFullYear(), cS.getMonth() - 1, 1); pS.setHours(0, 0, 0, 0);
+        pE = new Date(pS.getFullYear(), pS.getMonth() + 1, 0); pE.setHours(23, 59, 59, 999);
     } else {
-        cS = new Date(anchor.getFullYear(), 0, 1); cS.setHours(0,0,0,0);
-        cE = new Date(anchor.getFullYear(), 11, 31); cE.setHours(23,59,59,999);
-        pS = new Date(cS.getFullYear() - 1, 0, 1); pS.setHours(0,0,0,0);
-        pE = new Date(cS.getFullYear() - 1, 11, 31); pE.setHours(23,59,59,999);
+        cS = new Date(anchor.getFullYear(), 0, 1); cS.setHours(0, 0, 0, 0);
+        cE = new Date(anchor.getFullYear(), 11, 31); cE.setHours(23, 59, 59, 999);
+        pS = new Date(cS.getFullYear() - 1, 0, 1); pS.setHours(0, 0, 0, 0);
+        pE = new Date(cS.getFullYear() - 1, 11, 31); pE.setHours(23, 59, 59, 999);
     }
 
     const curTxns = allTrendTransactions.filter(t => {
-        const d = new Date(t.date.split('T')[0] + "T00:00:00");
+        const d = new Date(t.date.split('T')[0] + 'T00:00:00');
         return d >= cS && d <= cE;
     });
     const prevTxns = allTrendTransactions.filter(t => {
-        const d = new Date(t.date.split('T')[0] + "T00:00:00");
+        const d = new Date(t.date.split('T')[0] + 'T00:00:00');
         return d >= pS && d <= pE;
     });
 
@@ -161,6 +167,7 @@ function processAndRenderTrends(period, anchorDate) {
     let labels = [];
     let curSeries = [];
     let prevSeries = [];
+    let tooltipTitles = null;
 
     if (period === 'week') {
         for (let i = 0; i < 7; i++) {
@@ -168,40 +175,82 @@ function processAndRenderTrends(period, anchorDate) {
             labels.push(getWeekdayLabel(d));
         }
         const mapCur = {}; const mapPrev = {};
-        curTxns.forEach(t => { const key = t.date.split('T')[0]; mapCur[key] = (mapCur[key] || 0) + t.amount; });
-        prevTxns.forEach(t => { const key = t.date.split('T')[0]; mapPrev[key] = (mapPrev[key] || 0) + t.amount; });
+        curTxns.forEach(t => {
+            const key = t.date.split('T')[0];
+            mapCur[key] = (mapCur[key] || 0) + metricContribution(t.amount);
+        });
+        prevTxns.forEach(t => {
+            const key = t.date.split('T')[0];
+            mapPrev[key] = (mapPrev[key] || 0) + metricContribution(t.amount);
+        });
         for (let i = 0; i < 7; i++) {
-            const d = new Date(cS); d.setDate(cS.getDate() + i); const key = d.toISOString().slice(0,10);
-            curSeries.push(aggregateByMetricForKey(mapCur[key] || 0));
-            const pd = new Date(pS); pd.setDate(pS.getDate() + i); const pkey = pd.toISOString().slice(0,10);
-            prevSeries.push(aggregateByMetricForKey(mapPrev[pkey] || 0));
+            const d = new Date(cS); d.setDate(cS.getDate() + i);
+            const key = d.toISOString().slice(0, 10);
+            curSeries.push(mapCur[key] || 0);
+
+            const pd = new Date(pS); pd.setDate(pS.getDate() + i);
+            const pkey = pd.toISOString().slice(0, 10);
+            prevSeries.push(mapPrev[pkey] || 0);
         }
     } else if (period === 'month') {
-        const daysInMonth = cE.getDate();
-        for (let d = 1; d <= daysInMonth; d++) labels.push(String(d));
-        const mapCur = {}; const mapPrev = {};
-        curTxns.forEach(t => { const key = t.date.split('T')[0]; mapCur[key] = (mapCur[key] || 0) + t.amount; });
-        prevTxns.forEach(t => { const key = t.date.split('T')[0]; mapPrev[key] = (mapPrev[key] || 0) + t.amount; });
-        for (let d = 1; d <= daysInMonth; d++) {
-            const dd = new Date(cS.getFullYear(), cS.getMonth(), d); const key = dd.toISOString().slice(0,10);
-            curSeries.push(aggregateByMetricForKey(mapCur[key] || 0));
-            const pd = new Date(pS.getFullYear(), pS.getMonth(), d); const pkey = pd.toISOString().slice(0,10);
-            prevSeries.push(aggregateByMetricForKey(mapPrev[pkey] || 0));
+        // MoMo-like month view: show recent months (default 6 bars) while totals still reflect the selected month
+        const monthsToShow = 6;
+        const monthAnchors = [];
+        for (let i = monthsToShow - 1; i >= 0; i--) {
+            monthAnchors.push(new Date(anchor.getFullYear(), anchor.getMonth() - i, 1));
         }
+
+        labels = monthAnchors.map(d => `T${d.getMonth() + 1}`);
+        tooltipTitles = monthAnchors.map(d => `${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`);
+
+        const sumMetricInRange = (start, end) => {
+            let total = 0;
+            allTrendTransactions.forEach((t) => {
+                const d = new Date(t.date.split('T')[0] + 'T00:00:00');
+                if (d < start || d > end) return;
+                total += metricContribution(t.amount);
+            });
+            return total;
+        };
+
+        monthAnchors.forEach((m0) => {
+            const start = new Date(m0.getFullYear(), m0.getMonth(), 1); start.setHours(0, 0, 0, 0);
+            const end = new Date(m0.getFullYear(), m0.getMonth() + 1, 0); end.setHours(23, 59, 59, 999);
+            const prevStart = new Date(m0.getFullYear(), m0.getMonth() - 1, 1); prevStart.setHours(0, 0, 0, 0);
+            const prevEnd = new Date(m0.getFullYear(), m0.getMonth(), 0); prevEnd.setHours(23, 59, 59, 999);
+
+            curSeries.push(sumMetricInRange(start, end));
+            prevSeries.push(sumMetricInRange(prevStart, prevEnd));
+        });
     } else {
         for (let m = 0; m < 12; m++) labels.push(`T${m + 1}`);
         const mapCur = {}; const mapPrev = {};
-        curTxns.forEach(t => { const d = new Date(t.date.split('T')[0] + 'T00:00:00'); const key = d.getMonth(); mapCur[key] = (mapCur[key] || 0) + t.amount; });
-        prevTxns.forEach(t => { const d = new Date(t.date.split('T')[0] + 'T00:00:00'); const key = d.getMonth(); mapPrev[key] = (mapPrev[key] || 0) + t.amount; });
-        for (let m = 0; m < 12; m++) { curSeries.push(aggregateByMetricForKey(mapCur[m] || 0)); prevSeries.push(aggregateByMetricForKey(mapPrev[m] || 0)); }
+
+        curTxns.forEach(t => {
+            const d = new Date(t.date.split('T')[0] + 'T00:00:00');
+            const key = d.getMonth();
+            mapCur[key] = (mapCur[key] || 0) + metricContribution(t.amount);
+        });
+        prevTxns.forEach(t => {
+            const d = new Date(t.date.split('T')[0] + 'T00:00:00');
+            const key = d.getMonth();
+            mapPrev[key] = (mapPrev[key] || 0) + metricContribution(t.amount);
+        });
+        for (let m = 0; m < 12; m++) {
+            curSeries.push(mapCur[m] || 0);
+            prevSeries.push(mapPrev[m] || 0);
+        }
     }
 
-    const sum = (arr) => arr.reduce((acc, t) => ({ inc: acc.inc + (t.amount > 0 ? t.amount : 0), exp: acc.exp + (t.amount < 0 ? Math.abs(t.amount) : 0) }), { inc: 0, exp: 0 });
+    const sum = (arr) => arr.reduce((acc, t) => ({
+        inc: acc.inc + (t.amount > 0 ? t.amount : 0),
+        exp: acc.exp + (t.amount < 0 ? Math.abs(t.amount) : 0)
+    }), { inc: 0, exp: 0 });
     const curSum = sum(curTxns);
     const prevSum = sum(prevTxns);
 
     updateTotalBlock(curSum, prevSum, period);
-    updateChartFromSeries(labels, curSeries, prevSeries, period);
+    updateChartFromSeries(labels, curSeries, prevSeries, period, { tooltipTitles });
     renderTopCategories(curTxns, prevTxns, period);
     updatePeriodLabel(period, anchor);
 }
@@ -291,7 +340,7 @@ function updatePeriodLabel(period, anchor) {
     const el = document.getElementById('currentPeriodLabel'); if (!el) return;
     const a = new Date(anchor || new Date());
     let label = '';
-    
+
     if (period === 'week') {
         const day = a.getDay();
         const diff = a.getDate() - day + (day === 0 ? -6 : 1);
@@ -301,8 +350,8 @@ function updatePeriodLabel(period, anchor) {
         const endDay = end.getDate();
         const startMonth = start.toLocaleString(userCurrency.locale, { month: 'short' });
         const endMonth = end.toLocaleString(userCurrency.locale, { month: 'short' });
-        label = startMonth === endMonth 
-            ? `${startDay} - ${endDay} ${startMonth}` 
+        label = startMonth === endMonth
+            ? `${startDay} - ${endDay} ${startMonth}`
             : `${startDay} ${startMonth} - ${endDay} ${endMonth}`;
     } else if (period === 'month') {
         label = `${a.toLocaleString(userCurrency.locale, { month: 'long', year: 'numeric' })}`;
@@ -313,7 +362,7 @@ function updatePeriodLabel(period, anchor) {
 }
 
 // CẬP NHẬT BIỂU ĐỒ TỪ DÃY SỐ LIỆU
-function updateChartFromSeries(labels, curData, prevData, period) {
+function updateChartFromSeries(labels, curData, prevData, period, meta) {
     const ctx = document.getElementById('trendChart').getContext('2d');
     if (trendChartInstance) trendChartInstance.destroy();
 
@@ -322,6 +371,7 @@ function updateChartFromSeries(labels, curData, prevData, period) {
 
     const p = period || currentPeriod;
     const periodText = getPeriodVietnamese(p);
+    const tooltipTitles = meta?.tooltipTitles || null;
 
     // Legend labels similar to mobile UI
     const labelCurrent = currentMetric === 'income'
@@ -336,7 +386,9 @@ function updateChartFromSeries(labels, curData, prevData, period) {
             : 'Chênh lệch cùng kỳ';
 
     const datasets = [{ label: labelCurrent, data: curData, backgroundColor: colorCur, borderRadius: 6, borderSkipped: false }];
-    if (document.getElementById('compareToggle').checked) datasets.push({ label: labelCompare, data: prevData, backgroundColor: colorPrev, borderRadius: 6, borderSkipped: false });
+    if (document.getElementById('compareToggle').checked) {
+        datasets.push({ label: labelCompare, data: prevData, backgroundColor: colorPrev, borderRadius: 6, borderSkipped: false });
+    }
 
     document.getElementById('chartTitle').textContent = 'Biến động';
 
@@ -348,14 +400,14 @@ function updateChartFromSeries(labels, curData, prevData, period) {
     const scale = getScaleUnit(maxAbs);
 
     // Improve axis readability
-    const xMaxTicks = (p === 'month') ? 8 : (p === 'week' ? 7 : 12);
+    const xMaxTicks = (p === 'month') ? 6 : (p === 'week' ? 7 : 12);
 
     trendChartInstance = new Chart(ctx, {
         type: 'bar',
         data: { labels: labels, datasets: datasets },
         options: {
             responsive: true, maintainAspectRatio: false,
-            scales: { 
+            scales: {
                 y: {
                     beginAtZero: true,
                     grid: { color: '#e5e5eb', drawBorder: false },
@@ -387,11 +439,15 @@ function updateChartFromSeries(labels, curData, prevData, period) {
                 },
                 tooltip: {
                     callbacks: {
-                        // For week view, show dd/MM/yyyy in tooltip title
                         title: (items) => {
                             if (!items || items.length === 0) return '';
-                            if (p !== 'week') return items[0].label || '';
                             const idx = items[0].dataIndex;
+
+                            if (p === 'month' && tooltipTitles) {
+                                return tooltipTitles[idx] || items[0].label || '';
+                            }
+                            if (p !== 'week') return items[0].label || '';
+
                             const day = new Date(currentAnchor);
                             const anchorDay = day.getDay();
                             const diff = day.getDate() - anchorDay + (anchorDay === 0 ? -6 : 1);
@@ -434,7 +490,6 @@ function renderTopCategories(curTxns, prevTxns, period) {
         const map = {};
         (txns || []).forEach((t) => {
             const v = toValue(t);
-            if (!v) return;
             const key = t.category || 'Khác';
             map[key] = (map[key] || 0) + v;
         });
