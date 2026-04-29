@@ -18,12 +18,13 @@
         /* HIỆU ỨNG NÚT BẤM CHO 3 THẺ */
         .trend-card { 
             padding: 20px; text-align: center; display: flex; flex-direction: column; justify-content: center; position: relative;
-            cursor: pointer; transition: all 0.2s ease; border: 1px solid #2a2a40;
+            cursor: pointer; transition: all 0.2s ease; border: 1px solid var(--border);
+            background: var(--bg-secondary);
         }
-        .trend-card:hover { border-color: #8a2be2; transform: translateY(-3px); box-shadow: 0 4px 12px rgba(138, 43, 226, 0.1); }
-        .trend-card.active { border-color: #d4a5ff; background: #1e1e2f; box-shadow: 0 0 15px rgba(212, 165, 255, 0.15); }
+        .trend-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+        .trend-card.active { border-color: var(--accent); background: var(--bg-secondary); }
         
-        .trend-title { color: #a1a1aa; font-size: 0.95rem; margin-bottom: 8px; font-weight: 500; }
+        .trend-title { color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 8px; font-weight: 500; }
         .trend-value { font-size: 1.8rem; font-weight: bold; margin-bottom: 5px; }
         
         .badge { display: inline-block; padding: 4px 8px; border-radius: 6px; font-size: 0.8rem; font-weight: bold; }
@@ -33,40 +34,25 @@
         .badge.down.good { background: #4ade8020; color: #4ade80; } 
         .badge.neutral { background: #2a2a40; color: #a1a1aa; }
 
-        .category-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; border-bottom: 1px solid rgba(245, 215, 231, 0.6); }
-        .category-item:last-child { border-bottom: none; }
-        .progress-bar-bg { width: 100%; background: rgba(212, 165, 255, 0.2); height: 6px; border-radius: 3px; margin-top: 8px; overflow: hidden; }
-        .progress-bar-fill { height: 100%; border-radius: 3px; transition: width 0.5s ease; }
-
-        body {
+        .trend-category-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 16px;
+            border: 1px solid var(--border);
+            border-radius: 16px;
             background: var(--bg-primary);
+            margin-bottom: 10px;
         }
 
-        html[data-theme='light'] body {
-            background:
-                radial-gradient(circle at top left, rgba(255, 255, 255, 0.7), transparent 30%),
-                linear-gradient(180deg, #f8cadf 0%, #f7e7ef 24%, #f8f8fc 100%);
+        .trend-category-item:last-child {
+            margin-bottom: 0;
         }
-
-        @media (prefers-color-scheme: light) {
-            :root:not([data-theme]) body {
-                background:
-                    radial-gradient(circle at top left, rgba(255, 255, 255, 0.7), transparent 30%),
-                    linear-gradient(180deg, #f8cadf 0%, #f7e7ef 24%, #f8f8fc 100%);
-            }
-        }
+        .progress-bar-bg { width: 100%; background: rgba(105, 175, 222, 0.20); height: 6px; border-radius: 3px; margin-top: 8px; overflow: hidden; }
+        .progress-bar-fill { height: 100%; border-radius: 3px; transition: width 0.5s ease; }
 
         .container {
             max-width: 760px;
-        }
-
-        .nav-bar {
-            background: rgba(255, 255, 255, 0.7);
-            border: 1px solid rgba(255, 255, 255, 0.8);
-            backdrop-filter: blur(12px);
-            border-radius: 18px;
-            padding-inline: 10px;
-            box-shadow: 0 10px 28px rgba(170, 120, 150, 0.10);
         }
 
         .nav-button,
@@ -75,14 +61,10 @@
         }
 
         .form-container {
-            border-radius: 24px !important;
-            border: 1px solid rgba(245, 215, 231, 0.95) !important;
-            box-shadow: 0 14px 28px rgba(170, 120, 150, 0.08);
-            background: rgba(255, 255, 255, 0.86) !important;
+            border: 1px solid var(--border);
         }
 
         h2 {
-            color: #2f2f36 !important;
             margin-top: 16px;
             margin-bottom: 14px !important;
         }
@@ -94,31 +76,27 @@
         }
 
         #btnWeek.active, #btnMonth.active, #btnYear.active {
-            background: #e63e93 !important;
-            border-color: #e63e93 !important;
-            color: white !important;
-            box-shadow: 0 8px 20px rgba(230, 62, 147, 0.18);
+            background: var(--accent) !important;
+            border-color: var(--accent) !important;
+            color: var(--bg-primary) !important;
         }
 
         #cardIncome, #cardExpense, #cardBalance {
             border-radius: 24px;
-            border: 1px solid rgba(245, 215, 231, 0.95);
-            background: rgba(255,255,255,.88);
-            box-shadow: 0 14px 28px rgba(170, 120, 150, 0.08);
+            border: 1px solid var(--border);
+            background: var(--bg-secondary);
         }
 
         #cardExpense.active {
-            background: rgba(255, 255, 255, 0.96) !important;
-            border-color: rgba(230, 62, 147, 0.30) !important;
-            box-shadow: 0 18px 35px rgba(230, 62, 147, 0.12);
+            border-color: var(--accent) !important;
         }
 
-        .trend-title { color: #6c6c77; }
+        .trend-title { color: var(--text-secondary); }
 
         .trend-value {
             font-size: 1.9rem;
             letter-spacing: -0.04em;
-            color: #2a2a31 !important;
+            color: var(--text-primary) !important;
         }
 
         .badge {
@@ -126,9 +104,7 @@
             padding: 5px 10px;
         }
 
-        #chartTitle, #topCategoriesTitle {
-            color: #2f2f36 !important;
-        }
+        #chartTitle, #topCategoriesTitle { color: var(--text-primary) !important; }
 
         .trend-summary-line {
             margin-bottom: 14px;
@@ -144,24 +120,22 @@
         .trend-summary-line.good { background: linear-gradient(135deg, rgba(74, 222, 128, 0.15), rgba(74, 222, 128, 0.05)); color: #1f9d55; border-left: 4px solid #4ade80; }
         .trend-summary-line.bad { background: linear-gradient(135deg, rgba(249, 115, 22, 0.15), rgba(249, 115, 22, 0.05)); color: #d97706; border-left: 4px solid #f97316; }
 
-        #topCategoriesContainer .category-item {
-            border-bottom-color: rgba(240, 210, 228, 0.65);
-            background: rgba(255, 255, 255, 0.4);
+        #topCategoriesContainer .trend-category-item {
+            border-color: var(--border);
         }
 
         #compareToggle {
-            accent-color: #e63e93;
+            accent-color: var(--accent);
         }
 
         .segmented {
             display: flex;
             width: 100%;
             gap: 0;
-            background: rgba(255,255,255,0.65);
-            border: 1px solid rgba(245, 215, 231, 0.95);
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
             border-radius: 999px;
             padding: 6px;
-            box-shadow: 0 10px 22px rgba(170, 120, 150, 0.07);
         }
 
         .segmented button {
@@ -170,30 +144,28 @@
             padding: 10px 12px;
             border: none;
             background: transparent;
-            color: #2f2f36;
+            color: var(--text-primary);
             font-weight: 700;
             cursor: pointer;
             transition: background 0.18s ease, transform 0.18s ease, color 0.18s ease;
         }
 
         .segmented button.active {
-            background: #ffffff;
-            color: #e63e93;
-            box-shadow: 0 10px 22px rgba(230, 62, 147, 0.10);
+            background: var(--bg-primary);
+            color: var(--accent);
         }
 
         .trend-total {
             border-radius: 22px;
-            border: 1px solid rgba(245, 215, 231, 0.95);
-            background: rgba(255,255,255,0.92);
-            box-shadow: 0 14px 28px rgba(170, 120, 150, 0.08);
+            border: 1px solid var(--border);
+            background: var(--bg-secondary);
             padding: 18px 16px;
             text-align: center;
             margin-bottom: 16px;
         }
 
         .trend-total .label {
-            color: #6c6c77;
+            color: var(--text-secondary);
             font-weight: 700;
             letter-spacing: -0.01em;
             margin-bottom: 4px;
@@ -203,7 +175,7 @@
             font-size: 2.1rem;
             font-weight: 900;
             letter-spacing: -0.05em;
-            color: #2a2a31;
+            color: var(--text-primary);
         }
 
         .delta-pill {
@@ -214,7 +186,7 @@
             align-items: center;
             gap: 10px;
             font-weight: 800;
-            border: 1px solid rgba(245, 215, 231, 0.75);
+            border: 1px solid var(--border);
         }
 
         .delta-pill.good { background: rgba(74, 222, 128, 0.14); color: #1f9d55; }
@@ -240,7 +212,7 @@
             display: inline-flex;
             align-items: center;
             gap: 10px;
-            color: #6c6c77;
+            color: var(--text-secondary);
             font-weight: 700;
         }
 
@@ -288,14 +260,14 @@
                 <a href="/" class="view-button" data-tooltip="Dashboard"><i class="fa-solid fa-chart-pie"></i></a>
                 <a href="/history" class="view-button" data-tooltip="Hoạt động"><i class="fa-solid fa-clock-rotate-left"></i></a>
                 <a href="/lich" class="view-button" data-tooltip="Lịch"><i class="fa-solid fa-calendar-days"></i></a>
-                <a href="/trends" class="view-button active" data-tooltip="Biến động" style="color: #d4a5ff;"><i class="fa-solid fa-chart-line"></i></a>
+                <a href="/trends" class="view-button active" data-tooltip="Biến động"><i class="fa-solid fa-chart-line"></i></a>
                 <a href="/suggestions" class="view-button" data-tooltip="Gợi Ý AI"><i class="fa-solid fa-lightbulb"></i></a>
                 <a href="/settings" class="view-button" data-tooltip="Cài Đặt"><i class="fa-solid fa-gear"></i></a>
                 <a href="javascript:void(0)" class="view-button" onclick="logout()" data-tooltip="Đăng Xuất" style="margin-left: auto; color: #ff4d4d;"><i class="fa-solid fa-right-from-bracket"></i></a>
             </div>
         </header>
 
-        <h2 style="text-align: center; color: #d4a5ff; margin-bottom: 20px;"><i class="fa-solid fa-chart-line"></i> Biến động thu chi</h2>
+        <h2 style="text-align: center; margin-bottom: 20px;"><i class="fa-solid fa-chart-line"></i> Biến động thu chi</h2>
 
         <div class="form-container" style="padding: 16px 16px; margin-bottom: 16px;">
             <div class="segmented" style="margin-bottom: 12px;">
@@ -313,7 +285,7 @@
 
         <div style="display: flex; justify-content: center; align-items: center; gap: 15px; margin-bottom: 20px; padding: 0 10px;">
             <button id="prevPeriod" class="nav-button" style="border-radius: 50%; width: 40px; height: 40px; padding: 0; display: flex; align-items: center; justify-content: center;"><i class="fa-solid fa-chevron-left"></i></button>
-            <div id="currentPeriodLabel" style="text-align: center; min-width: 180px; color: #2f2f36; font-weight: bold; font-size: 1.05rem; line-height: 1.4;"></div>
+            <div id="currentPeriodLabel" style="text-align: center; min-width: 180px; color: var(--text-primary); font-weight: bold; font-size: 1.05rem; line-height: 1.4;"></div>
             <button id="nextPeriod" class="nav-button" style="border-radius: 50%; width: 40px; height: 40px; padding: 0; display: flex; align-items: center; justify-content: center;"><i class="fa-solid fa-chevron-right"></i></button>
         </div>
 
@@ -323,9 +295,9 @@
             <div id="trendDeltaPill" class="delta-pill good" style="display:none;"></div>
         </div>
 
-        <div class="form-container" style="padding: 20px; margin-bottom: 20px; background: linear-gradient(135deg, rgba(255,255,255,0.92), rgba(250,245,255,0.88));">
+        <div class="form-container" style="padding: 20px; margin-bottom: 20px;">
             <div class="trend-section-header">
-                <h3 id="chartTitle" style="color: #2f2f36; text-align: left; font-size: 1.1rem;">Biến động</h3>
+                <h3 id="chartTitle" style="text-align: left; font-size: 1.1rem;">Biến động</h3>
                 <label class="compare-inline" for="compareToggle">
                     <span>So với cùng kỳ</span>
                     <input type="checkbox" id="compareToggle" class="styled-checkbox" style="transform: scale(1.1); cursor: pointer;" checked>
@@ -336,10 +308,10 @@
             </div>
         </div>
 
-        <div class="form-container" style="padding: 20px; background: linear-gradient(135deg, rgba(255,255,255,0.92), rgba(250,245,255,0.88));">
-            <h3 id="topCategoriesTitle" style="margin-top: 0; color: #2f2f36; font-size: 1.1rem;"><i class="fa-solid fa-layer-group" style="color: #e63e93;"></i> Danh mục</h3>
+        <div class="form-container" style="padding: 20px;">
+            <h3 id="topCategoriesTitle" style="margin-top: 0; color: var(--text-primary); font-size: 1.1rem;"><i class="fa-solid fa-layer-group"></i> Danh mục</h3>
             <div id="topCategoriesContainer">
-                <div style="text-align: center; color: #a1a1aa; padding: 10px;">Đang tính toán...</div>
+                <div style="text-align: center; color: var(--text-secondary); padding: 10px;">Đang tính toán...</div>
             </div>
         </div>
 

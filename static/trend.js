@@ -17,6 +17,10 @@ var currentPeriod = 'month';
 var currentMetric = 'expense'; // Lưu trạng thái nút đang chọn ('income', 'expense', 'balance')
 var currentAnchor = new Date(); // reference date for the currently selected period
 
+// chart interaction state
+var selectedBarIndex = null;
+var lastBaseCategoryContext = { curTxns: [], prevTxns: [], period: 'month' };
+
 var userCurrency = { code: 'VND', locale: 'vi-VN', rate: 1.0 };
 
 function getScaleUnit(maxAbs) {
@@ -130,6 +134,49 @@ function metricContribution(amount) {
     return amount;
 }
 
+function filterTxnsInRange(txns, start, end) {
+    const s = start.getTime();
+    const e = end.getTime();
+    return (txns || []).filter((t) => {
+        const d = new Date(t.date.split('T')[0] + 'T00:00:00').getTime();
+        return d >= s && d <= e;
+    });
+}
+
+function formatMonthYear(date) {
+    const d = new Date(date);
+    return `${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+}
+
+function escapeHtml(str) {
+    return String(str)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;');
+}
+
+function getCssVar(name, fallback) {
+    try {
+        const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+        return v || fallback;
+    } catch {
+        return fallback;
+    }
+}
+
+function hexToRgba(hex, alpha) {
+    const h = String(hex || '').trim();
+    const m = h.match(/^#?([0-9a-f]{6})$/i);
+    if (!m) return h;
+    const int = parseInt(m[1], 16);
+    const r = (int >> 16) & 255;
+    const g = (int >> 8) & 255;
+    const b = int & 255;
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 function processAndRenderTrends(period, anchorDate) {
     currentPeriod = period;
     const anchor = anchorDate ? new Date(anchorDate) : new Date();
@@ -168,11 +215,26 @@ function processAndRenderTrends(period, anchorDate) {
     let curSeries = [];
     let prevSeries = [];
     let tooltipTitles = null;
+    let segments = [];
 
     if (period === 'week') {
         for (let i = 0; i < 7; i++) {
             const d = new Date(cS); d.setDate(cS.getDate() + i);
             labels.push(getWeekdayLabel(d));
+            const segStart = new Date(d); segStart.setHours(0, 0, 0, 0);
+            const segEnd = new Date(d); segEnd.setHours(23, 59, 59, 999);
+
+            const pd = new Date(pS); pd.setDate(pS.getDate() + i);
+            const prevStart = new Date(pd); prevStart.setHours(0, 0, 0, 0);
+            const prevEnd = new Date(pd); prevEnd.setHours(23, 59, 59, 999);
+
+            segments.push({
+                start: segStart,
+                end: segEnd,
+                prevStart,
+                prevEnd,
+                title: segStart.toLocaleDateString('vi-VN')
+            });
         }
         const mapCur = {}; const mapPrev = {};
         curTxns.forEach(t => {
@@ -221,6 +283,14 @@ function processAndRenderTrends(period, anchorDate) {
 
             curSeries.push(sumMetricInRange(start, end));
             prevSeries.push(sumMetricInRange(prevStart, prevEnd));
+
+            segments.push({
+                start,
+                end,
+                prevStart,
+                prevEnd,
+                title: formatMonthYear(start)
+            });
         });
     } else {
         for (let m = 0; m < 12; m++) labels.push(`T${m + 1}`);
@@ -239,6 +309,19 @@ function processAndRenderTrends(period, anchorDate) {
         for (let m = 0; m < 12; m++) {
             curSeries.push(mapCur[m] || 0);
             prevSeries.push(mapPrev[m] || 0);
+
+            const start = new Date(anchor.getFullYear(), m, 1); start.setHours(0, 0, 0, 0);
+            const end = new Date(anchor.getFullYear(), m + 1, 0); end.setHours(23, 59, 59, 999);
+            const prevStart = new Date(anchor.getFullYear() - 1, m, 1); prevStart.setHours(0, 0, 0, 0);
+            const prevEnd = new Date(anchor.getFullYear() - 1, m + 1, 0); prevEnd.setHours(23, 59, 59, 999);
+
+            segments.push({
+                start,
+                end,
+                prevStart,
+                prevEnd,
+                title: formatMonthYear(start)
+            });
         }
     }
 
@@ -250,8 +333,12 @@ function processAndRenderTrends(period, anchorDate) {
     const prevSum = sum(prevTxns);
 
     updateTotalBlock(curSum, prevSum, period);
-    updateChartFromSeries(labels, curSeries, prevSeries, period, { tooltipTitles });
-    renderTopCategories(curTxns, prevTxns, period);
+    // Base context for category list (when no bar selected)
+    lastBaseCategoryContext = { curTxns, prevTxns, period };
+    selectedBarIndex = null;
+
+    updateChartFromSeries(labels, curSeries, prevSeries, period, { tooltipTitles, segments });
+    renderTopCategories(curTxns, prevTxns, period, null);
     updatePeriodLabel(period, anchor);
 }
 
@@ -366,12 +453,17 @@ function updateChartFromSeries(labels, curData, prevData, period, meta) {
     const ctx = document.getElementById('trendChart').getContext('2d');
     if (trendChartInstance) trendChartInstance.destroy();
 
-    const colorCur = currentMetric === 'expense' ? '#f87171' : currentMetric === 'income' ? '#4ade80' : '#8b5cf6';
-    const colorPrev = currentMetric === 'expense' ? '#fca5a5' : currentMetric === 'income' ? '#86efac' : '#c4b5fd';
+    const themeAccent = getCssVar('--accent', '#69afde');
+    const themeBorder = getCssVar('--border', '#1a365d');
+    const themeTick = getCssVar('--text-secondary', '#b3b3b3');
+
+    const colorCur = currentMetric === 'expense' ? '#f87171' : currentMetric === 'income' ? '#4ade80' : themeAccent;
+    const colorPrev = currentMetric === 'expense' ? '#fca5a5' : currentMetric === 'income' ? '#86efac' : hexToRgba(themeAccent, 0.45);
 
     const p = period || currentPeriod;
     const periodText = getPeriodVietnamese(p);
     const tooltipTitles = meta?.tooltipTitles || null;
+    const segments = meta?.segments || [];
 
     // Legend labels similar to mobile UI
     const labelCurrent = currentMetric === 'income'
@@ -402,31 +494,69 @@ function updateChartFromSeries(labels, curData, prevData, period, meta) {
     // Improve axis readability
     const xMaxTicks = (p === 'month') ? 6 : (p === 'week' ? 7 : 12);
 
+    const handleClick = (evt) => {
+        if (!trendChartInstance) return;
+        const nativeEvt = (evt && evt.native) ? evt.native : evt;
+        const rect = trendChartInstance.canvas?.getBoundingClientRect?.();
+        const x = rect && nativeEvt ? (nativeEvt.clientX - rect.left) : undefined;
+        const y = rect && nativeEvt ? (nativeEvt.clientY - rect.top) : undefined;
+        const chartEvt = (evt && evt.native) ? evt : { native: nativeEvt, x, y };
+
+        const points = trendChartInstance.getElementsAtEventForMode(chartEvt, 'nearest', { intersect: true }, true);
+
+        // Click outside bars: reset to base period categories
+        if (!points || points.length === 0) {
+            if (selectedBarIndex !== null) {
+                selectedBarIndex = null;
+                renderTopCategories(lastBaseCategoryContext.curTxns, lastBaseCategoryContext.prevTxns, lastBaseCategoryContext.period, null);
+            }
+            return;
+        }
+
+        const idx = points[0].index;
+
+        // Click the same bar again: toggle back to base
+        if (selectedBarIndex === idx) {
+            selectedBarIndex = null;
+            renderTopCategories(lastBaseCategoryContext.curTxns, lastBaseCategoryContext.prevTxns, lastBaseCategoryContext.period, null);
+            return;
+        }
+
+        selectedBarIndex = idx;
+        const seg = segments[idx];
+        if (!seg) return;
+
+        const segCur = filterTxnsInRange(allTrendTransactions, seg.start, seg.end);
+        const segPrev = filterTxnsInRange(allTrendTransactions, seg.prevStart, seg.prevEnd);
+        renderTopCategories(segCur, segPrev, p, seg.title || labels[idx] || null);
+    };
+
     trendChartInstance = new Chart(ctx, {
         type: 'bar',
         data: { labels: labels, datasets: datasets },
         options: {
+            onClick: handleClick,
             responsive: true, maintainAspectRatio: false,
             scales: {
                 y: {
                     beginAtZero: true,
-                    grid: { color: '#e5e5eb', drawBorder: false },
+                    grid: { color: themeBorder, drawBorder: false },
                     ticks: {
                         callback: (v) => formatScaledTick(v, scale.divisor),
-                        color: '#6c6c77',
+                        color: themeTick,
                         font: { size: 11 }
                     },
                     title: {
                         display: !!scale.unit,
                         text: scale.unit ? `(${scale.unit})` : '',
-                        color: '#6c6c77',
+                        color: themeTick,
                         font: { size: 11, weight: 'bold' }
                     }
                 },
                 x: {
                     grid: { display: false, drawBorder: false },
                     ticks: {
-                        color: '#6c6c77',
+                        color: themeTick,
                         font: { size: 11 },
                         maxTicksLimit: xMaxTicks
                     }
@@ -434,7 +564,7 @@ function updateChartFromSeries(labels, curData, prevData, period, meta) {
             },
             plugins: {
                 legend: {
-                    labels: { color: '#6c6c77', font: { size: 11, weight: 'bold' }, padding: 15 },
+                    labels: { color: themeTick, font: { size: 11, weight: 'bold' }, padding: 15 },
                     position: 'bottom'
                 },
                 tooltip: {
@@ -464,10 +594,17 @@ function updateChartFromSeries(labels, curData, prevData, period, meta) {
             }
         }
     });
+
+    // Attach a direct canvas click handler for reliable interaction
+    const canvas = document.getElementById('trendChart');
+    if (canvas) {
+        canvas.style.cursor = 'pointer';
+        canvas.onclick = handleClick;
+    }
 }
 
 // CẬP NHẬT TOP DANH MỤC THEO THẺ ĐANG CHỌN
-function renderTopCategories(curTxns, prevTxns, period) {
+function renderTopCategories(curTxns, prevTxns, period, titleSuffix) {
     const container = document.getElementById('topCategoriesContainer');
     const titleEl = document.getElementById('topCategoriesTitle');
     if (!container || !titleEl) return;
@@ -476,9 +613,16 @@ function renderTopCategories(curTxns, prevTxns, period) {
     const periodText = getPeriodVietnamese(period || currentPeriod);
 
     // Title
-    if (currentMetric === 'income') titleEl.innerHTML = 'Danh mục (Thu nhập)';
-    else if (currentMetric === 'expense') titleEl.innerHTML = 'Danh mục (Chi tiêu)';
-    else titleEl.innerHTML = 'Danh mục (Chênh lệch)';
+    let baseTitle = '';
+    if (currentMetric === 'income') baseTitle = 'Danh mục (Thu nhập)';
+    else if (currentMetric === 'expense') baseTitle = 'Danh mục (Chi tiêu)';
+    else baseTitle = 'Danh mục (Chênh lệch)';
+
+    if (titleSuffix) {
+        titleEl.innerHTML = `${baseTitle} <span style="font-size: 0.85rem; color: var(--text-secondary); font-weight:700;">— ${escapeHtml(titleSuffix)}</span>`;
+    } else {
+        titleEl.innerHTML = baseTitle;
+    }
 
     const toValue = (t) => {
         if (currentMetric === 'income') return t.amount > 0 ? t.amount : 0;
@@ -506,7 +650,7 @@ function renderTopCategories(curTxns, prevTxns, period) {
     });
 
     if (entries.length === 0) {
-        container.innerHTML = `<div style="text-align:center; color:#6c6c77; padding:15px;">Không có dữ liệu trong khoảng thời gian này</div>`;
+        container.innerHTML = `<div style="text-align:center; color: var(--text-secondary); padding:15px;">Không có dữ liệu trong khoảng thời gian này</div>`;
         return;
     }
 
@@ -529,14 +673,14 @@ function renderTopCategories(curTxns, prevTxns, period) {
                     <i class="fa-solid fa-arrow-trend-${arrow}"></i>
                     <span>${formatCurrencySafe(deltaAbs)}</span>
                 </div>
-                <div style="margin-top: 2px; font-size: 0.85rem; color:#6c6c77; font-weight:700; text-align:right;">So với cùng kỳ ${periodText} trước</div>`
+                <div style="margin-top: 2px; font-size: 0.85rem; color: var(--text-secondary); font-weight:700; text-align:right;">So với cùng kỳ ${periodText} trước</div>`
             : '';
 
-        return `<div class="category-item">
+        return `<div class="trend-category-item">
             <div style="flex:1; display:flex; align-items:flex-start; justify-content:space-between; gap: 12px;">
-                <div style="font-weight: 800; color:#2f2f36;">${name}</div>
+                <div style="font-weight: 800; color: var(--text-primary);">${name}</div>
                 <div style="text-align:right; min-width: 120px;">
-                    <div style="font-weight: 900; color:#2f2f36;">${formatCurrencySafe(curVal)}</div>
+                    <div style="font-weight: 900; color: var(--text-primary);">${formatCurrencySafe(curVal)}</div>
                     ${deltaLine}
                 </div>
             </div>
