@@ -6,22 +6,35 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
     <link rel="stylesheet" href="/static/style.css" />
     <title>Lập Kế Hoạch - ExpenseOwl</title>
+    <script>
+        (function() {
+            const theme = localStorage.getItem('theme') || 'system';
+            if (theme === 'light') { document.documentElement.setAttribute('data-theme', 'light'); } 
+            else if (theme === 'dark') { document.documentElement.setAttribute('data-theme', 'dark'); }
+        })();
+    </script>
     <style>
         .jars-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 30px; }
         .jar-card { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 12px; padding: 20px; transition: all 0.3s ease; text-align: center; }
-        .jar-card:hover { border-color: #8a2be2; transform: translateY(-5px); box-shadow: 0 0 15px rgba(138, 43, 226, 0.3); }
+        .jar-card:hover { border-color: var(--accent); transform: translateY(-5px); box-shadow: 0 0 15px rgba(138, 43, 226, 0.2); }
         .progress-container { background: var(--bg-primary); height: 12px; border-radius: 6px; overflow: hidden; margin: 10px 0; border: 1px solid var(--border); }
         .progress-bar { height: 100%; transition: width 0.5s ease; }
         .budget-card { background: var(--bg-secondary); border: 1px solid var(--border); padding: 20px; border-radius: 12px; margin-bottom: 15px; }
-        .wizard-input { width: 100%; padding: 12px; border-radius: 8px; background: #151521; color: #fff; border: 1px solid #2a2a40; outline: none; box-sizing: border-box; }
+        
+        /* Đồng bộ ô nhập liệu */
+        .wizard-input { 
+            width: 100%; padding: 12px; border-radius: 8px; 
+            background-color: var(--bg-primary); color: var(--text-primary); 
+            border: 1px solid var(--border); outline: none; box-sizing: border-box; font-family: inherit;
+        }
         
         .jar-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; }
         .jar-row input { margin-bottom: 0; }
         .btn-remove-jar { background: none; border: none; color: #ff4d4d; font-size: 1.2rem; cursor: pointer; padding: 5px; }
 
-        /* CSS Hệ thống Thông báo (Toast) góc trên bên phải */
+        /* Đồng bộ Toast */
         #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; }
-        .toast { background: linear-gradient(145deg, #1e1e2d, #2a2a40); border-left: 4px solid #4ade80; color: #fff; padding: 15px 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); display: flex; align-items: center; gap: 12px; font-weight: 500; transform: translateX(120%); opacity: 0; transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55); }
+        .toast { background-color: var(--bg-secondary); border-left: 4px solid #4ade80; color: var(--text-primary); padding: 15px 20px; border-radius: 8px; border-top: 1px solid var(--border); border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: flex; align-items: center; gap: 12px; font-weight: 500; transform: translateX(120%); opacity: 0; transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55); }
         .toast.show { transform: translateX(0); opacity: 1; }
         .toast.error { border-left-color: #ff4d4d; }
     </style>
@@ -41,17 +54,17 @@
             </div>
         </header>
 
-        <div class="form-container" style="margin-top: 20px; border-top: 3px solid #8a2be2;">
+        <div class="form-container" style="margin-top: 20px; border-top: 3px solid var(--accent); background-color: var(--bg-secondary); border-left: 1px solid var(--border); border-right: 1px solid var(--border); border-bottom: 1px solid var(--border);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h2 style="color: #d4a5ff; margin: 0;"><i class="fa-solid fa-boxes-stacked"></i> Hũ Tài Chính (Jars)</h2>
-                <button onclick="toggleJarSetup()" class="nav-button" style="background: #2a2a40; width: auto; padding: 8px 15px;">
+                <h2 style="color: var(--accent); margin: 0;"><i class="fa-solid fa-boxes-stacked"></i> Hũ Tài Chính (Jars)</h2>
+                <button onclick="toggleJarSetup()" class="nav-button" style="background-color: var(--bg-primary); border: 1px solid var(--border); color: var(--text-primary); width: auto; padding: 8px 15px;">
                     <i class="fa-solid fa-sliders"></i> Cấu hình Hũ
                 </button>
             </div>
 
-            <div id="jarSetupContainer" style="display: none; background: #151521; padding: 20px; border-radius: 12px; border: 1px dashed #8a2be2; margin-bottom: 25px;">
-                <h3 style="color: #fff; margin-top: 0;">Thiết lập tỷ lệ chia Hũ</h3>
-                <p style="color: #a0a0b0; font-size: 0.9rem; margin-bottom: 15px;">Tổng phần trăm của tất cả các hũ phải đúng bằng 100%.</p>
+            <div id="jarSetupContainer" style="display: none; background-color: var(--bg-primary); padding: 20px; border-radius: 12px; border: 1px dashed var(--accent); margin-bottom: 25px;">
+                <h3 style="color: var(--text-primary); margin-top: 0;">Thiết lập tỷ lệ chia Hũ</h3>
+                <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 15px;">Tổng phần trăm của tất cả các hũ phải đúng bằng 100%.</p>
                 
                 <div id="jarRowsContainer"></div>
                 
@@ -59,31 +72,31 @@
                     <i class="fa-solid fa-plus"></i> Thêm Hũ
                 </button>
 
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px; border-top: 1px solid #2a2a40; padding-top: 15px;">
-                    <div style="font-size: 1.1rem; font-weight: bold; color: #fff;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px; border-top: 1px solid var(--border); padding-top: 15px;">
+                    <div style="font-size: 1.1rem; font-weight: bold; color: var(--text-primary);">
                         Tổng cộng: <span id="totalPercentText" style="color: #ff4d4d;">0</span>%
                     </div>
-                    <button id="btnSaveJars" onclick="saveJarsBulk()" class="nav-button" style="background: #8a2be2; width: auto; padding: 10px 25px;">
+                    <button id="btnSaveJars" onclick="saveJarsBulk()" class="nav-button" style="background-color: var(--accent); color: white; border: none; width: auto; padding: 10px 25px;">
                         <i class="fa-solid fa-save"></i> Lưu Cấu Hình
                     </button>
                 </div>
             </div>
 
             <div id="jarsContainer" class="jars-grid">
-                <p style="color: #a0a0b0; font-style: italic; text-align: center;">Đang tải dữ liệu hũ...</p>
+                <p style="color: var(--text-secondary); font-style: italic; text-align: center; grid-column: 1/-1;">Đang tải dữ liệu hũ...</p>
             </div>
         </div>
 
-        <div class="form-container" style="background: linear-gradient(145deg, #1e1e2d, #2a2a40); border: 1px solid #8a2be2;">
-            <h2 style="color: #d4a5ff; margin-bottom: 20px; text-align: center;"><i class="fa-solid fa-bullseye"></i> Ngân Sách Chi Tiêu Tháng</h2>
-            <p style="text-align: center; color: #a0a0b0; font-size: 0.9rem; margin-bottom: 20px;">Điền hạn mức cho từng danh mục để Cú Mèo giúp bạn kiểm soát chi tiêu.</p>
+        <div class="form-container" style="background-color: var(--bg-secondary); border: 1px solid var(--border);">
+            <h2 style="color: var(--accent); margin-bottom: 20px; text-align: center;"><i class="fa-solid fa-bullseye"></i> Ngân Sách Chi Tiêu Tháng</h2>
+            <p style="text-align: center; color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 20px;">Điền hạn mức cho từng danh mục để Cú Mèo giúp bạn kiểm soát chi tiêu.</p>
     
             <div id="budgetInputsContainer" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; margin-bottom: 20px;">
-                </div>
+            </div>
 
-            <div style="text-align: right; border-top: 1px solid #2a2a40; padding-top: 15px; display: flex; justify-content: space-between; align-items: center;">
-                <div style="color: #fff; font-weight: bold;">Tổng hạn mức: <span id="totalBudgetDisplay" style="color: #4ade80;">0</span></div>
-                <button onclick="saveBudgetsBulk()" id="btnSaveAllBudgets" class="nav-button" style="background: #8a2be2; padding: 12px 30px; width: auto;">
+            <div style="text-align: right; border-top: 1px solid var(--border); padding-top: 15px; display: flex; justify-content: space-between; align-items: center;">
+                <div style="color: var(--text-primary); font-weight: bold;">Tổng hạn mức: <span id="totalBudgetDisplay" style="color: #4ade80;">0</span></div>
+                <button onclick="saveBudgetsBulk()" id="btnSaveAllBudgets" class="nav-button" style="background-color: var(--accent); color: white; border: none; padding: 12px 30px; width: auto;">
                     <i class="fa-solid fa-save"></i> Lưu Tất Cả Ngân Sách
                 </button>
             </div>
@@ -93,13 +106,13 @@
     </div>
 
     <div id="customConfirmModal" style="display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); align-items: center; justify-content: center;">
-        <div style="background: linear-gradient(145deg, #2a1e2d, #402a30); border: 2px solid #ff4d4d; border-radius: 12px; width: 90%; max-width: 450px; padding: 25px; box-shadow: 0 0 25px rgba(255, 77, 77, 0.4); text-align: center;">
+        <div style="background-color: var(--bg-secondary); border: 2px solid #ff4d4d; border-radius: 12px; width: 90%; max-width: 450px; padding: 25px; box-shadow: 0 0 25px rgba(255, 77, 77, 0.4); text-align: center;">
             <h3 style="color: #ff4d4d; margin-top: 0; margin-bottom: 15px;">
                 <i class="fa-solid fa-triangle-exclamation fa-beat"></i> Xác nhận xóa
             </h3>
-            <p id="confirmMessage" style="color: #e0e0e0; line-height: 1.6; margin-bottom: 25px; font-size: 15px;"></p>
+            <p id="confirmMessage" style="color: var(--text-secondary); line-height: 1.6; margin-bottom: 25px; font-size: 15px;"></p>
             <div style="display: flex; gap: 15px; justify-content: center;">
-                <button id="btnConfirmCancel" style="padding: 10px 20px; background-color: #4a4a60; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">Hủy bỏ</button>
+                <button id="btnConfirmCancel" style="padding: 10px 20px; background-color: var(--bg-primary); color: var(--text-primary); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; font-weight: bold;">Hủy bỏ</button>
                 <button id="btnConfirmProceed" style="padding: 10px 20px; background-color: #ff4d4d; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">Đồng ý Xóa</button>
             </div>
         </div>
@@ -260,12 +273,11 @@
 
                 window.categoriesList.forEach(cat => {
                     const found = existingBudgets.find(b => b.category === cat);
-                    // Chỉ hiện số nếu có ngân sách > 0
                     const currentLimit = found && found.limit_amount > 0 ? (found.limit_amount / rate).toFixed(0) : '';
 
                     container.innerHTML += `
-                        <div style="background: #151521; padding: 10px 15px; border-radius: 8px; display: flex; align-items: center; gap: 10px; border: 1px solid #2a2a40;">
-                            <span style="flex: 1; color: #d4a5ff; font-weight: 500;">${cat}</span>
+                        <div style="background-color: var(--bg-primary); padding: 10px 15px; border-radius: 8px; display: flex; align-items: center; gap: 10px; border: 1px solid var(--border);">
+                            <span style="flex: 1; color: var(--accent); font-weight: 500;">${cat}</span>
                             <input type="number" class="wizard-input budget-mass-input" 
                                    data-category="${cat}" 
                                    value="${currentLimit}" 
@@ -327,7 +339,6 @@
                 });
                 if (res.ok) {
                     showToast("Đã xóa ngân sách thành công!", "success");
-                    // Xóa số hiển thị trên ô nhập liệu
                     const input = document.querySelector(`.budget-mass-input[data-category="${category}"]`);
                     if(input) { input.value = ''; updateTotalBudgetSum(); }
                     await loadPlanningData(); 
@@ -351,20 +362,20 @@
                 jContainer.innerHTML = ''; 
 
                 if (jars.length === 0) {
-                    jContainer.innerHTML = '<p style="color: #a0a0b0; grid-column: 1/-1; text-align: center;">Chưa có hũ nào. Bấm "Cấu hình Hũ" để thiết lập nhé!</p>';
+                    jContainer.innerHTML = '<p style="color: var(--text-secondary); grid-column: 1/-1; text-align: center;">Chưa có hũ nào. Bấm "Cấu hình Hũ" để thiết lập nhé!</p>';
                 } else {
                     jars.forEach(j => {
                         jContainer.innerHTML += `
                             <div class="jar-card">
-                                <i class="fa-solid fa-piggy-bank" style="font-size:2rem;color:#d4a5ff;"></i>
-                                <div style="font-weight:bold;margin:10px 0;">${j.name}</div>
+                                <i class="fa-solid fa-piggy-bank" style="font-size:2rem;color:var(--accent);"></i>
+                                <div style="font-weight:bold; color: var(--text-primary); margin:10px 0;">${j.name}</div>
                                 <div style="color:#4ade80; font-size: 1.1rem;">${formatPlanMoney(j.balance / rate)}</div>
-                                <div style="font-size: 0.8rem; color: #a0a0b0; margin-top: 5px;">Tỷ lệ chia: ${j.percent}%</div>
+                                <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 5px;">Tỷ lệ chia: ${j.percent}%</div>
                             </div>`;
                     });
                 }
 
-                // 2. TẢI VÀ HIỂN THỊ NGÂN SÁCH (Chỉ vẽ những cái có limit_amount > 0)
+                // 2. TẢI VÀ HIỂN THỊ NGÂN SÁCH
                 const resBudgets = await fetch('/api/planning/budgets', { headers });
                 const budgets = await resBudgets.json();
                 const bContainer = document.getElementById('budgetsContainer');
@@ -373,7 +384,7 @@
                 const activeBudgets = budgets.filter(b => b.limit_amount > 0);
                 
                 if (activeBudgets.length === 0) {
-                    bContainer.innerHTML = '<p style="color: #a0a0b0; text-align: center; padding: 20px;">Bạn chưa thiết lập ngân sách nào cho tháng này.</p>';
+                    bContainer.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 20px;">Bạn chưa thiết lập ngân sách nào cho tháng này.</p>';
                 } else {
                     activeBudgets.forEach(b => {
                         const percent = Math.min((b.spent_amount / b.limit_amount) * 100, 100);
@@ -386,7 +397,7 @@
                         if (remaining > 0) {
                             const safeDaily = remaining / daysLeft;
                             smartSuggestionHTML = `
-                                <div style="font-size: 0.85rem; color: #a0a0b0; margin-top: 10px; display: flex; align-items: center; gap: 8px;">
+                                <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 10px; display: flex; align-items: center; gap: 8px;">
                                     <i class="fa-solid fa-lightbulb" style="color: #fbbf24;"></i>
                                     <span>Gợi ý: Nên tiêu tối đa <b>${formatPlanMoney(safeDaily)}</b> / ngày để an toàn.</span>
                                 </div>`;
@@ -401,7 +412,7 @@
                         bContainer.innerHTML += `
                             <div class="budget-card">
                                 <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-                                    <span style="font-weight: bold; color: #fff;">${b.category}</span>
+                                    <span style="font-weight: bold; color: var(--text-primary);">${b.category}</span>
                                     <div>
                                         <span style="color: var(--text-secondary); font-size: 0.9rem; margin-right: 15px;">
                                             Đã tiêu: ${formatPlanMoney(b.spent_amount/rate)} / Ngân sách: ${formatPlanMoney(b.limit_amount/rate)}
@@ -424,18 +435,15 @@
             const token = localStorage.getItem('token');
             if(!token) return;
 
-            // BƯỚC 1: Lấy khung sườn (Danh mục, Tiền tệ) và vẽ ngay lập tức. User sẽ thấy tốc độ phản hồi 0s.
             await syncSettingsAndData();
             await initBudgetInputs();
             await loadPlanningData();
 
-            // BƯỚC 2: Bí mật chạy lệnh quét giao dịch cũ ở phía Backend
             fetch('/api/planning/sync', { 
                 method: 'POST', 
                 headers: { 'Authorization': `Bearer ${token}` } 
             }).then(res => {
                 if (res.ok) {
-                    // BƯỚC 3: Vẽ lại con số sau khi Backend tính toán xong (Tránh hiện tượng trang bị trắng trong lúc chờ)
                     loadPlanningData();
                 }
             }).catch(e => console.error("Lỗi đồng bộ nền:", e));
