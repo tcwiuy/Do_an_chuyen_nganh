@@ -61,6 +61,10 @@ def render_suggestions(request: Request):
     # Trả về trang suggestions.html
     return templates.TemplateResponse(request=request, name="suggestions.html")
 
+@app.get("/trends", response_class=HTMLResponse)
+def render_trends(request: Request):
+    return templates.TemplateResponse(request=request, name="trend.html")
+
 # MOCK API CONFIG (Thêm vào main.py)
 @app.get("/api/config")
 def get_config():
