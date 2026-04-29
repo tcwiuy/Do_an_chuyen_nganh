@@ -13,17 +13,42 @@ window.exchangeRatesToVND = window.exchangeRatesToVND || {
 
 var allTrendTransactions = [];
 var trendChartInstance = null;
-var currentPeriod = 'week';
+var currentPeriod = 'month';
 var currentMetric = 'expense'; // Lưu trạng thái nút đang chọn ('income', 'expense', 'balance')
+var currentAnchor = new Date(); // reference date for the currently selected period
 
 var userCurrency = { code: 'VND', locale: 'vi-VN', rate: 1.0 };
+
+function getScaleUnit(maxAbs) {
+    if (!isFinite(maxAbs) || maxAbs <= 0) return { divisor: 1, unit: '' };
+    if (maxAbs >= 1_000_000_000) return { divisor: 1_000_000_000, unit: 'Tỷ' };
+    if (maxAbs >= 1_000_000) return { divisor: 1_000_000, unit: 'Triệu' };
+    if (maxAbs >= 1_000) return { divisor: 1_000, unit: 'Nghìn' };
+    return { divisor: 1, unit: '' };
+}
+
+function formatScaledTick(value, divisor) {
+    const v = Number(value) / (divisor || 1);
+    const abs = Math.abs(v);
+    const digits = abs >= 10 ? 0 : abs >= 1 ? 1 : 2;
+    return v.toLocaleString(userCurrency.locale, { maximumFractionDigits: digits });
+}
+
+function getWeekdayLabel(date) {
+    // vi: T2..T7, CN
+    const d = date.getDay();
+    if (d === 0) return 'CN';
+    return `T${d + 1}`;
+}
 
 document.addEventListener('DOMContentLoaded', async () => {
     if (!document.getElementById('trendChart')) return;
     await loadCurrencyConfig();
     await fetchTransactionsForTrends();
     setupTrendEventListeners();
-    processAndRenderTrends('week');
+    // initialize anchor and render default period
+    currentAnchor = new Date();
+    processAndRenderTrends('month', currentAnchor);
 });
 
 async function loadCurrencyConfig() {
@@ -53,62 +78,74 @@ async function fetchTransactionsForTrends() {
 }
 
 function setupTrendEventListeners() {
-    // 1. Lắng nghe nút thời gian
-    const btns = { 'week': 'btnWeek', 'month': 'btnMonth', 'year': 'btnYear' };
-    Object.entries(btns).forEach(([p, id]) => {
-        document.getElementById(id)?.addEventListener('click', function() {
-            Object.values(btns).forEach(bid => {
-                document.getElementById(bid).style.background = 'transparent';
-                document.getElementById(bid).style.borderColor = 'transparent';
-            });
-            this.style.background = '#8a2be2';
-            this.style.borderColor = '#d4a5ff';
-            processAndRenderTrends(p);
-        });
-    });
-
-    document.getElementById('compareToggle')?.addEventListener('change', () => processAndRenderTrends(currentPeriod));
-
-    // 2. LẮNG NGHE 3 THẺ TƯƠNG TÁC (Income, Expense, Balance)
-    const cards = {
-        'income': document.getElementById('cardIncome'),
-        'expense': document.getElementById('cardExpense'),
-        'balance': document.getElementById('cardBalance')
+    // 1) Period tabs (Theo tuần / Theo tháng / Theo năm)
+    const periodBtnIds = { week: 'btnWeek', month: 'btnMonth', year: 'btnYear' };
+    const setActivePeriodBtn = (period) => {
+        Object.values(periodBtnIds).forEach((id) => document.getElementById(id)?.classList.remove('active'));
+        document.getElementById(periodBtnIds[period])?.classList.add('active');
     };
 
-    Object.entries(cards).forEach(([metric, el]) => {
-        if(!el) return;
-        el.addEventListener('click', () => {
-            Object.values(cards).forEach(c => c.classList.remove('active'));
-            el.classList.add('active');
-            currentMetric = metric; // Cập nhật trạng thái
-            processAndRenderTrends(currentPeriod); // Vẽ lại biểu đồ
+    Object.entries(periodBtnIds).forEach(([period, id]) => {
+        document.getElementById(id)?.addEventListener('click', () => {
+            currentPeriod = period;
+            setActivePeriodBtn(period);
+            processAndRenderTrends(period, currentAnchor);
         });
     });
+
+    // Compare toggle lives in chart header
+    document.getElementById('compareToggle')?.addEventListener('change', () => processAndRenderTrends(currentPeriod, currentAnchor));
+
+    // Prev / Next navigation (move the current anchor by period)
+    document.getElementById('prevPeriod')?.addEventListener('click', () => { moveAnchor(-1); });
+    document.getElementById('nextPeriod')?.addEventListener('click', () => { moveAnchor(1); });
+
+    // 2) Metric tabs (Thu nhập / Chi tiêu / Chênh lệch)
+    const metricBtnIds = {
+        income: 'btnMetricIncome',
+        expense: 'btnMetricExpense',
+        balance: 'btnMetricBalance'
+    };
+    const setActiveMetricBtn = (metric) => {
+        Object.values(metricBtnIds).forEach((id) => document.getElementById(id)?.classList.remove('active'));
+        document.getElementById(metricBtnIds[metric])?.classList.add('active');
+    };
+
+    Object.entries(metricBtnIds).forEach(([metric, id]) => {
+        document.getElementById(id)?.addEventListener('click', () => {
+            currentMetric = metric;
+            setActiveMetricBtn(metric);
+            processAndRenderTrends(currentPeriod, currentAnchor);
+        });
+    });
+
+    // Ensure initial UI matches defaults
+    setActivePeriodBtn(currentPeriod);
+    setActiveMetricBtn(currentMetric);
 }
 
-function processAndRenderTrends(period) {
+function processAndRenderTrends(period, anchorDate) {
     currentPeriod = period;
-    const now = new Date();
+    const anchor = anchorDate ? new Date(anchorDate) : new Date();
     let cS, cE, pS, pE;
 
     if (period === 'week') {
-        let day = now.getDay();
-        let diff = now.getDate() - day + (day === 0 ? -6 : 1);
-        cS = new Date(now.setDate(diff)); cS.setHours(0,0,0,0);
+        const day = anchor.getDay();
+        const diff = anchor.getDate() - day + (day === 0 ? -6 : 1);
+        cS = new Date(anchor.getFullYear(), anchor.getMonth(), diff); cS.setHours(0,0,0,0);
         cE = new Date(cS); cE.setDate(cE.getDate() + 6); cE.setHours(23,59,59,999);
-        pS = new Date(cS); pS.setDate(pS.getDate() - 7);
-        pE = new Date(cE); pE.setDate(pE.getDate() - 7);
+        pS = new Date(cS); pS.setDate(pS.getDate() - 7); pS.setHours(0,0,0,0);
+        pE = new Date(cE); pE.setDate(pE.getDate() - 7); pE.setHours(23,59,59,999);
     } else if (period === 'month') {
-        cS = new Date(now.getFullYear(), now.getMonth(), 1);
-        cE = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-        pS = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-        pE = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+        cS = new Date(anchor.getFullYear(), anchor.getMonth(), 1); cS.setHours(0,0,0,0);
+        cE = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0); cE.setHours(23,59,59,999);
+        pS = new Date(cS.getFullYear(), cS.getMonth() - 1, 1); pS.setHours(0,0,0,0);
+        pE = new Date(pS.getFullYear(), pS.getMonth() + 1, 0); pE.setHours(23,59,59,999);
     } else {
-        cS = new Date(now.getFullYear(), 0, 1);
-        cE = new Date(now.getFullYear(), 11, 31, 23, 59, 59);
-        pS = new Date(now.getFullYear() - 1, 0, 1);
-        pE = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59);
+        cS = new Date(anchor.getFullYear(), 0, 1); cS.setHours(0,0,0,0);
+        cE = new Date(anchor.getFullYear(), 11, 31); cE.setHours(23,59,59,999);
+        pS = new Date(cS.getFullYear() - 1, 0, 1); pS.setHours(0,0,0,0);
+        pE = new Date(cS.getFullYear() - 1, 11, 31); pE.setHours(23,59,59,999);
     }
 
     const curTxns = allTrendTransactions.filter(t => {
@@ -120,73 +157,198 @@ function processAndRenderTrends(period) {
         return d >= pS && d <= pE;
     });
 
-    const sum = (arr) => arr.reduce((acc, t) => ({
-        inc: acc.inc + (t.amount > 0 ? t.amount : 0),
-        exp: acc.exp + (t.amount < 0 ? Math.abs(t.amount) : 0)
-    }), { inc: 0, exp: 0 });
+    // Build labels and series depending on granularity
+    let labels = [];
+    let curSeries = [];
+    let prevSeries = [];
 
+    if (period === 'week') {
+        for (let i = 0; i < 7; i++) {
+            const d = new Date(cS); d.setDate(cS.getDate() + i);
+            labels.push(getWeekdayLabel(d));
+        }
+        const mapCur = {}; const mapPrev = {};
+        curTxns.forEach(t => { const key = t.date.split('T')[0]; mapCur[key] = (mapCur[key] || 0) + t.amount; });
+        prevTxns.forEach(t => { const key = t.date.split('T')[0]; mapPrev[key] = (mapPrev[key] || 0) + t.amount; });
+        for (let i = 0; i < 7; i++) {
+            const d = new Date(cS); d.setDate(cS.getDate() + i); const key = d.toISOString().slice(0,10);
+            curSeries.push(aggregateByMetricForKey(mapCur[key] || 0));
+            const pd = new Date(pS); pd.setDate(pS.getDate() + i); const pkey = pd.toISOString().slice(0,10);
+            prevSeries.push(aggregateByMetricForKey(mapPrev[pkey] || 0));
+        }
+    } else if (period === 'month') {
+        const daysInMonth = cE.getDate();
+        for (let d = 1; d <= daysInMonth; d++) labels.push(String(d));
+        const mapCur = {}; const mapPrev = {};
+        curTxns.forEach(t => { const key = t.date.split('T')[0]; mapCur[key] = (mapCur[key] || 0) + t.amount; });
+        prevTxns.forEach(t => { const key = t.date.split('T')[0]; mapPrev[key] = (mapPrev[key] || 0) + t.amount; });
+        for (let d = 1; d <= daysInMonth; d++) {
+            const dd = new Date(cS.getFullYear(), cS.getMonth(), d); const key = dd.toISOString().slice(0,10);
+            curSeries.push(aggregateByMetricForKey(mapCur[key] || 0));
+            const pd = new Date(pS.getFullYear(), pS.getMonth(), d); const pkey = pd.toISOString().slice(0,10);
+            prevSeries.push(aggregateByMetricForKey(mapPrev[pkey] || 0));
+        }
+    } else {
+        for (let m = 0; m < 12; m++) labels.push(`T${m + 1}`);
+        const mapCur = {}; const mapPrev = {};
+        curTxns.forEach(t => { const d = new Date(t.date.split('T')[0] + 'T00:00:00'); const key = d.getMonth(); mapCur[key] = (mapCur[key] || 0) + t.amount; });
+        prevTxns.forEach(t => { const d = new Date(t.date.split('T')[0] + 'T00:00:00'); const key = d.getMonth(); mapPrev[key] = (mapPrev[key] || 0) + t.amount; });
+        for (let m = 0; m < 12; m++) { curSeries.push(aggregateByMetricForKey(mapCur[m] || 0)); prevSeries.push(aggregateByMetricForKey(mapPrev[m] || 0)); }
+    }
+
+    const sum = (arr) => arr.reduce((acc, t) => ({ inc: acc.inc + (t.amount > 0 ? t.amount : 0), exp: acc.exp + (t.amount < 0 ? Math.abs(t.amount) : 0) }), { inc: 0, exp: 0 });
     const curSum = sum(curTxns);
     const prevSum = sum(prevTxns);
 
-    updateCards(curSum, prevSum);
-    updateChart(curSum, prevSum);
-    renderTopCategories(curTxns);
+    updateTotalBlock(curSum, prevSum, period);
+    updateChartFromSeries(labels, curSeries, prevSeries, period);
+    renderTopCategories(curTxns, prevTxns, period);
+    updatePeriodLabel(period, anchor);
 }
 
-function updateCards(cur, prev) {
-    document.getElementById('trendIncomeVal').textContent = formatCurrencySafe(cur.inc);
-    document.getElementById('trendExpenseVal').textContent = formatCurrencySafe(cur.exp);
-    document.getElementById('trendBalanceVal').textContent = formatCurrencySafe(cur.inc - cur.exp);
-
-    const setBadge = (id, cV, pV, isE) => {
-        const el = document.getElementById(id);
-        if (pV === 0) { el.className = 'badge neutral'; el.textContent = 'Mới'; return; }
-        const p = ((cV - pV) / pV) * 100;
-        el.className = `badge ${p > 0 ? (isE ? 'bad' : 'good') : (isE ? 'good' : 'bad')}`;
-        el.innerHTML = `<i class="fa-solid fa-arrow-trend-${p > 0 ? 'up' : 'down'}"></i> ${Math.abs(p).toFixed(1)}%`;
-    };
-    setBadge('trendIncomeBadge', cur.inc, prev.inc, false);
-    setBadge('trendExpenseBadge', cur.exp, prev.exp, true);
+function getPeriodVietnamese(period) {
+    if (period === 'week') return 'tuần';
+    if (period === 'month') return 'tháng';
+    return 'năm';
 }
 
-// CẬP NHẬT BIỂU ĐỒ THEO THẺ ĐANG CHỌN
-function updateChart(cur, prev) {
+function updateTotalBlock(cur, prev, period) {
+    const labelEl = document.getElementById('trendTotalLabel');
+    const valueEl = document.getElementById('trendTotalValue');
+    const pillEl = document.getElementById('trendDeltaPill');
+    if (!labelEl || !valueEl || !pillEl) return;
+
+    const periodText = getPeriodVietnamese(period);
+    const currentBalance = cur.inc - cur.exp;
+    const previousBalance = prev.inc - prev.exp;
+
+    let curVal = 0;
+    let prevVal = 0;
+    let label = '';
+
+    if (currentMetric === 'income') {
+        curVal = cur.inc;
+        prevVal = prev.inc;
+        label = `Tổng thu ${periodText} này`;
+    } else if (currentMetric === 'expense') {
+        curVal = cur.exp;
+        prevVal = prev.exp;
+        label = `Tổng chi ${periodText} này`;
+    } else {
+        curVal = currentBalance;
+        prevVal = previousBalance;
+        label = `Tổng chênh lệch ${periodText} này`;
+    }
+
+    labelEl.textContent = label;
+    valueEl.textContent = formatCurrencySafe(curVal);
+
+    // Compare pill: show delta amount (absolute) and direction
+    const rawDelta = curVal - prevVal;
+    const deltaAbs = Math.abs(rawDelta);
+    const isIncrease = rawDelta >= 0;
+    const arrow = isIncrease ? '<i class="fa-solid fa-arrow-trend-up"></i>' : '<i class="fa-solid fa-arrow-trend-down"></i>';
+
+    // Determine good/bad based on metric
+    // - Income: increase is good
+    // - Expense: decrease is good
+    // - Balance: increase is good
+    let isGood = true;
+    if (currentMetric === 'expense') isGood = !isIncrease;
+    else isGood = isIncrease;
+
+    if (prevVal === 0 && curVal === 0) {
+        pillEl.style.display = 'none';
+        return;
+    }
+
+    pillEl.style.display = 'inline-flex';
+    pillEl.className = `delta-pill ${isGood ? 'good' : 'bad'}`;
+
+    const verb = isIncrease ? 'Tăng' : 'Giảm';
+    const amountText = formatCurrencySafe(deltaAbs);
+    pillEl.innerHTML = `${arrow} <span>${verb} ${amountText}</span> <span class="sub">so với cùng kỳ ${periodText} trước</span> <i class="fa-solid fa-circle-info" style="opacity:0.7;"></i>`;
+}
+
+// Helpers: aggregate and navigation
+function aggregateByMetricForKey(value) {
+    if (currentMetric === 'income') return Math.max(0, value);
+    if (currentMetric === 'expense') return Math.abs(Math.min(0, value));
+    return value; // balance
+}
+
+function moveAnchor(direction) {
+    if (!currentAnchor) currentAnchor = new Date();
+    const a = new Date(currentAnchor);
+    if (currentPeriod === 'week') a.setDate(a.getDate() + (direction * 7));
+    else if (currentPeriod === 'month') a.setMonth(a.getMonth() + direction);
+    else a.setFullYear(a.getFullYear() + direction);
+    currentAnchor = a;
+    processAndRenderTrends(currentPeriod, currentAnchor);
+}
+
+function updatePeriodLabel(period, anchor) {
+    const el = document.getElementById('currentPeriodLabel'); if (!el) return;
+    const a = new Date(anchor || new Date());
+    let label = '';
+    
+    if (period === 'week') {
+        const day = a.getDay();
+        const diff = a.getDate() - day + (day === 0 ? -6 : 1);
+        const start = new Date(a.getFullYear(), a.getMonth(), diff);
+        const end = new Date(start); end.setDate(end.getDate() + 6);
+        const startDay = start.getDate();
+        const endDay = end.getDate();
+        const startMonth = start.toLocaleString(userCurrency.locale, { month: 'short' });
+        const endMonth = end.toLocaleString(userCurrency.locale, { month: 'short' });
+        label = startMonth === endMonth 
+            ? `${startDay} - ${endDay} ${startMonth}` 
+            : `${startDay} ${startMonth} - ${endDay} ${endMonth}`;
+    } else if (period === 'month') {
+        label = `${a.toLocaleString(userCurrency.locale, { month: 'long', year: 'numeric' })}`;
+    } else {
+        label = `${a.getFullYear()}`;
+    }
+    el.innerHTML = `<strong>${label}</strong><br><span style="font-size:0.8rem; opacity:0.7;">So với cùng kỳ</span>`;
+}
+
+// CẬP NHẬT BIỂU ĐỒ TỪ DÃY SỐ LIỆU
+function updateChartFromSeries(labels, curData, prevData, period) {
     const ctx = document.getElementById('trendChart').getContext('2d');
     if (trendChartInstance) trendChartInstance.destroy();
-    
-    let labels = [];
-    let curData = []; let prevData = [];
-    let curBg = []; let prevBg = [];
-    let title = "";
 
-    // Gán dữ liệu tùy theo thẻ đang bấm
-    if (currentMetric === 'income') {
-        title = "Tương quan Thu Nhập";
-        labels = ['Thu Nhập']; curData = [cur.inc]; prevData = [prev.inc];
-        curBg = ['#4ade80']; prevBg = ['#4ade8040'];
-    } else if (currentMetric === 'expense') {
-        title = "Tương quan Chi Tiêu";
-        labels = ['Chi Tiêu']; curData = [cur.exp]; prevData = [prev.exp];
-        curBg = ['#f87171']; prevBg = ['#f8717140'];
-    } else if (currentMetric === 'balance') {
-        title = "Tương quan Chênh Lệch";
-        labels = ['Chênh Lệch']; curData = [cur.inc - cur.exp]; prevData = [prev.inc - prev.exp];
-        curBg = ['#d4a5ff']; prevBg = ['#d4a5ff40'];
-    }
+    const colorCur = currentMetric === 'expense' ? '#f87171' : currentMetric === 'income' ? '#4ade80' : '#8b5cf6';
+    const colorPrev = currentMetric === 'expense' ? '#fca5a5' : currentMetric === 'income' ? '#86efac' : '#c4b5fd';
 
-    document.getElementById('chartTitle').textContent = title;
+    const p = period || currentPeriod;
+    const periodText = getPeriodVietnamese(p);
 
-    const datasets = [{ 
-        label: 'Kỳ này', data: curData, backgroundColor: curBg, borderRadius: 6,
-        maxBarThickness: 100 // Ép biểu đồ không bị phình to khi chỉ có 1 cột
-    }];
-    
-    if (document.getElementById('compareToggle').checked) {
-        datasets.push({ 
-            label: 'Kỳ trước', data: prevData, backgroundColor: prevBg, borderRadius: 6,
-            maxBarThickness: 100
-        });
-    }
+    // Legend labels similar to mobile UI
+    const labelCurrent = currentMetric === 'income'
+        ? `Tổng thu nhập trong ${periodText}`
+        : currentMetric === 'expense'
+            ? `Tổng chi tiêu trong ${periodText}`
+            : `Tổng chênh lệch trong ${periodText}`;
+    const labelCompare = currentMetric === 'income'
+        ? 'Thu nhập cùng kỳ'
+        : currentMetric === 'expense'
+            ? 'Chi tiêu cùng kỳ'
+            : 'Chênh lệch cùng kỳ';
+
+    const datasets = [{ label: labelCurrent, data: curData, backgroundColor: colorCur, borderRadius: 6, borderSkipped: false }];
+    if (document.getElementById('compareToggle').checked) datasets.push({ label: labelCompare, data: prevData, backgroundColor: colorPrev, borderRadius: 6, borderSkipped: false });
+
+    document.getElementById('chartTitle').textContent = 'Biến động';
+
+    const compareEnabled = !!document.getElementById('compareToggle')?.checked;
+    const maxAbs = Math.max(
+        ...curData.map(v => Math.abs(v || 0)),
+        ...(compareEnabled ? prevData.map(v => Math.abs(v || 0)) : [0])
+    );
+    const scale = getScaleUnit(maxAbs);
+
+    // Improve axis readability
+    const xMaxTicks = (p === 'month') ? 8 : (p === 'week' ? 7 : 12);
 
     trendChartInstance = new Chart(ctx, {
         type: 'bar',
@@ -194,51 +356,137 @@ function updateChart(cur, prev) {
         options: {
             responsive: true, maintainAspectRatio: false,
             scales: { 
-                y: { ticks: { callback: v => formatCurrencySafe(v), color: '#a1a1aa' }, grid: { color: '#2a2a40' } },
-                x: { ticks: { color: '#fff' }, grid: { display: false } }
+                y: {
+                    beginAtZero: true,
+                    grid: { color: '#e5e5eb', drawBorder: false },
+                    ticks: {
+                        callback: (v) => formatScaledTick(v, scale.divisor),
+                        color: '#6c6c77',
+                        font: { size: 11 }
+                    },
+                    title: {
+                        display: !!scale.unit,
+                        text: scale.unit ? `(${scale.unit})` : '',
+                        color: '#6c6c77',
+                        font: { size: 11, weight: 'bold' }
+                    }
+                },
+                x: {
+                    grid: { display: false, drawBorder: false },
+                    ticks: {
+                        color: '#6c6c77',
+                        font: { size: 11 },
+                        maxTicksLimit: xMaxTicks
+                    }
+                }
             },
-            plugins: { legend: { labels: { color: '#fff' } } }
+            plugins: {
+                legend: {
+                    labels: { color: '#6c6c77', font: { size: 11, weight: 'bold' }, padding: 15 },
+                    position: 'bottom'
+                },
+                tooltip: {
+                    callbacks: {
+                        // For week view, show dd/MM/yyyy in tooltip title
+                        title: (items) => {
+                            if (!items || items.length === 0) return '';
+                            if (p !== 'week') return items[0].label || '';
+                            const idx = items[0].dataIndex;
+                            const day = new Date(currentAnchor);
+                            const anchorDay = day.getDay();
+                            const diff = day.getDate() - anchorDay + (anchorDay === 0 ? -6 : 1);
+                            const start = new Date(day.getFullYear(), day.getMonth(), diff);
+                            start.setDate(start.getDate() + idx);
+                            return start.toLocaleDateString('vi-VN');
+                        },
+                        label: (ctx) => {
+                            const val = ctx.parsed?.y ?? 0;
+                            return `${ctx.dataset.label}: ${formatCurrencySafe(val)}`;
+                        }
+                    }
+                }
+            }
         }
     });
 }
 
 // CẬP NHẬT TOP DANH MỤC THEO THẺ ĐANG CHỌN
-function renderTopCategories(txns) {
+function renderTopCategories(curTxns, prevTxns, period) {
     const container = document.getElementById('topCategoriesContainer');
     const titleEl = document.getElementById('topCategoriesTitle');
-    const cats = {};
-    let total = 0;
-    
-    // Nếu bấm Thu nhập -> Lọc tiền Dương. Chi tiêu/Chênh lệch -> Lọc tiền Âm
-    let isIncomeMode = (currentMetric === 'income');
-    
-    if (isIncomeMode) {
-        titleEl.innerHTML = '<i class="fa-solid fa-ranking-star" style="color: #4ade80;"></i> Top nguồn thu nhập';
-        txns.filter(t => t.amount > 0).forEach(t => {
-            cats[t.category] = (cats[t.category] || 0) + t.amount;
-            total += t.amount;
+    if (!container || !titleEl) return;
+
+    const compareEnabled = !!document.getElementById('compareToggle')?.checked;
+    const periodText = getPeriodVietnamese(period || currentPeriod);
+
+    // Title
+    if (currentMetric === 'income') titleEl.innerHTML = 'Danh mục (Thu nhập)';
+    else if (currentMetric === 'expense') titleEl.innerHTML = 'Danh mục (Chi tiêu)';
+    else titleEl.innerHTML = 'Danh mục (Chênh lệch)';
+
+    const toValue = (t) => {
+        if (currentMetric === 'income') return t.amount > 0 ? t.amount : 0;
+        if (currentMetric === 'expense') return t.amount < 0 ? Math.abs(t.amount) : 0;
+        return t.amount;
+    };
+
+    const sumByCategory = (txns) => {
+        const map = {};
+        (txns || []).forEach((t) => {
+            const v = toValue(t);
+            if (!v) return;
+            const key = t.category || 'Khác';
+            map[key] = (map[key] || 0) + v;
         });
-    } else {
-        titleEl.innerHTML = '<i class="fa-solid fa-fire" style="color: #f87171;"></i> Top danh mục tiêu xài';
-        txns.filter(t => t.amount < 0).forEach(t => {
-            cats[t.category] = (cats[t.category] || 0) + Math.abs(t.amount);
-            total += Math.abs(t.amount);
-        });
+        return map;
+    };
+
+    const curMap = sumByCategory(curTxns);
+    const prevMap = sumByCategory(prevTxns);
+
+    const entries = Object.entries(curMap);
+    entries.sort((a, b) => {
+        if (currentMetric === 'balance') return Math.abs(b[1]) - Math.abs(a[1]);
+        return b[1] - a[1];
+    });
+
+    if (entries.length === 0) {
+        container.innerHTML = `<div style="text-align:center; color:#6c6c77; padding:15px;">Không có dữ liệu trong khoảng thời gian này</div>`;
+        return;
     }
 
-    const sorted = Object.entries(cats).sort((a, b) => b[1] - a[1]).slice(0, 5);
-    
-    container.innerHTML = sorted.map(([n, v]) => {
-        const p = total > 0 ? (v / total * 100).toFixed(1) : 0;
-        const color = isIncomeMode ? '#4ade80' : '#f87171';
-        return `<div class="category-item"><div style="flex:1">
-            <div style="display:flex; justify-content:space-between; color:#fff; margin-bottom: 5px;">
-                <span style="font-weight: 500;">${n}</span><span style="color:#a1a1aa; font-size: 0.9rem;">${p}%</span>
+    container.innerHTML = entries.map(([name, curVal]) => {
+        const prevVal = prevMap[name] || 0;
+        const rawDelta = curVal - prevVal;
+        const deltaAbs = Math.abs(rawDelta);
+        const isIncrease = rawDelta >= 0;
+
+        // good/bad coloring depending on metric
+        let isGood = true;
+        if (currentMetric === 'expense') isGood = !isIncrease;
+        else isGood = isIncrease;
+
+        const deltaColor = isGood ? '#1f9d55' : '#d97706';
+        const arrow = isIncrease ? 'up' : 'down';
+
+        const deltaLine = compareEnabled
+            ? `<div style="margin-top: 6px; font-weight: 800; color: ${deltaColor}; display:flex; align-items:center; gap:8px; justify-content:flex-end;">
+                    <i class="fa-solid fa-arrow-trend-${arrow}"></i>
+                    <span>${formatCurrencySafe(deltaAbs)}</span>
+                </div>
+                <div style="margin-top: 2px; font-size: 0.85rem; color:#6c6c77; font-weight:700; text-align:right;">So với cùng kỳ ${periodText} trước</div>`
+            : '';
+
+        return `<div class="category-item">
+            <div style="flex:1; display:flex; align-items:flex-start; justify-content:space-between; gap: 12px;">
+                <div style="font-weight: 800; color:#2f2f36;">${name}</div>
+                <div style="text-align:right; min-width: 120px;">
+                    <div style="font-weight: 900; color:#2f2f36;">${formatCurrencySafe(curVal)}</div>
+                    ${deltaLine}
+                </div>
             </div>
-            <div style="color:${color}; font-weight:bold">${formatCurrencySafe(v)}</div>
-            <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${p}%; background: ${color}"></div></div>
-        </div></div>`;
-    }).join('') || `<div style="text-align:center; color:#a1a1aa">Không có dữ liệu trong khoảng thời gian này</div>`;
+        </div>`;
+    }).join('');
 }
 
 function formatCurrencySafe(amount) {
