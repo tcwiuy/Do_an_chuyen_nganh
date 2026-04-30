@@ -1,8 +1,13 @@
 import pytest
 from fastapi.testclient import TestClient
 import uuid
-from main import app
+import sys
+import os
 
+root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(root_dir)
+
+from main import app
 client = TestClient(app)
 
 # Tạo một chuỗi ngẫu nhiên để không bị trùng lặp dữ liệu với các lần test trước
