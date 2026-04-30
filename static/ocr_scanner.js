@@ -1,7 +1,6 @@
 /**
  * =========================================
- * OCR RECEIPT SCANNER - GLOBAL COMPONENT
- * Dùng chung cho index.html và table.html
+ * OCR RECEIPT SCANNER 
  * =========================================
  */
 
