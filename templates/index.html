@@ -103,9 +103,12 @@
         <button id="toggleExpenseFormBtn" class="nav-button"><i class="fa-solid fa-plus"></i> Thêm Chi Tiêu</button>
         <button onclick="OCRScanner.open(function () { initialize(); })" class="nav-button"><i class="fa-solid fa-receipt"></i> Quét Hóa Đơn</button>
         <script src="/static/ocr_scanner.js"></script>
-        <button onclick="PDFScanner.open(function() { initialize(); })" class="nav-button"><i class="fa-solid fa-file-pdf"></i> Quét PDF</button>
+        <button onclick="PDFScanner.open(function() { initialize(); })" class="nav-button"><i class="fa-solid fa-file-pdf"></i> Quét File PDF</button>
         <script src="/static/pdf_scanner.js"></script>
+        <button onclick="CSVScanner.open(function() { initialize(); })" class="nav-button"><i class="fa-solid fa-file-csv"></i> Quét File CSV</button>
+        <script src="/static/csv_scanner.js"></script>
       </div>
+      <div id="scan-preview-area"></div>
 
       <div id="addExpenseContainer" style="display: none">
         
