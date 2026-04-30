@@ -73,8 +73,8 @@
       <div class="form-container" style="background-color: var(--bg-secondary); padding: 15px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 20px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
             <select id="periodSelect" style="padding: 8px 15px; border-radius: 8px; background-color: var(--bg-primary); color: var(--text-primary); border: 1px solid var(--border); outline: none; cursor: pointer; font-family: inherit; font-weight: bold;">
-                <option value="month">Theo Tháng</option>
                 <option value="week">Theo Tuần</option>
+                <option value="month">Theo Tháng</option>
                 <option value="year">Theo Năm</option>
                 <option value="all">Tất cả thời gian</option>
             </select>
@@ -341,8 +341,8 @@
       let allTags = new Set();
       let selectedTags = new Set();
       
-      let currentPeriodType = "month";
-      let isCalendarExpanded = true; 
+      let currentPeriodType = "week";
+      let isCalendarExpanded = false; 
       let selectedDayFilter = null;   
       
       let wStep = 1;

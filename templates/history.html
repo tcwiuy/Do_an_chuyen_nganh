@@ -72,8 +72,8 @@
         <div id="calendarNavigationContainer" class="form-container" style="background-color: var(--bg-secondary); padding: 15px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 20px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
                 <select id="periodSelect" style="padding: 8px 15px; border-radius: 8px; background-color: var(--bg-primary); color: var(--text-primary); border: 1px solid var(--border); outline: none; cursor: pointer; font-family: inherit; font-weight: bold;">
-                    <option value="month">Theo Tháng</option>
                     <option value="week">Theo Tuần</option>
+                    <option value="month">Theo Tháng</option>
                     <option value="year">Theo Năm</option>
                     <option value="all">Tất cả thời gian</option>
                 </select>
@@ -99,17 +99,32 @@
             </div>
         </div>
         
-        <div class="form-container" style="display: flex; gap: 20px; align-items: center; justify-content: center; flex-wrap: wrap; padding: 1rem; margin-bottom: 1rem;">
-            <label for="showAllToggle" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; color: var(--text-secondary);">
-                <input type="checkbox" id="showAllToggle" class="styled-checkbox"> Hiển thị toàn bộ giao dịch
+        <!-- ĐÃ GỘP GỌN GÀNG THANH CÔNG CỤ LỌC ĐA NĂNG -->
+        <div class="form-container" style="display: flex; gap: 15px; align-items: center; justify-content: flex-start; flex-wrap: wrap; padding: 1rem; margin-bottom: 1rem; background-color: var(--bg-secondary); border: 1px solid var(--border); border-radius: 12px;">
+            <label for="showAllToggle" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; color: var(--text-primary); font-weight: bold; margin-right: 10px;">
+                <input type="checkbox" id="showAllToggle" class="styled-checkbox" style="transform: scale(1.2);"> Toàn bộ
             </label>
-            <div style="display: flex; align-items: center; gap: 10px;">
-                <select id="categoryFilter" style="padding: 0.5rem; border-radius: 4px; background-color: var(--bg-primary); color: var(--text-primary); border: 1px solid var(--border); outline: none; cursor: pointer; font-size: 1rem;">
-                    <option value="all">Tất cả danh mục</option>
+            
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                <select id="categoryFilter" style="padding: 8px 12px; border-radius: 6px; background-color: var(--bg-primary); color: var(--text-primary); border: 1px solid var(--border); outline: none; cursor: pointer;">
+                    <option value="all">📁 Tất cả danh mục</option>
+                </select>
+
+                <select id="tagFilter" style="padding: 8px 12px; border-radius: 6px; background-color: var(--bg-primary); color: var(--text-primary); border: 1px solid var(--border); outline: none; cursor: pointer;">
+                    <option value="all">🏷️ Tất cả nhãn</option>
+                </select>
+
+                <select id="typeFilter" style="padding: 8px 12px; border-radius: 6px; background-color: var(--bg-primary); color: var(--text-primary); border: 1px solid var(--border); outline: none; cursor: pointer;">
+                    <option value="all">💰 Tất cả Thu/Chi</option>
+                    <option value="income">📈 Chỉ Khoản Thu (+)</option>
+                    <option value="expense">📉 Chỉ Khoản Chi (-)</option>
                 </select>
             </div>
-            <button onclick="OCRScanner.open(function(){ initialize(); })" class="nav-button"><i class="fa-solid fa-receipt"></i> Quét Hóa Đơn</button>
-            <script src="/static/ocr_scanner.js"></script>
+            
+            <div style="margin-left: auto;">
+                <button onclick="OCRScanner.open(function(){ initialize(); })" class="nav-button" style="padding: 8px 15px;"><i class="fa-solid fa-receipt"></i> Quét Hóa Đơn</button>
+                <script src="/static/ocr_scanner.js"></script>
+            </div>
         </div>
 
         <div class="form-container">
@@ -125,7 +140,6 @@
                     </div>
                     <div class="form-group">
                         <label>Số tiền</label>
-                        <!-- ĐÃ SỬA: Đổi type thành text, thêm sự kiện oninput -->
                         <input type="text" id="amount" placeholder="0" required oninput="formatCurrencyInput(this)">
                     </div>
                     <div class="form-group">
@@ -142,6 +156,7 @@
                             <option value="yearly">Hàng năm</option>
                         </select>
                     </div>
+                    <!-- ĐÃ GIỮ NGUYÊN ĐOẠN CODE NHÃN (WRAP) CỦA BẠN -->
                     <div class="form-group" style="position: relative;">
                         <label>Nhãn</label>
                         <div id="tags-input-container" style="width: 100%; display: flex; flex-wrap: wrap; border: 1px solid var(--border); border-radius: 4px; background-color: var(--bg-primary); cursor: text; padding: 0.25rem;">
@@ -199,16 +214,18 @@
 
     <script src="/static/functions.js"></script>
     <script>
-        // HÀM MỚI: Xử lý định dạng tiền tệ trực tiếp khi gõ
+        // CÁC BIẾN CHỨA TRẠNG THÁI LỌC
+        let currentFilterCategory = 'all';
+        let currentFilterTag = 'all'; 
+        let currentFilterType = 'all'; 
+        
         function formatCurrencyInput(input) {
             let value = input.value;
-            // 1. Chỉ giữ lại số và đúng 1 dấu chấm (loại bỏ dấu âm, chữ cái, kí tự đặc biệt)
             value = value.replace(/[^\d.]/g, '');
             const parts = value.split('.');
             if (parts.length > 2) {
                 value = parts[0] + '.' + parts.slice(1).join('');
             }
-            // 2. Thêm dấu phẩy phân cách hàng nghìn
             if (value) {
                 let splitValue = value.split('.');
                 splitValue[0] = splitValue[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
@@ -218,10 +235,10 @@
         }
 
         let currentCurrency = 'usd', currentDate = new Date(), allExpenses = [], expensesForTable = [], startDate = 1, allTags = new Set(), selectedTags = new Set(), categoryColors = {};
-        let currentFilterCategory = 'all', currentSortColumn = null, currentSortOrder = null;
+        let currentSortColumn = null, currentSortOrder = null;
         
-        let currentPeriodType = "month";
-        let isCalendarExpanded = true;
+        let currentPeriodType = "week";
+        let isCalendarExpanded = false;
         let selectedDayFilter = null;
 
         window.escapeHTML = function(str) {
@@ -339,7 +356,7 @@
                             }
 
                             // 2. XỬ LÝ HIỂN THỊ GHI CHÚ (NOTE)
-                        let noteHtml = '';
+                            let noteHtml = '';
                             if (expense.note && expense.note.trim() !== '') {
                                 noteHtml = `<div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 4px; font-weight: normal; display: flex; align-items: flex-start; gap: 5px;">
                                                 <i class="fa-solid fa-align-left" style="margin-top: 3px; opacity: 0.6; flex-shrink: 0;"></i> 
@@ -499,6 +516,9 @@
             updateTable(); 
         };
 
+        // =========================================
+        // HÀM UPDATE TABLE (KẾT HỢP 3 BỘ LỌC)
+        // =========================================
         function updateTable() {
             const showAll = document.getElementById('showAllToggle').checked;
             const navContainer = document.getElementById('calendarNavigationContainer');
@@ -506,8 +526,21 @@
 
             let filteredList = showAll ? allExpenses.slice() : getFilteredExpensesOverride(allExpenses);
 
+            // 1. Lọc theo Danh mục
             if (currentFilterCategory !== 'all') {
                 filteredList = filteredList.filter(exp => exp.category === currentFilterCategory);
+            }
+
+            // 2. Lọc theo Nhãn
+            if (currentFilterTag !== 'all') {
+                filteredList = filteredList.filter(exp => exp.tags && exp.tags.includes(currentFilterTag));
+            }
+
+            // 3. Lọc theo Loại Thu/Chi
+            if (currentFilterType === 'income') {
+                filteredList = filteredList.filter(exp => exp.amount > 0);
+            } else if (currentFilterType === 'expense') {
+                filteredList = filteredList.filter(exp => exp.amount < 0);
             }
 
             filteredList.sort((a, b) => {
@@ -526,6 +559,17 @@
             
             renderCalendar();
         }
+
+        // BẮT SỰ KIỆN CỦA 3 BỘ LỌC
+        document.getElementById('categoryFilter')?.addEventListener('change', (e) => {
+            currentFilterCategory = e.target.value; updateTable();
+        });
+        document.getElementById('tagFilter')?.addEventListener('change', (e) => {
+            currentFilterTag = e.target.value; updateTable();
+        });
+        document.getElementById('typeFilter')?.addEventListener('change', (e) => {
+            currentFilterType = e.target.value; updateTable();
+        });
 
         document.getElementById('periodSelect').addEventListener('change', (e) => { 
             currentPeriodType = e.target.value; 
@@ -554,10 +598,6 @@
             updateTable(); 
         });
 
-        document.getElementById('categoryFilter').addEventListener('change', (e) => {
-            currentFilterCategory = e.target.value; updateTable();
-        });
-        
         document.getElementById('showAllToggle').addEventListener('change', () => {
             selectedDayFilter = null; updateTable();
         });
@@ -596,7 +636,6 @@
                 const rate = exchangeRatesToVND[currentCurrency] || 1; displayAmount = displayAmount / rate;
             }
             
-            // ĐÃ SỬA: Hiển thị lại số tiền trên ô Edit cùng với dấu phẩy
             let formattedAmount = parseFloat(displayAmount.toFixed(2)).toString();
             let parts = formattedAmount.split('.');
             parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
@@ -609,33 +648,20 @@
             const form = document.getElementById('expenseForm');
             form.dataset.editId = id;
             document.getElementById('btnSubmitExpense').innerHTML = '<i class="fa-solid fa-pen-to-square"></i> Cập nhật';
-            // Gọi nút Hủy hiện lên
             document.getElementById('btnCancelEdit').style.display = 'block'; 
             
             form.scrollIntoView({ behavior: 'smooth' });
         }
 
-        // HÀM MỚI: Hủy chế độ chỉnh sửa, đưa form về mặc định
         function cancelEditMode() {
             const form = document.getElementById('expenseForm');
-            
-            // 1. Reset toàn bộ dữ liệu chữ số
             form.reset();
-            
-            // 2. Xóa các nhãn (tags) đang hiển thị
             document.getElementById('selected-tags').innerHTML = '';
             selectedTags.clear();
-            
-            // 3. Xóa ID đang lưu tạm, để hệ thống hiểu là chuẩn bị Tạo mới chứ không phải Cập nhật
             delete form.dataset.editId;
-            
-            // 4. Trả lại giao diện nút bấm ban đầu
             document.getElementById('btnSubmitExpense').innerHTML = 'Lưu Giao Dịch';
-            document.getElementById('btnCancelEdit').style.display = 'none'; // Giấu nút Hủy đi
-            
-            // 5. Trả lại ngày hôm nay cho ô chọn ngày
+            document.getElementById('btnCancelEdit').style.display = 'none';
             document.getElementById('date').value = new Date().toISOString().split('T')[0];
-            
             if(window.showToast) showToast('Đã hủy cập nhật', 'success');
         }
 
@@ -654,7 +680,7 @@
                 const config = await configResponse.json();
                 
                 document.getElementById('category').innerHTML = config.categories.map(cat => `<option value="${cat}">${cat}</option>`).join('');
-                document.getElementById('categoryFilter').innerHTML = `<option value="all">Tất cả danh mục</option>` + config.categories.map(cat => `<option value="${cat}">${cat}</option>`).join('');
+                document.getElementById('categoryFilter').innerHTML = `<option value="all">📁 Tất cả danh mục</option>` + config.categories.map(cat => `<option value="${cat}">${cat}</option>`).join('');
 
                 window.currentCurrency = config.currency || 'usd'; 
                 currentCurrency = window.currentCurrency;
@@ -679,6 +705,13 @@
 
                 const uniqueCategories = [...new Set(allExpenses.map(exp => exp.category))];
                 assignCategoryColors(uniqueCategories);
+
+                // --- ĐỔ DỮ LIỆU VÀO DROPDOWN LỌC NHÃN ---
+                const tagSelect = document.getElementById('tagFilter');
+                if (tagSelect) {
+                    tagSelect.innerHTML = `<option value="all">🏷️ Tất cả nhãn</option>` + 
+                        [...allTags].map(tag => `<option value="${tag}">${escapeHTML(tag)}</option>`).join('');
+                }
 
                 updatePeriodDisplayOverride();
                 updateTable();
@@ -721,7 +754,6 @@
             e.preventDefault();
             const form = e.target; const editId = form.dataset.editId; const isGain = document.getElementById('reportGain').checked;
             
-            // ĐÃ SỬA: Loại bỏ dấu phẩy trước khi chuyển thành số cho Backend
             let rawStringAmount = document.getElementById('amount').value.replace(/,/g, '');
             let rawAmount = parseFloat(rawStringAmount);
             
@@ -760,10 +792,8 @@
                     const lastDate = document.getElementById('date').value; 
                     form.reset(); document.getElementById('selected-tags').innerHTML = ''; selectedTags.clear(); delete form.dataset.editId;
                     
-                    // --- THÊM 2 DÒNG NÀY ĐỂ TRẢ LẠI NÚT BẤM GỐC ---
                     document.getElementById('btnSubmitExpense').innerHTML = 'Lưu Giao Dịch';
                     document.getElementById('btnCancelEdit').style.display = 'none';
-                    // ----------------------------------------------
                     
                     await initialize(); document.getElementById('date').value = lastDate; 
                 } else {
