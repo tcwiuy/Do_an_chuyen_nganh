@@ -327,8 +327,9 @@
                     <tbody>
                         ${expenses.map((expense, index) => {
                             const catColor = categoryColors[expense.category] || '#d4a5ff';
-                            let tagsHtml = '-'; 
                             
+                            // 1. XỬ LÝ HIỂN THỊ NHÃN (TAGS)
+                            let tagsHtml = '-'; 
                             if (expense.tags && expense.tags.length > 0) {
                                 tagsHtml = expense.tags.map(tag => `
                                     <span style="background: var(--bg-primary); color: var(--text-secondary); padding: 3px 10px; border-radius: 12px; font-size: 0.8rem; margin-right: 5px; display: inline-block; white-space: nowrap; border: 1px dashed var(--border);">
@@ -337,11 +338,24 @@
                                 `).join('');
                             }
 
+                            // 2. XỬ LÝ HIỂN THỊ GHI CHÚ (NOTE)
+                        let noteHtml = '';
+                            if (expense.note && expense.note.trim() !== '') {
+                                noteHtml = `<div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 4px; font-weight: normal; display: flex; align-items: flex-start; gap: 5px;">
+                                                <i class="fa-solid fa-align-left" style="margin-top: 3px; opacity: 0.6; flex-shrink: 0;"></i> 
+                                                <span style="word-break: break-word; overflow-wrap: break-word; white-space: pre-wrap; max-width: 250px;">${escapeHTML(expense.note)}</span>
+                                            </div>`;
+                            }
+
                             return `
                             <tr>
-                                <td>${escapeHTML(expense.name)}</td>
+                                <td>
+                                    <div style="font-weight: bold; color: var(--text-primary);">${escapeHTML(expense.name)}</div>
+                                    ${noteHtml}
+                                </td>
                                 <td><span style="background: ${catColor}1A; color: ${catColor}; border: 1px solid ${catColor}40; padding: 4px 10px; border-radius: 6px; font-size: 0.85rem; font-weight: bold; white-space: nowrap;">${escapeHTML(expense.category)}</span></td>
-                                <td class="tags-column">${tagsHtml}</td> <td class="amount ${expense.amount > 0 ? 'positive' : 'negative'}" style="font-weight: bold;">${formatCurrency(expense.amount)}</td>
+                                <td class="tags-column">${tagsHtml}</td> 
+                                <td class="amount ${expense.amount > 0 ? 'positive' : 'negative'}" style="font-weight: bold;">${formatCurrency(expense.amount)}</td>
                                 <td class="date-column">${formatDateFromUTC(expense.date)}</td>
                                 <td>
                                     <button class="edit-button" onclick="editExpenseByIndex(${index})"><i class="fa-solid fa-pen-to-square"></i></button>
