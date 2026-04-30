@@ -22,7 +22,7 @@ uvicorn main:app --reload
 ```
 
 II. Chạy các file test
-```
+```bash
 pytest 'path cua file' -v
 pytest test\authentication\test_register.py -v
 ```
