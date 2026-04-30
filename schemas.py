@@ -20,8 +20,8 @@ class TransactionBase(BaseModel):
     def validate_amount(cls, value):
         if value == 0:
             raise ValueError("Số tiền giao dịch không được bằng 0.")
-        if value > 1000000000 or value < -1000000000:  
-            raise ValueError("Số tiền giao dịch quá lớn (vượt quá 1 tỷ VNĐ), hệ thống từ chối ghi nhận!")
+        if value > 10000000000 or value < -10000000000:  
+            raise ValueError("Số tiền giao dịch quá lớn (vượt quá 10 tỷ VNĐ), hệ thống từ chối ghi nhận!")
         return value
 
     # Chặn tên giao dịch nhập cho có (VD: "A", "B")
@@ -64,8 +64,8 @@ class RecurringTransactionBase(BaseModel):
     def validate_amount(cls, value):
         if value == 0:
             raise ValueError("Số tiền giao dịch không được bằng 0.")
-        if value > 1000000000 or value < -1000000000:  
-            raise ValueError("Số tiền giao dịch quá lớn (vượt quá 1 tỷ VNĐ).")
+        if value > 10000000000 or value < -10000000000:  
+            raise ValueError("Số tiền giao dịch quá lớn (vượt quá 10 tỷ VNĐ).")
         return value
 
     @field_validator('name')
