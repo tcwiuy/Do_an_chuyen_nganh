@@ -20,3 +20,9 @@ pip install -r requirements.txt
 ```bash
 uvicorn main:app --reload
 ```
+
+II. Chạy các file test
+```
+pytest 'path cua file' -v
+pytest test\authentication\test_register.py -v
+```
