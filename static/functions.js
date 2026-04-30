@@ -81,7 +81,7 @@ const currencyBehaviors = {
     dkk: {symbol: "kr.", useComma: true, useDecimals: true, useSpace: true, right: true},
     idr: {symbol: "Rp", useComma: false, useDecimals: true, useSpace: true, right: true},
     ils: {symbol: "₪", useComma: false, useDecimals: true, useSpace: false, right: false},
-    vnd: {symbol: "₫", useComma: true, useDecimals: false, useSpace: true, right: true},
+    vnd: {symbol: "₫", useComma: true, useDecimals: true, useSpace: true, right: true},
     myr: {symbol: "RM", useComma: false, useDecimals: true, useSpace: false, right: false},
     mad: {symbol: "DH", useComma: false, useDecimals: true, useSpace: true, right: true},
 };
@@ -100,10 +100,21 @@ function formatCurrency(amount) {
     const isNegative = convertedAmount < 0;
     const absAmount = Math.abs(convertedAmount);
 
+    // --- LOGIC MỚI: XỬ LÝ SỐ TIỀN QUÁ NHỎ ---
+    let minDecimals = behavior.useDecimals ? 2 : 0;
+    let maxDecimals = behavior.useDecimals ? 2 : 0;
+
+    // Nếu tiền có dùng số lẻ, và giá trị khác 0 nhưng lại nhỏ hơn 0.01
+    // Tự động giãn phần thập phân ra 4 chữ số để không bị hiển thị 0.00
+    if (behavior.useDecimals && absAmount > 0 && absAmount < 0.01) {
+        maxDecimals = 4;
+    }
+
     const options = {
-        minimumFractionDigits: behavior.useDecimals ? 2 : 0,
-        maximumFractionDigits: behavior.useDecimals ? 2 : 0,
+        minimumFractionDigits: minDecimals,
+        maximumFractionDigits: maxDecimals,
     };
+    
     let formattedAmount = new Intl.NumberFormat(behavior.useComma ? "de-DE" : "en-US", options).format(absAmount);
 
     let result = behavior.right

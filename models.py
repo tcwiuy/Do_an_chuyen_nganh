@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, JSON, Date
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, JSON, Date, Numeric
 from sqlalchemy.orm import relationship
 from database import Base
 import datetime
@@ -11,23 +11,21 @@ class User(Base):
     username = Column(String, unique=True, index=True)
     hashed_password = Column(String)
     
-    # --- THÊM 4 CỘT THÔNG TIN MỚI Ở ĐÂY ---
     full_name = Column(String, nullable=True)
     gender = Column(String, nullable=True)
     dob = Column(Date, nullable=True)
     email = Column(String, unique=True, index=True, nullable=True)
-    # --------------------------------------
     
-    # Quan hệ 1-N với bảng Transaction
     transactions = relationship("Transaction", back_populates="owner")
 
-# Bảng Transaction (Thay thế cho struct Expense trong Go)
+# Bảng Transaction
 class Transaction(Base):
     __tablename__ = "transactions"
 
     id = Column(String, primary_key=True, index=True)
     name = Column(String, index=True)
-    amount = Column(Float)
+    # ĐÃ SỬA: Dùng Numeric(15, 2) thay cho Float (Tối đa 15 chữ số, 2 số thập phân)
+    amount = Column(Numeric(15, 2))
     category = Column(String, index=True)
     date = Column(DateTime, default=datetime.datetime.utcnow)
     tags = Column(JSON) 
@@ -37,28 +35,29 @@ class Transaction(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     owner = relationship("User", back_populates="transactions")
 
-# Bảng Giao dịch định kỳ (Recurring Transaction)
+# Bảng Giao dịch định kỳ
 class RecurringTransaction(Base):
     __tablename__ = "recurring_transactions"
 
     id = Column(String, primary_key=True, index=True)
     name = Column(String, index=True)
-    amount = Column(Float)
+    # ĐÃ SỬA: Dùng Numeric(15, 2)
+    amount = Column(Numeric(15, 2))
     category = Column(String, index=True)
     tags = Column(JSON)
-    interval = Column(String) # daily, weekly, monthly, yearly
+    interval = Column(String) 
     startDate = Column(DateTime)
-    occurrences = Column(Integer) # Số lần lặp lại (0 là vô hạn)
+    occurrences = Column(Integer) 
 
     user_id = Column(Integer, ForeignKey("users.id"))
     owner = relationship("User")
 
-# Bảng cấu hình cá nhân của người dùng
+# Bảng cấu hình cá nhân
 class UserConfig(Base):
     __tablename__ = "user_configs"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, index=True, unique=True) # ID của người dùng
+    user_id = Column(Integer, index=True, unique=True)
     currency = Column(String, default="usd")
     startDate = Column(Integer, default=1)
     categories = Column(JSON, default=["Food", "Transport", "Shopping", "Bills", "Entertainment"])
@@ -70,8 +69,9 @@ class Budget(Base):
     __tablename__ = "budgets"
     id = Column(Integer, primary_key=True, index=True)
     category = Column(String, index=True)
-    limit_amount = Column(Float) # Hạn mức thiết lập
-    spent_amount = Column(Float, default=0.0) # Số tiền đã tiêu thực tế
+    # ĐÃ SỬA: Dùng Numeric(15, 2)
+    limit_amount = Column(Numeric(15, 2)) 
+    spent_amount = Column(Numeric(15, 2), default=0.0) 
     month = Column(Integer)
     year = Column(Integer)
     user_id = Column(Integer, ForeignKey("users.id"))
@@ -80,6 +80,7 @@ class Jar(Base):
     __tablename__ = "jars"
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String) 
-    balance = Column(Float, default=0.0)
-    percent = Column(Float, default=0.0) 
+    # ĐÃ SỬA: Dùng Numeric(15, 2)
+    balance = Column(Numeric(15, 2), default=0.0)
+    percent = Column(Numeric(15, 2), default=0.0) 
     user_id = Column(Integer, ForeignKey("users.id"))

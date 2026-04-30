@@ -66,7 +66,6 @@
         <a href="/planning" class="view-button" data-tooltip="Ngân sách"><i class="fa-solid fa-piggy-bank"></i></a>
         <a href="/settings" class="view-button" data-tooltip="Cài Đặt"><i class="fa-solid fa-gear"></i></a>
         
-        <!-- ĐÃ SỬA ONCLICK Ở DÒNG DƯỚI ĐÂY -->
         <a href="javascript:void(0)" class="view-button" onclick="showLogoutModal()" data-tooltip="Đăng Xuất" style="margin-left: auto; color: #ff4d4d;"><i class="fa-solid fa-right-from-bracket"></i></a>
       </div>
       </header>
@@ -139,7 +138,8 @@
                 
                 <div class="form-group">
                     <label>Số tiền</label>
-                    <input type="number" id="amount" step="0.01" placeholder="0" required>
+                    <!-- ĐÃ SỬA: Đổi sang text và thêm oninput -->
+                    <input type="text" id="amount" placeholder="0" required oninput="formatCurrencyInput(this)">
                 </div>
                 
                 <div class="form-group">
@@ -243,7 +243,8 @@
               <h3 style="margin-top: 0; color: #fff;">1. Thu nhập / Số dư ban đầu</h3>
               <p style="font-size: 0.9rem; color: #a0a0b0; line-height: 1.5;">Nhập số tiền hiện có trong ví hoặc tài khoản để bắt đầu theo dõi chính xác nhất.</p>
               <label style="color: #d4a5ff; font-weight: bold; margin-bottom: 5px; display: block;">Số dư hiện tại:</label>
-              <input type="number" id="wBalance" class="wizard-input" placeholder="Ví dụ: 5000000" min="0">
+              <!-- ĐÃ SỬA: Đổi sang text và thêm oninput -->
+              <input type="text" id="wBalance" class="wizard-input" placeholder="Ví dụ: 5,000,000" oninput="formatCurrencyInput(this)">
           </div>
 
           <div id="wStep2" class="wizard-step">
@@ -314,6 +315,22 @@
 
     <script src="/static/functions.js"></script>
     <script>
+      // HÀM MỚI: Xử lý định dạng tiền tệ trực tiếp khi gõ
+      function formatCurrencyInput(input) {
+          let value = input.value;
+          value = value.replace(/[^\d.]/g, '');
+          const parts = value.split('.');
+          if (parts.length > 2) {
+              value = parts[0] + '.' + parts.slice(1).join('');
+          }
+          if (value) {
+              let splitValue = value.split('.');
+              splitValue[0] = splitValue[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+              value = splitValue.join('.');
+          }
+          input.value = value;
+      }
+
       let currentCurrency = "usd";
       let pieChart = null;
       let currentChartType = "doughnut";
@@ -387,7 +404,10 @@
           document.getElementById('wBtnFinish').style.display = wStep === 5 ? 'block' : 'none';
 
           if (wStep === 5) {
-              wData.balance = parseFloat(document.getElementById('wBalance').value) || 0;
+              // ĐÃ SỬA: Lột bỏ dấu phẩy trước khi tính toán số dư
+              let rawBal = document.getElementById('wBalance').value.replace(/,/g, '');
+              wData.balance = parseFloat(rawBal) || 0;
+              
               const rate = (typeof exchangeRatesToVND !== 'undefined') ? (exchangeRatesToVND[currentCurrency] || 1) : 1;
               document.getElementById('wConfirmBalance').textContent = formatCurrency(wData.balance * rate);
               document.getElementById('wConfirmCats').textContent = wData.categories.length + " mục";
@@ -834,7 +854,16 @@
       document.getElementById("expenseForm").addEventListener("submit", async (e) => {
         e.preventDefault();
         const isGain = document.getElementById("reportGain").checked;
-        let rawAmount = parseFloat(document.getElementById("amount").value);
+        
+        // ĐÃ SỬA: Loại bỏ dấu phẩy trước khi chuyển thành số cho Backend
+        let rawStringAmount = document.getElementById("amount").value.replace(/,/g, '');
+        let rawAmount = parseFloat(rawStringAmount);
+        
+        if (isNaN(rawAmount) || rawAmount <= 0) {
+            if (window.showToast) showToast("Vui lòng nhập số tiền hợp lệ lớn hơn 0!", "error");
+            return;
+        }
+
         const selectedCategory = document.getElementById("category").value;
 
         let rate = 1; if (typeof exchangeRatesToVND !== "undefined") { rate = exchangeRatesToVND[currentCurrency] || 1; }

@@ -1,26 +1,27 @@
 from datetime import date, datetime
 from typing import List, Optional
+from decimal import Decimal
 from pydantic import BaseModel, field_validator, Field, ConfigDict
 
 # --- SCHEMAS CHO GIAO DỊCH THÔNG THƯỜNG ---
 class TransactionBase(BaseModel):
     name: str
-    amount: float
+    # Dùng Decimal thay cho float để giữ độ chính xác tuyệt đối cho tiền tệ/thuế
+    amount: Decimal
     category: str
     date: datetime
     tags: Optional[List[str]] = Field(default_factory=list)
     
-    # 1. BỔ SUNG 2 TRƯỜNG MỚI ĐỂ KHỚP VỚI DATABASE
     note: Optional[str] = None
     recurring_interval: Optional[str] = ""
 
-    # Chặn số tiền bằng 0 hoặc lớn hơn 1 tỷ VNĐ
+    # Chặn số tiền bằng 0 hoặc quá lớn
     @field_validator('amount')
     @classmethod
-    def validate_amount(cls, value):
-        if value == 0:
+    def validate_amount(cls, value: Decimal):
+        if value == Decimal('0'):
             raise ValueError("Số tiền giao dịch không được bằng 0.")
-        if value > 10000000000 or value < -10000000000:  
+        if value > Decimal('10000000000') or value < Decimal('-10000000000'):  
             raise ValueError("Số tiền giao dịch quá lớn (vượt quá 10 tỷ VNĐ), hệ thống từ chối ghi nhận!")
         return value
 
@@ -50,9 +51,9 @@ class TransactionResponse(TransactionBase):
 # --- SCHEMAS CHO GIAO DỊCH ĐỊNH KỲ ---
 class RecurringTransactionBase(BaseModel):
     name: str
-    amount: float
+    # Dùng Decimal cho tính toán tài chính
+    amount: Decimal
     category: str
-    # 2. SỬA LỖI MUTABLE DEFAULT CỦA PYTHON
     tags: Optional[List[str]] = Field(default_factory=list) 
     interval: str
     startDate: datetime
@@ -61,10 +62,10 @@ class RecurringTransactionBase(BaseModel):
     # Áp dụng các chốt chặn tương tự cho giao dịch định kỳ
     @field_validator('amount')
     @classmethod
-    def validate_amount(cls, value):
-        if value == 0:
+    def validate_amount(cls, value: Decimal):
+        if value == Decimal('0'):
             raise ValueError("Số tiền giao dịch không được bằng 0.")
-        if value > 10000000000 or value < -10000000000:  
+        if value > Decimal('10000000000') or value < Decimal('-10000000000'):  
             raise ValueError("Số tiền giao dịch quá lớn (vượt quá 10 tỷ VNĐ).")
         return value
 
@@ -81,7 +82,6 @@ class RecurringTransactionCreate(RecurringTransactionBase):
 class RecurringTransactionResponse(RecurringTransactionBase):
     id: str
     user_id: int
-    # 3. ĐỒNG BỘ CHUẨN PYDANTIC V2
     model_config = ConfigDict(from_attributes=True) 
 
 # --- SCHEMAS CHO NGƯỜI DÙNG & ĐĂNG NHẬP ---
@@ -96,7 +96,6 @@ class UserCreate(BaseModel):
 class UserResponse(BaseModel):
     id: int
     username: str
-    # 3. ĐỒNG BỘ CHUẨN PYDANTIC V2
     model_config = ConfigDict(from_attributes=True) 
 
 class Token(BaseModel):

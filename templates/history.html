@@ -65,7 +65,6 @@
                 <a href="/planning" class="view-button" data-tooltip="Ngân sách"><i class="fa-solid fa-piggy-bank"></i></a>
                 <a href="/settings" class="view-button" data-tooltip="Cài Đặt"><i class="fa-solid fa-gear"></i></a>
                 
-                <!-- ĐÃ SỬA ONCLICK Ở DÒNG DƯỚI ĐÂY -->
                 <a href="javascript:void(0)" class="view-button" onclick="showLogoutModal()" data-tooltip="Đăng Xuất" style="margin-left: auto; color: #ff4d4d;"><i class="fa-solid fa-right-from-bracket"></i></a>
             </div>
         </header>
@@ -105,7 +104,6 @@
                 <input type="checkbox" id="showAllToggle" class="styled-checkbox"> Hiển thị toàn bộ giao dịch
             </label>
             <div style="display: flex; align-items: center; gap: 10px;">
-                <!-- <i class="fa-solid fa-filter" style="color: var(--text-secondary);"></i> -->
                 <select id="categoryFilter" style="padding: 0.5rem; border-radius: 4px; background-color: var(--bg-primary); color: var(--text-primary); border: 1px solid var(--border); outline: none; cursor: pointer; font-size: 1rem;">
                     <option value="all">Tất cả danh mục</option>
                 </select>
@@ -127,7 +125,8 @@
                     </div>
                     <div class="form-group">
                         <label>Số tiền</label>
-                        <input type="number" id="amount" step="0.01" placeholder="0" required>
+                        <!-- ĐÃ SỬA: Đổi type thành text, thêm sự kiện oninput -->
+                        <input type="text" id="amount" placeholder="0" required oninput="formatCurrencyInput(this)">
                     </div>
                     <div class="form-group">
                         <label>Ngày</label>
@@ -162,7 +161,10 @@
                         <label for="reportGain" style="margin: 0; color: var(--text-secondary);">Khoản thu</label>
                         <input type="checkbox" id="reportGain" style="transform: scale(1.2); cursor: pointer;">
                     </div>
-                    <button type="submit" class="nav-button" style="padding: 10px 25px; font-weight: bold;">Lưu Giao Dịch</button>
+                    <div style="display: flex; gap: 10px;">
+                        <button type="button" id="btnCancelEdit" class="nav-button" style="display: none; background-color: var(--bg-primary); color: var(--text-primary); border: 1px solid var(--border); font-weight: bold;" onclick="cancelEditMode()">Hủy</button>
+                        <button type="submit" id="btnSubmitExpense" class="nav-button" style="padding: 10px 25px; font-weight: bold;">Lưu Giao Dịch</button>
+                    </div>
                 </div>
             </form>
             <div id="formMessage" class="form-message"></div>
@@ -197,6 +199,24 @@
 
     <script src="/static/functions.js"></script>
     <script>
+        // HÀM MỚI: Xử lý định dạng tiền tệ trực tiếp khi gõ
+        function formatCurrencyInput(input) {
+            let value = input.value;
+            // 1. Chỉ giữ lại số và đúng 1 dấu chấm (loại bỏ dấu âm, chữ cái, kí tự đặc biệt)
+            value = value.replace(/[^\d.]/g, '');
+            const parts = value.split('.');
+            if (parts.length > 2) {
+                value = parts[0] + '.' + parts.slice(1).join('');
+            }
+            // 2. Thêm dấu phẩy phân cách hàng nghìn
+            if (value) {
+                let splitValue = value.split('.');
+                splitValue[0] = splitValue[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+                value = splitValue.join('.');
+            }
+            input.value = value;
+        }
+
         let currentCurrency = 'usd', currentDate = new Date(), allExpenses = [], expensesForTable = [], startDate = 1, allTags = new Set(), selectedTags = new Set(), categoryColors = {};
         let currentFilterCategory = 'all', currentSortColumn = null, currentSortOrder = null;
         
@@ -233,7 +253,7 @@
         };
 
         // =========================================
-        // HÀM LỌC THEO THỜI GIAN (GIỐNG TRANG CHỦ)
+        // HÀM LỌC THEO THỜI GIAN
         // =========================================
         function getPeriodBoundsOverride(date, period) {
             const localDate = new Date(date);
@@ -309,7 +329,6 @@
                             const catColor = categoryColors[expense.category] || '#d4a5ff';
                             let tagsHtml = '-'; 
                             
-                            // GIAO DIỆN NHÃN (TAG) MỚI: Đồng bộ theme, viền đứt nét, icon
                             if (expense.tags && expense.tags.length > 0) {
                                 tagsHtml = expense.tags.map(tag => `
                                     <span style="background: var(--bg-primary); color: var(--text-secondary); padding: 3px 10px; border-radius: 12px; font-size: 0.8rem; margin-right: 5px; display: inline-block; white-space: nowrap; border: 1px dashed var(--border);">
@@ -466,9 +485,6 @@
             updateTable(); 
         };
 
-        // =========================================
-        // CẬP NHẬT BẢNG VÀ LOGIC LỌC
-        // =========================================
         function updateTable() {
             const showAll = document.getElementById('showAllToggle').checked;
             const navContainer = document.getElementById('calendarNavigationContainer');
@@ -532,7 +548,6 @@
             selectedDayFilter = null; updateTable();
         });
 
-
         // =========================================
         // EDIT GIAO DỊCH
         // =========================================
@@ -566,15 +581,48 @@
             if (typeof exchangeRatesToVND !== 'undefined') {
                 const rate = exchangeRatesToVND[currentCurrency] || 1; displayAmount = displayAmount / rate;
             }
-            document.getElementById('amount').value = parseFloat(displayAmount.toFixed(2));
+            
+            // ĐÃ SỬA: Hiển thị lại số tiền trên ô Edit cùng với dấu phẩy
+            let formattedAmount = parseFloat(displayAmount.toFixed(2)).toString();
+            let parts = formattedAmount.split('.');
+            parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+            document.getElementById('amount').value = parts.join('.');
+            
             document.getElementById('reportGain').checked = amount > 0;
             renderSelectedTags(tags);
             document.getElementById('date').value = date.split('T')[0];
             
             const form = document.getElementById('expenseForm');
             form.dataset.editId = id;
-            form.querySelector('button[type="submit"]').innerHTML = '<i class="fa-solid fa-pen-to-square"></i> Cập nhật Giao Dịch';
+            document.getElementById('btnSubmitExpense').innerHTML = '<i class="fa-solid fa-pen-to-square"></i> Cập nhật';
+            // Gọi nút Hủy hiện lên
+            document.getElementById('btnCancelEdit').style.display = 'block'; 
+            
             form.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // HÀM MỚI: Hủy chế độ chỉnh sửa, đưa form về mặc định
+        function cancelEditMode() {
+            const form = document.getElementById('expenseForm');
+            
+            // 1. Reset toàn bộ dữ liệu chữ số
+            form.reset();
+            
+            // 2. Xóa các nhãn (tags) đang hiển thị
+            document.getElementById('selected-tags').innerHTML = '';
+            selectedTags.clear();
+            
+            // 3. Xóa ID đang lưu tạm, để hệ thống hiểu là chuẩn bị Tạo mới chứ không phải Cập nhật
+            delete form.dataset.editId;
+            
+            // 4. Trả lại giao diện nút bấm ban đầu
+            document.getElementById('btnSubmitExpense').innerHTML = 'Lưu Giao Dịch';
+            document.getElementById('btnCancelEdit').style.display = 'none'; // Giấu nút Hủy đi
+            
+            // 5. Trả lại ngày hôm nay cho ô chọn ngày
+            document.getElementById('date').value = new Date().toISOString().split('T')[0];
+            
+            if(window.showToast) showToast('Đã hủy cập nhật', 'success');
         }
 
         function setupTagInput() {
@@ -658,7 +706,16 @@
         document.getElementById('expenseForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const form = e.target; const editId = form.dataset.editId; const isGain = document.getElementById('reportGain').checked;
-            let rawAmount = parseFloat(document.getElementById('amount').value);
+            
+            // ĐÃ SỬA: Loại bỏ dấu phẩy trước khi chuyển thành số cho Backend
+            let rawStringAmount = document.getElementById('amount').value.replace(/,/g, '');
+            let rawAmount = parseFloat(rawStringAmount);
+            
+            if (isNaN(rawAmount) || rawAmount <= 0) {
+                if(window.showToast) showToast("Vui lòng nhập số tiền hợp lệ lớn hơn 0!", "error");
+                return;
+            }
+
             const selectedCategory = document.getElementById('category').value;
             let rate = 1; if (typeof exchangeRatesToVND !== 'undefined') { rate = exchangeRatesToVND[currentCurrency] || 1; }
             let amountInVND = rawAmount * rate; let finalAmountToSave = isGain ? amountInVND : -amountInVND;
@@ -688,6 +745,12 @@
                     if(window.showToast) showToast(editId ? 'Đã cập nhật giao dịch!' : 'Đã thêm giao dịch mới!', "success");
                     const lastDate = document.getElementById('date').value; 
                     form.reset(); document.getElementById('selected-tags').innerHTML = ''; selectedTags.clear(); delete form.dataset.editId;
+                    
+                    // --- THÊM 2 DÒNG NÀY ĐỂ TRẢ LẠI NÚT BẤM GỐC ---
+                    document.getElementById('btnSubmitExpense').innerHTML = 'Lưu Giao Dịch';
+                    document.getElementById('btnCancelEdit').style.display = 'none';
+                    // ----------------------------------------------
+                    
                     await initialize(); document.getElementById('date').value = lastDate; 
                 } else {
                     const errorDetail = await response.json(); const msg = errorDetail.detail?.[0]?.msg || errorDetail.error || 'Không thể lưu do dữ liệu không hợp lệ'; const loc = errorDetail.detail?.[0]?.loc?.[1] || "";
@@ -701,20 +764,16 @@
         document.getElementById('name').addEventListener('click', (e) => { if (e.target.value === '-') e.target.value = ''; });
         window.editExpenseByIndex = editExpenseByIndex;
 
-        // HÀM HIỂN THỊ BẢNG ĐĂNG XUẤT
         function showLogoutModal() {
             document.getElementById('logoutConfirmModal').style.display = 'flex';
         }
 
-        // HÀM ẨN BẢNG ĐĂNG XUẤT
         function closeLogoutModal() {
             document.getElementById('logoutConfirmModal').style.display = 'none';
         }
 
-        // HÀM THỰC THI ĐĂNG XUẤT
         function proceedLogout() {
             closeLogoutModal();
-            // Gọi hàm logout gốc của bạn (hoặc thực thi logic xóa token)
             if (typeof logout === 'function') {
                 logout();
             } else {
@@ -724,7 +783,6 @@
         }
     </script>
     <script src="/static/chatbot.js"></script>
-    <!-- MODAL XÁC NHẬN ĐĂNG XUẤT ĐẸP -->
     <div id="logoutConfirmModal" class="modal" style="display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); align-items: center; justify-content: center;">
         <div style="background-color: var(--bg-secondary); border: 1px solid var(--border); border-radius: 12px; width: 90%; max-width: 400px; padding: 25px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); text-align: center;">
             <h3 style="color: var(--accent); margin-top: 0; margin-bottom: 15px;">
