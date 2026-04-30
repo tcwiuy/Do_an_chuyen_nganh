@@ -11,6 +11,8 @@ import json
 import base64
 from pydantic import BaseModel
 from dotenv import load_dotenv
+from datetime import datetime, timedelta
+from fastapi import HTTPException, status
 
 load_dotenv()
 import random
@@ -545,21 +547,71 @@ def register_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     return {"message": "Đăng ký thành công"}
 
 
+login_attempts = {}
+MAX_ATTEMPTS = 5
+LOCK_TIME_MINUTES = 1
+
 @auth_router.post("/login")
 def login_user(
     form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)
 ):
+    username = form_data.username
+    now = datetime.now()
+
+    # --- BƯỚC 1: KIỂM TRA TRẠNG THÁI KHÓA ---
+    if username in login_attempts:
+        attempt_info = login_attempts[username]
+        # Nếu đang có lịch hẹn mở khóa
+        if attempt_info.get("lock_until"):
+            if now < attempt_info["lock_until"]:
+                # Tính số phút còn lại
+                remaining_time = int((attempt_info["lock_until"] - now).total_seconds() / 60)
+                if remaining_time < 1: 
+                    remaining_time = 1  # Báo tối thiểu là 1 phút để UX mượt hơn
+                    
+                raise HTTPException(
+                    status_code=403, 
+                    detail=f"Tài khoản bị tạm khóa. Vui lòng thử lại sau {remaining_time} phút."
+                )
+            else:
+                # Đã qua thời gian khóa -> Reset lại bộ đếm về 0
+                login_attempts[username] = {"count": 0, "lock_until": None}
+
+    # --- BƯỚC 2: KIỂM TRA MẬT KHẨU NHƯ BÌNH THƯỜNG ---
     user = (
         db.query(models.User).filter(models.User.username == form_data.username).first()
     )
+    
     if not user or not auth.verify_password(form_data.password, user.hashed_password):
+        # Khởi tạo bộ đếm cho user này nếu là lần sai đầu tiên
+        if username not in login_attempts:
+            login_attempts[username] = {"count": 0, "lock_until": None}
+        
+        login_attempts[username]["count"] += 1
+        
+        # Nếu đã chạm ngưỡng 5 lần -> Kích hoạt khóa
+        if login_attempts[username]["count"] >= MAX_ATTEMPTS:
+            login_attempts[username]["lock_until"] = now + timedelta(minutes=LOCK_TIME_MINUTES)
+            raise HTTPException(
+                status_code=403,
+                detail=f"Bạn đã nhập sai {MAX_ATTEMPTS} lần. Tài khoản bị khóa tạm thời {LOCK_TIME_MINUTES} phút."
+            )
+        
+        # Nếu chưa tới 5 lần -> Báo lỗi và đếm ngược số lần còn lại
+        remaining_attempts = MAX_ATTEMPTS - login_attempts[username]["count"]
         raise HTTPException(
-            status_code=401, detail="Tên đăng nhập hoặc mật khẩu không đúng"
+            status_code=401, 
+            detail=f"Tên đăng nhập hoặc mật khẩu không đúng. Bạn còn {remaining_attempts} lần thử."
         )
 
+    # --- BƯỚC 3: ĐĂNG NHẬP THÀNH CÔNG ---
+    # Xóa lịch sử nhập sai của user này để không bị cộng dồn vào lần sau
+    if username in login_attempts:
+        del login_attempts[username]
+
+    # Cấp phát Token
     access_token = auth.create_access_token(data={"sub": user.username})
     return {"access_token": access_token, "token_type": "bearer"}
-
 
 @auth_router.put("/change-password")
 def change_password(

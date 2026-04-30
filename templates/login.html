@@ -25,11 +25,37 @@
             outline: none; box-sizing: border-box; font-family: inherit; margin-bottom: 20px;
         }
 
+        /* Thêm style cho khung chứa mật khẩu và icon mắt */
+        .password-container {
+            position: relative;
+            width: 100%;
+        }
+        
+        /* CHỐNG CHỒNG LẤP CHỮ */
+        .password-container .auth-input {
+            padding-right: 40px; 
+        }
+
+        .toggle-password {
+            position: absolute;
+            right: 12px;
+            top: 14px;
+            cursor: pointer;
+            color: var(--text-secondary);
+            transition: color 0.2s;
+        }
+        
+        /* Tắt icon mắt mặc định của trình duyệt Microsoft Edge */
+        input[type="password"]::-ms-reveal,
+        input[type="password"]::-ms-clear {
+            display: none;
+        }
+
         /* Thêm style cho link Quên mật khẩu */
         .forgot-password-link {
             display: block;
             text-align: right;
-            margin-top: -10px; /* Bù trừ lại margin-bottom 20px của auth-input */
+            margin-top: -10px; 
             margin-bottom: 20px;
             color: var(--accent);
             text-decoration: none;
@@ -67,7 +93,12 @@
                 </div>
                 <div>
                     <label for="loginPassword" style="display: block; margin-bottom: 8px; color: var(--text-secondary); font-weight: bold;">Mật khẩu</label>
-                    <input type="password" id="loginPassword" class="auth-input" required oncopy="return false;" onpaste="return false;" oncut="return false;">
+                    <div class="password-container">
+                        <!-- Đã thêm oninput="checkPasswordInput(this)" -->
+                        <input type="password" id="loginPassword" class="auth-input" required oncopy="return false;" onpaste="return false;" oncut="return false;" oninput="checkPasswordInput(this)">
+                        <!-- Đã thêm style="display: none;" -->
+                        <i class="fa-solid fa-eye toggle-password" style="display: none;" onclick="togglePasswordVisibility('loginPassword', this)"></i>
+                    </div>
                 </div>
                 
                 <a href="/forgot-password" class="forgot-password-link">Quên mật khẩu?</a>
@@ -80,7 +111,35 @@
         </div>
     </div>
 
-    <script>
+<script>
+        // HÀM KIỂM TRA ĐỂ HIỆN/ẨN ICON MẮT KHI GÕ CHỮ
+        function checkPasswordInput(inputElement) {
+            const icon = inputElement.nextElementSibling;
+            if (inputElement.value.length > 0) {
+                icon.style.display = "block";
+            } else {
+                icon.style.display = "none";
+                // Tự động trả về dạng ẩn mật khẩu nếu người dùng xóa trắng ô nhập
+                inputElement.type = "password";
+                icon.classList.remove("fa-eye-slash");
+                icon.classList.add("fa-eye");
+            }
+        }
+
+        // HÀM ẨN/HIỆN CHỮ MẬT KHẨU
+        function togglePasswordVisibility(inputId, iconElement) {
+            const passwordInput = document.getElementById(inputId);
+            if (passwordInput.type === "password") {
+                passwordInput.type = "text";
+                iconElement.classList.remove("fa-eye");
+                iconElement.classList.add("fa-eye-slash");
+            } else {
+                passwordInput.type = "password";
+                iconElement.classList.remove("fa-eye-slash");
+                iconElement.classList.add("fa-eye");
+            }
+        }
+
         window.showToast = function(message, type = 'success') {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
@@ -116,9 +175,18 @@
                     const data = await res.json();
                     localStorage.setItem('token', data.access_token);
                     window.location.href = '/'; 
-                } else { showToast('Sai tên đăng nhập hoặc mật khẩu', 'error'); }
-            } catch (error) { showToast('Lỗi kết nối đến máy chủ', 'error'); } 
-            finally { btn.innerHTML = 'Đăng Nhập'; btn.disabled = false; }
+                } else { 
+                    const errorData = await res.json();
+                    const errorMessage = errorData.detail || 'Sai tên đăng nhập hoặc mật khẩu';
+                    showToast(errorMessage, 'error'); 
+                }
+            } catch (error) { 
+                showToast('Lỗi kết nối đến máy chủ', 'error'); 
+            } 
+            finally { 
+                btn.innerHTML = 'Đăng Nhập'; 
+                btn.disabled = false; 
+            }
         });
     </script>
 </body>

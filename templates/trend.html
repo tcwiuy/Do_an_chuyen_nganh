@@ -259,9 +259,11 @@
                 <a href="/history" class="view-button" data-tooltip="Hoạt động"><i class="fa-solid fa-clock-rotate-left"></i></a>
                 <a href="/trends" class="view-button active" data-tooltip="Biến động"><i class="fa-solid fa-chart-line"></i></a>
                 <a href="/suggestions" class="view-button" data-tooltip="Gợi Ý AI"><i class="fa-solid fa-lightbulb"></i></a>
-                <a href="/planning" class="view-button" data-tooltip="Lập kế hoạch"><i class="fa-solid fa-piggy-bank"></i></a>
+                <a href="/planning" class="view-button" data-tooltip="Ngân sách"><i class="fa-solid fa-piggy-bank"></i></a>
                 <a href="/settings" class="view-button" data-tooltip="Cài Đặt"><i class="fa-solid fa-gear"></i></a>
-                <a href="javascript:void(0)" class="view-button" onclick="logout()" data-tooltip="Đăng Xuất" style="margin-left: auto; color: #ff4d4d;"><i class="fa-solid fa-right-from-bracket"></i></a>
+                
+                <!-- ĐÃ SỬA ONCLICK Ở DÒNG DƯỚI ĐÂY -->
+                <a href="javascript:void(0)" class="view-button" onclick="showLogoutModal()" data-tooltip="Đăng Xuất" style="margin-left: auto; color: #ff4d4d;"><i class="fa-solid fa-right-from-bracket"></i></a>
             </div>
         </header>
 
@@ -314,9 +316,44 @@
         </div>
 
     </div>
-    
+    <!-- MODAL XÁC NHẬN ĐĂNG XUẤT ĐẸP -->
+    <div id="logoutConfirmModal" class="modal" style="display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); align-items: center; justify-content: center;">
+        <div style="background-color: var(--bg-secondary); border: 1px solid var(--border); border-radius: 12px; width: 90%; max-width: 400px; padding: 25px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); text-align: center;">
+            <h3 style="color: var(--accent); margin-top: 0; margin-bottom: 15px;">
+                <i class="fa-solid fa-right-from-bracket"></i> Xác nhận Đăng Xuất
+            </h3>
+            <p style="color: var(--text-secondary); line-height: 1.6; margin-bottom: 25px; font-size: 15px;">Bạn có chắc chắn muốn đăng xuất khỏi ExpenseOwl không?</p>
+            <div style="display: flex; gap: 15px; justify-content: center;">
+                <button onclick="closeLogoutModal()" style="flex: 1; padding: 10px 20px; background-color: var(--bg-primary); color: var(--text-primary); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s;">Hủy bỏ</button>
+                <button onclick="proceedLogout()" style="flex: 1; padding: 10px 20px; background-color: #ff4d4d; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s;">Đăng Xuất</button>
+            </div>
+        </div>
+    </div>
     <script src="/static/functions.js"></script>
     <script src="/static/trend.js"></script>
     <script src="/static/chatbot.js"></script>
+    <script>
+    // HÀM HIỂN THỊ BẢNG ĐĂNG XUẤT
+        function showLogoutModal() {
+            document.getElementById('logoutConfirmModal').style.display = 'flex';
+        }
+
+        // HÀM ẨN BẢNG ĐĂNG XUẤT
+        function closeLogoutModal() {
+            document.getElementById('logoutConfirmModal').style.display = 'none';
+        }
+
+        // HÀM THỰC THI ĐĂNG XUẤT
+        function proceedLogout() {
+            closeLogoutModal();
+            // Gọi hàm logout gốc của bạn (hoặc thực thi logic xóa token)
+            if (typeof logout === 'function') {
+                logout();
+            } else {
+                localStorage.removeItem('token');
+                window.location.href = '/login';
+            }
+        }
+    </script>
 </body>
 </html>
