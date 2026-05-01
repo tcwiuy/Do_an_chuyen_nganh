@@ -10,7 +10,7 @@ function logout() {
     window.location.href = '/login';
 }
 
-const colorPalette = [
+window.colorPalette = [
     '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', 
     '#FFBE0B', '#FF006E', '#8338EC', '#3A86FF', 
     '#FB5607', '#38B000', '#9B5DE5', '#F15BB5'
@@ -19,8 +19,8 @@ const colorPalette = [
 // =========================================
 // 🌍 HỆ THỐNG TỶ GIÁ & CHUYỂN ĐỔI TIỀN TỆ 
 // =========================================
-// Quy ước: Database của bạn luôn lưu tiền gốc là VND. 
-const exchangeRatesToVND = {
+// ĐÃ SỬA: Đổi từ const sang window. để các file JS khác (trend.js, suggestions.js) có thể đọc được an toàn.
+window.exchangeRatesToVND = {
     vnd: 1,         // Việt Nam Đồng
     usd: 25400,     // Đô la Mỹ
     eur: 27500,     // Euro
@@ -53,7 +53,7 @@ const exchangeRatesToVND = {
     mad: 2520       // Dirham Maroc
 };
 
-const currencyBehaviors = {
+window.currencyBehaviors = {
     usd: {symbol: "$", useComma: false, useDecimals: true, useSpace: false, right: false},
     eur: {symbol: "€", useComma: true, useDecimals: true, useSpace: false, right: false},
     gbp: {symbol: "£", useComma: false, useDecimals: true, useSpace: false, right: false},
@@ -89,18 +89,20 @@ const currencyBehaviors = {
 function formatCurrency(amount) {
     if (amount === undefined || amount === null) return '0';
 
-    const behavior = currencyBehaviors[currentCurrency] || {
+    // ĐÃ SỬA: Lấy an toàn biến currentCurrency từ window
+    const cur = window.currentCurrency || (typeof currentCurrency !== 'undefined' ? currentCurrency : 'usd');
+
+    const behavior = window.currencyBehaviors[cur] || {
         symbol: "$", useComma: false, useDecimals: true, useSpace: false, right: false
     };
 
     // Quy đổi từ VND sang tiền đang chọn
-    const rate = exchangeRatesToVND[currentCurrency] || 1;
+    const rate = window.exchangeRatesToVND[cur] || 1;
     const convertedAmount = amount / rate;
 
     const isNegative = convertedAmount < 0;
     const absAmount = Math.abs(convertedAmount);
 
-    // --- LOGIC MỚI: XỬ LÝ SỐ TIỀN QUÁ NHỎ ---
     let minDecimals = behavior.useDecimals ? 2 : 0;
     let maxDecimals = behavior.useDecimals ? 2 : 0;
 
@@ -139,8 +141,6 @@ function formatMonth(date) {
     });
 }
 
-// BỎ getISODateWithLocalTime vì gây lệch múi giờ
-
 // Chỉ đọc ngày UTC để hiển thị đồng nhất, không cho trình duyệt tự cộng giờ
 function formatDateFromUTC(utcDateString) {
     if (!utcDateString) return '-';
@@ -155,7 +155,7 @@ function formatDateFromUTC(utcDateString) {
 
 function updateMonthDisplay() {
     const currentMonthEl = document.getElementById('currentMonth');
-    if (currentMonthEl) {
+    if (currentMonthEl && typeof currentDate !== 'undefined') {
         currentMonthEl.textContent = formatMonth(currentDate);
     }
 }
@@ -165,25 +165,27 @@ function getMonthBounds(date) {
     const d = new Date(date);
     const year = d.getUTCFullYear();
     const month = d.getUTCMonth();
+    const startDay = typeof startDate !== 'undefined' ? startDate : 1;
 
-    if (startDate === 1) {
+    if (startDay === 1) {
         const start = new Date(Date.UTC(year, month, 1, 0, 0, 0));
         const end = new Date(Date.UTC(year, month + 1, 0, 23, 59, 59, 999));
         return { start, end };
     }
     
     let start, end;
-    if (d.getUTCDate() < startDate) {
-        start = new Date(Date.UTC(year, month - 1, startDate, 0, 0, 0));
-        end = new Date(Date.UTC(year, month, startDate - 1, 23, 59, 59, 999));
+    if (d.getUTCDate() < startDay) {
+        start = new Date(Date.UTC(year, month - 1, startDay, 0, 0, 0));
+        end = new Date(Date.UTC(year, month, startDay - 1, 23, 59, 59, 999));
     } else {
-        start = new Date(Date.UTC(year, month, startDate, 0, 0, 0));
-        end = new Date(Date.UTC(year, month + 1, startDate - 1, 23, 59, 59, 999));
+        start = new Date(Date.UTC(year, month, startDay, 0, 0, 0));
+        end = new Date(Date.UTC(year, month + 1, startDay - 1, 23, 59, 59, 999));
     }
     return { start, end };
 }
 
 function getMonthExpenses(expenses) {
+    if (typeof currentDate === 'undefined') return expenses;
     const { start, end } = getMonthBounds(currentDate);
     return expenses.filter(exp => {
         const safeDateString = exp.date.endsWith('Z') ? exp.date : exp.date + 'Z';
@@ -292,7 +294,7 @@ async function analyzeTrends() {
     loadingText.style.display = 'block';
     contentBox.innerHTML = '';
     btn.disabled = true;
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang xử lý...';
+    if (btn) btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang xử lý...';
 
     aiAbortController = new AbortController();
 
@@ -323,6 +325,6 @@ async function analyzeTrends() {
     } finally {
         loadingText.style.display = 'none';
         btn.disabled = false;
-        btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Phân Tích AI';
+        if (btn) btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Phân Tích AI';
     }
 }

@@ -23,6 +23,11 @@ var lastBaseCategoryContext = { curTxns: [], prevTxns: [], period: 'month' };
 
 var userCurrency = { code: 'VND', locale: 'vi-VN', rate: 1.0 };
 
+// 💡 BIẾN TOÀN CỤC CHỨA KHO DANH MỤC VÀ MÀU SẮC
+let initialCategories = [];
+let categoryColors = {};
+const colorPalette = ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#F7464A', '#8a2be2'];
+
 function getScaleUnit(maxAbs) {
     if (!isFinite(maxAbs) || maxAbs <= 0) return { divisor: 1, unit: '' };
     if (maxAbs >= 1_000_000_000) return { divisor: 1_000_000_000, unit: 'Tỷ' };
@@ -62,12 +67,26 @@ async function loadCurrencyConfig() {
         if (res.ok) {
             const config = await res.json();
             userCurrency.code = (config.currency || 'VND').toLowerCase();
+            
+            // 💡 1. NẠP KHO DANH MỤC MỚI TỪ BACKEND
+            let expenseCategories = [];
+            let incomeCategories = [];
+            
+            if (config.expenseCategories && config.incomeCategories) {
+                expenseCategories = config.expenseCategories;
+                incomeCategories = config.incomeCategories;
+            } else if (config.categories) {
+                expenseCategories = config.categories;
+                incomeCategories = ["Lương", "Thưởng", "Đầu tư", "Khác"];
+            }
+            initialCategories = [...expenseCategories, ...incomeCategories];
         }
+        
         const localeMap = { 'vnd': 'vi-VN', 'usd': 'en-US', 'eur': 'de-DE', 'jpy': 'ja-JP' };
         userCurrency.locale = localeMap[userCurrency.code] || 'en-US';
         const rateToVnd = window.exchangeRatesToVND[userCurrency.code] || 1;
         userCurrency.rate = 1 / rateToVnd;
-    } catch (e) { console.warn("Dùng mặc định VND."); }
+    } catch (e) { console.warn("Dùng mặc định VND.", e); }
 }
 
 async function fetchTransactionsForTrends() {
@@ -76,7 +95,37 @@ async function fetchTransactionsForTrends() {
         const response = await fetch('/api/expenses/', { headers: { 'Authorization': `Bearer ${token}` } });
         if (response.ok) {
             const rawTxns = await response.json();
-            allTrendTransactions = rawTxns.map(t => ({ ...t, amount: t.amount * userCurrency.rate }));
+            
+            // 💡 2. THUẬT TOÁN TỰ ĐỘNG ÉP KIỂU CHỮ HOA/THƯỜNG (AUTO-HEAL)
+            allTrendTransactions = rawTxns.map(t => {
+                let catName = t.category || 'Khác';
+                const exactMatch = initialCategories.find(c => c === catName);
+                if (!exactMatch) {
+                    const lowerMatch = initialCategories.find(c => c.toLowerCase() === catName.toLowerCase());
+                    if (lowerMatch) {
+                        catName = lowerMatch;
+                    }
+                }
+                return { ...t, amount: t.amount * userCurrency.rate, category: catName };
+            });
+            
+            // 💡 3. NẠP BẢNG MÀU TỪ LOCALSTORAGE
+            const savedColors = JSON.parse(localStorage.getItem('customCategoryColors') || '{}');
+            const uniqueCategories = [...new Set(allTrendTransactions.map(exp => exp.category))];
+            initialCategories.forEach(c => { if(!uniqueCategories.includes(c)) uniqueCategories.push(c); });
+            
+            uniqueCategories.forEach((category, index) => {
+                if (savedColors[category]) { 
+                    categoryColors[category] = savedColors[category]; 
+                } else {
+                    const foundKey = Object.keys(savedColors).find(k => k.toLowerCase() === category.toLowerCase());
+                    if (foundKey) {
+                        categoryColors[category] = savedColors[foundKey];
+                    } else if (!categoryColors[category]) { 
+                        categoryColors[category] = colorPalette[index % colorPalette.length] || "#8a2be2"; 
+                    }
+                }
+            });
         }
     } catch (e) { console.error("Lỗi tải dữ liệu:", e); }
 }
@@ -379,16 +428,11 @@ function updateTotalBlock(cur, prev, period) {
     labelEl.textContent = label;
     valueEl.textContent = formatCurrencySafe(curVal);
 
-    // Compare pill: show delta amount (absolute) and direction
     const rawDelta = curVal - prevVal;
     const deltaAbs = Math.abs(rawDelta);
     const isIncrease = rawDelta >= 0;
     const arrow = isIncrease ? '<i class="fa-solid fa-arrow-trend-up"></i>' : '<i class="fa-solid fa-arrow-trend-down"></i>';
 
-    // Determine good/bad based on metric
-    // - Income: increase is good
-    // - Expense: decrease is good
-    // - Balance: increase is good
     let isGood = true;
     if (currentMetric === 'expense') isGood = !isIncrease;
     else isGood = isIncrease;
@@ -406,11 +450,10 @@ function updateTotalBlock(cur, prev, period) {
     pillEl.innerHTML = `${arrow} <span>${verb} ${amountText}</span> <span class="sub">so với cùng kỳ ${periodText} trước</span> <i class="fa-solid fa-circle-info" style="opacity:0.7;"></i>`;
 }
 
-// Helpers: aggregate and navigation
 function aggregateByMetricForKey(value) {
     if (currentMetric === 'income') return Math.max(0, value);
     if (currentMetric === 'expense') return Math.abs(Math.min(0, value));
-    return value; // balance
+    return value; 
 }
 
 function moveAnchor(direction) {
@@ -448,7 +491,6 @@ function updatePeriodLabel(period, anchor) {
     el.innerHTML = `<strong>${label}</strong><br><span style="font-size:0.8rem; opacity:0.7;">So với cùng kỳ</span>`;
 }
 
-// CẬP NHẬT BIỂU ĐỒ TỪ DÃY SỐ LIỆU
 function updateChartFromSeries(labels, curData, prevData, period, meta) {
     const ctx = document.getElementById('trendChart').getContext('2d');
     if (trendChartInstance) trendChartInstance.destroy();
@@ -465,7 +507,6 @@ function updateChartFromSeries(labels, curData, prevData, period, meta) {
     const tooltipTitles = meta?.tooltipTitles || null;
     const segments = meta?.segments || [];
 
-    // Legend labels similar to mobile UI
     const labelCurrent = currentMetric === 'income'
         ? `Tổng thu nhập trong ${periodText}`
         : currentMetric === 'expense'
@@ -491,7 +532,6 @@ function updateChartFromSeries(labels, curData, prevData, period, meta) {
     );
     const scale = getScaleUnit(maxAbs);
 
-    // Improve axis readability
     const xMaxTicks = (p === 'month') ? 6 : (p === 'week' ? 7 : 12);
 
     const handleClick = (evt) => {
@@ -499,7 +539,6 @@ function updateChartFromSeries(labels, curData, prevData, period, meta) {
         const nativeEvt = (evt && evt.native) ? evt.native : evt;
         let points = trendChartInstance.getElementsAtEventForMode(nativeEvt, 'nearest', { intersect: true }, true);
 
-        // Fallback for some Chart.js builds that expect a chartEvent-like object with x/y.
         if ((!points || points.length === 0) && nativeEvt && nativeEvt.clientX != null && nativeEvt.clientY != null) {
             const rect = trendChartInstance.canvas?.getBoundingClientRect?.();
             if (rect) {
@@ -509,7 +548,6 @@ function updateChartFromSeries(labels, curData, prevData, period, meta) {
             }
         }
 
-        // Click outside bars: reset to base period categories
         if (!points || points.length === 0) {
             if (selectedBarIndex !== null) {
                 selectedBarIndex = null;
@@ -520,7 +558,6 @@ function updateChartFromSeries(labels, curData, prevData, period, meta) {
 
         const idx = points[0].index;
 
-        // Click the same bar again: toggle back to base
         if (selectedBarIndex === idx) {
             selectedBarIndex = null;
             renderTopCategories(lastBaseCategoryContext.curTxns, lastBaseCategoryContext.prevTxns, lastBaseCategoryContext.period, null);
@@ -600,7 +637,6 @@ function updateChartFromSeries(labels, curData, prevData, period, meta) {
         }
     });
 
-    // Attach a direct canvas click handler for reliable interaction
     const canvas = document.getElementById('trendChart');
     if (canvas) {
         canvas.style.cursor = 'pointer';
@@ -608,7 +644,7 @@ function updateChartFromSeries(labels, curData, prevData, period, meta) {
     }
 }
 
-// CẬP NHẬT TOP DANH MỤC THEO THẺ ĐANG CHỌN
+// CẬP NHẬT TOP DANH MỤC (ĐÃ SỬA LẠI ĐỂ ĐỌC MÀU SẮC CHUẨN XÁC)
 function renderTopCategories(curTxns, prevTxns, period, titleSuffix) {
     const container = document.getElementById('topCategoriesContainer');
     const titleEl = document.getElementById('topCategoriesTitle');
@@ -617,7 +653,6 @@ function renderTopCategories(curTxns, prevTxns, period, titleSuffix) {
     const compareEnabled = !!document.getElementById('compareToggle')?.checked;
     const periodText = getPeriodVietnamese(period || currentPeriod);
 
-    // Title
     let baseTitle = '';
     if (currentMetric === 'income') baseTitle = 'Danh mục (Thu nhập)';
     else if (currentMetric === 'expense') baseTitle = 'Danh mục (Chi tiêu)';
@@ -665,7 +700,6 @@ function renderTopCategories(curTxns, prevTxns, period, titleSuffix) {
         const deltaAbs = Math.abs(rawDelta);
         const isIncrease = rawDelta >= 0;
 
-        // good/bad coloring depending on metric
         let isGood = true;
         if (currentMetric === 'expense') isGood = !isIncrease;
         else isGood = isIncrease;
@@ -681,9 +715,15 @@ function renderTopCategories(curTxns, prevTxns, period, titleSuffix) {
                 <div style="margin-top: 2px; font-size: 0.85rem; color: var(--text-secondary); font-weight:700; text-align:right;">So với cùng kỳ ${periodText} trước</div>`
             : '';
 
-        return `<div class="trend-category-item">
+        // 💡 Lấy màu sắc chuẩn xác từ categoryColors (Hoặc màu mặc định nếu không có)
+        const catColor = categoryColors[name] || '#8a2be2';
+
+        return `<div class="trend-category-item" style="border-left: 5px solid ${catColor};">
             <div style="flex:1; display:flex; align-items:flex-start; justify-content:space-between; gap: 12px;">
-                <div style="font-weight: 800; color: var(--text-primary);">${name}</div>
+                <div style="font-weight: 800; color: var(--text-primary); display: flex; align-items: center; gap: 10px;">
+                    <div style="width: 12px; height: 12px; border-radius: 50%; background-color: ${catColor};"></div>
+                    ${name}
+                </div>
                 <div style="text-align:right; min-width: 120px;">
                     <div style="font-weight: 900; color: var(--text-primary);">${formatCurrencySafe(curVal)}</div>
                     ${deltaLine}
