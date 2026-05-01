@@ -1161,25 +1161,30 @@ def get_config(
         .first()
     )
 
+    # NẾU KHÔNG CÓ CONFIG -> TÀI KHOẢN MỚI
     if not user_config:
         return {
-            "currency": "usd",
+            "is_new_user": True,  # 👈 Báo hiệu cho Frontend biết đây là "Lính mới"
+            "currency": "vnd",
             "startDate": 1,
             "expenseCategories": ["Ăn uống", "Đi lại", "Mua sắm", "Hóa đơn", "Giải trí"],
             "incomeCategories": ["Lương", "Thưởng", "Đầu tư", "Khác"]
         }
 
     cats = user_config.categories
+    # NẾU CÓ CONFIG -> TÀI KHOẢN CŨ
     if isinstance(cats, dict):
         return {
+            "is_new_user": False, # 👈 Báo hiệu "Lính cũ"
             "currency": user_config.currency,
             "startDate": user_config.startDate,
             "expenseCategories": cats.get("expenseCategories", ["Ăn uống", "Đi lại", "Mua sắm"]),
             "incomeCategories": cats.get("incomeCategories", ["Lương", "Thưởng"]),
         }
     else:
-        # Nếu đang là dữ liệu cũ, tự động biến nó thành format mới cho Frontend
+        # Tương thích ngược với dữ liệu cũ
         return {
+            "is_new_user": False,
             "currency": user_config.currency,
             "startDate": user_config.startDate,
             "expenseCategories": cats if cats else ["Ăn uống", "Đi lại"],

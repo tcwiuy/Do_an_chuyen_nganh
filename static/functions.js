@@ -328,3 +328,49 @@ async function analyzeTrends() {
         if (btn) btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Phân Tích AI';
     }
 }
+
+async function loadUserConfig() {
+    // 1. Kiểm tra xem có token chưa (Đã đăng nhập chưa)
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+        // Nếu chưa đăng nhập thì kệ nó, để logic Auth lo việc đá về trang Login
+        return; 
+    }
+
+    try {
+        const response = await fetch('/api/config', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        const configData = await response.json();
+
+        // 2. Chặn đường lính mới
+        // (Chỉ đá sang setup nếu đang không ở trang setup, để tránh lặp vô tận)
+        if (configData.is_new_user === true && !window.location.href.includes('setup.html')) {
+            window.location.replace("/setup.html"); // Dùng replace để người dùng không bấm nút Back quay lại được
+            return;
+        }
+
+        // 3. Nếu là lính cũ mà lại đang đứng ở trang setup -> Đá về Dashboard
+        if (configData.is_new_user === false && window.location.href.includes('setup.html')) {
+            window.location.replace("/dashboard.html"); // Hoặc /index.html tuỳ bạn
+            return;
+        }
+
+        // Nếu hợp lệ, lưu config vào biến toàn cục để các hàm khác xài (vẽ biểu đồ, show tiền tệ...)
+        window.userSettings = configData;
+
+    } catch (error) {
+        console.error("Lỗi khi tải cấu hình:", error);
+    }
+}
+
+// 4. Kích hoạt hàm ngay khi trang web vừa load xong HTML
+document.addEventListener("DOMContentLoaded", () => {
+    // Lưu ý: ĐỪNG gọi hàm này ở trang login.html hay register.html nhé
+    if (!window.location.href.includes('login') && !window.location.href.includes('register')) {
+        loadUserConfig();
+    }
+});

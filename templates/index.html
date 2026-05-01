@@ -73,7 +73,7 @@
       <div class="form-container" style="background-color: var(--bg-secondary); padding: 15px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 20px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
             <select id="periodSelect" style="padding: 8px 15px; border-radius: 8px; background-color: var(--bg-primary); color: var(--text-primary); border: 1px solid var(--border); outline: none; cursor: pointer; font-family: inherit; font-weight: bold;">
-                <option value="week">Theo Tuần</option>
+                <option value="week" selected>Theo Tuần</option>
                 <option value="month">Theo Tháng</option>
                 <option value="year">Theo Năm</option>
                 <option value="all">Tất cả thời gian</option>
@@ -225,6 +225,7 @@
       </div>
     </div>
 
+    <!-- WIZARD OVERLAY -->
     <div id="setupWizardOverlay" class="wizard-overlay" style="display: none;">
       <div class="wizard-box">
           <h2 style="color: #d4a5ff; text-align: center; margin-top: 0;"><i class="fa-solid fa-rocket"></i> Chào mừng người mới!</h2>
@@ -247,12 +248,17 @@
 
           <div id="wStep2" class="wizard-step">
               <h3 style="margin-top: 0; color: #fff;">2. Danh mục & Màu sắc</h3>
-              <p style="font-size: 0.9rem; color: #a0a0b0; margin-bottom: 15px;">Thêm mới danh mục, xóa mục không cần thiết và chọn màu sắc đại diện cho từng mục.</p>
+              <p style="font-size: 0.9rem; color: #a0a0b0; margin-bottom: 10px;">Thêm mới danh mục, xóa mục không cần thiết và chọn màu sắc đại diện cho từng mục.</p>
               
-              <div id="wCatList" style="max-height: 220px; overflow-y: auto; margin-bottom: 15px; padding-right: 5px;"></div>
+              <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                  <button id="btnWizExp" onclick="switchWizCatType('expense')" class="nav-button" style="flex: 1; background: #8a2be2;">Khoản Chi</button>
+                  <button id="btnWizInc" onclick="switchWizCatType('income')" class="nav-button" style="flex: 1; background: #2a2a40; color: #a0a0b0;">Khoản Thu</button>
+              </div>
+              
+              <div id="wCatList" style="max-height: 180px; overflow-y: auto; margin-bottom: 15px; padding-right: 5px;"></div>
               
               <div style="display: flex; gap: 10px;">
-                  <input type="text" id="wNewCat" class="wizard-input" style="margin-bottom: 0;" placeholder="Tên danh mục mới...">
+                  <input type="text" id="wNewCat" class="wizard-input" style="margin-bottom: 0; flex: 1" placeholder="Tên danh mục mới...">
                   <button onclick="addWizCat()" class="nav-button" style="width: auto; background: #2a2a40;"><i class="fa-solid fa-plus"></i></button>
               </div>
           </div>
@@ -311,6 +317,7 @@
       </div>
     </div>
 
+    <!-- SCRIPTS -->
     <script src="/static/functions.js"></script>
     <script>
       function formatCurrencyInput(input) {
@@ -328,7 +335,6 @@
           input.value = value;
       }
 
-      // 💡 BỔ SUNG 2 KHO DANH MỤC
       let expenseCategories = [];
       let incomeCategories = [];
 
@@ -342,15 +348,11 @@
       let allTags = new Set();
       let selectedTags = new Set();
       
-      let currentPeriodType = "week";
+      let currentPeriodType = "week"; // Mặc định hiển thị lịch theo tuần
       let isCalendarExpanded = false; 
       let selectedDayFilter = null;   
-      
-      let wStep = 1;
-      let wData = { balance: 0, categories: [], colors: {} };
-      let initialCategories = [];
 
-      // 💡 HÀM MỚI: TỰ ĐỘNG ĐỔI DANH MỤC DỰA VÀO Ô "KHOẢN THU"
+      // Tự động đổi danh mục dựa vào ô "Khoản thu"
       function updateExpenseFormCategoryOptions() {
           const categorySelect = document.getElementById("category");
           const isIncome = document.getElementById("reportGain").checked;
@@ -361,7 +363,6 @@
           }
       }
 
-      // LẮNG NGHE SỰ KIỆN LẬT TRANG DANH MỤC
       document.addEventListener("DOMContentLoaded", () => {
           const reportGainCheckbox = document.getElementById("reportGain");
           if(reportGainCheckbox) {
@@ -371,8 +372,13 @@
 
 
       // =========================================
-      // WIZARD LOGIC
+      // WIZARD LOGIC (ĐÃ NÂNG CẤP ĐA DANH MỤC)
       // =========================================
+      let wStep = 1;
+      let wCurrentCatType = 'expense';
+      let wData = { balance: 0, expenseCategories: [], incomeCategories: [], colors: {} }; 
+      let initialCategories = [];
+
       function getUsernameFromToken() {
           try {
               const token = localStorage.getItem('token');
@@ -389,8 +395,9 @@
       function checkSetupWizard() {
           const username = getUsernameFromToken();
           if (!localStorage.getItem(`setupDone_${username}`)) {
-              wData.categories = [...expenseCategories]; // Lấy danh mục chi tiêu cơ bản cho wizard
-              renderWizCats();
+              wData.expenseCategories = [...expenseCategories]; 
+              wData.incomeCategories = [...incomeCategories];
+              switchWizCatType('expense');
               document.getElementById('setupWizardOverlay').style.display = 'flex';
           }
       }
@@ -398,9 +405,26 @@
       function skipWizard() { markWizardDone(); document.getElementById('setupWizardOverlay').style.display = 'none'; if(window.showToast) showToast("Đã bỏ qua thiết lập ban đầu", "success"); }
       function markWizardDone() { localStorage.setItem(`setupDone_${getUsernameFromToken()}`, 'true'); }
 
+      function switchWizCatType(type) {
+          wCurrentCatType = type;
+          const btnExp = document.getElementById('btnWizExp');
+          const btnInc = document.getElementById('btnWizInc');
+          
+          if(type === 'expense') {
+              btnExp.style.background = '#8a2be2'; btnExp.style.color = '#fff';
+              btnInc.style.background = '#2a2a40'; btnInc.style.color = '#a0a0b0';
+          } else {
+              btnInc.style.background = '#8a2be2'; btnInc.style.color = '#fff';
+              btnExp.style.background = '#2a2a40'; btnExp.style.color = '#a0a0b0';
+          }
+          renderWizCats();
+      }
+
       function renderWizCats() {
           const list = document.getElementById('wCatList'); list.innerHTML = '';
-          wData.categories.forEach((cat, idx) => {
+          const activeArray = wCurrentCatType === 'expense' ? wData.expenseCategories : wData.incomeCategories;
+
+          activeArray.forEach((cat, idx) => {
               const color = wData.colors[cat] || categoryColors[cat] || colorPalette[idx % colorPalette.length] || "#8a2be2";
               wData.colors[cat] = color;
               list.innerHTML += `<div class="wiz-cat-item"><input type="text" value="${cat}" readonly><div style="display: flex; gap: 15px; align-items: center;"><input type="color" value="${color}" onchange="wData.colors['${cat}'] = this.value"><button onclick="removeWizCat(${idx})" style="background: none; border: none; color: #ff4d4d; cursor: pointer; padding: 5px;"><i class="fa-solid fa-trash"></i></button></div></div>`;
@@ -409,12 +433,14 @@
 
       function addWizCat() {
           const input = document.getElementById('wNewCat'); const val = input.value.trim().replace(/[<>]/g, '');
-          if (val && !wData.categories.includes(val)) { wData.categories.push(val); input.value = ''; renderWizCats(); }
+          const activeArray = wCurrentCatType === 'expense' ? wData.expenseCategories : wData.incomeCategories;
+          if (val && !activeArray.includes(val)) { activeArray.push(val); input.value = ''; renderWizCats(); }
       }
 
       window.removeWizCat = function(idx) {
-          if (wData.categories.length <= 1) { if(window.showToast) showToast('Cần giữ lại ít nhất một danh mục!', "error"); return; }
-          wData.categories.splice(idx, 1); renderWizCats();
+          const activeArray = wCurrentCatType === 'expense' ? wData.expenseCategories : wData.incomeCategories;
+          if (activeArray.length <= 1) { if(window.showToast) showToast('Cần giữ lại ít nhất một danh mục!', "error"); return; }
+          activeArray.splice(idx, 1); renderWizCats();
       }
 
       function updateWizardUI() {
@@ -430,7 +456,7 @@
               
               const rate = (typeof exchangeRatesToVND !== 'undefined') ? (exchangeRatesToVND[currentCurrency] || 1) : 1;
               document.getElementById('wConfirmBalance').textContent = formatCurrency(wData.balance * rate);
-              document.getElementById('wConfirmCats').textContent = wData.categories.length + " mục";
+              document.getElementById('wConfirmCats').textContent = `${wData.expenseCategories.length} Chi, ${wData.incomeCategories.length} Thu`;
               
               const goal = document.getElementById('wFinancialGoal').value; const risk = document.getElementById('wRiskTolerance').value;
               let aiStatus = "Đã thiết lập"; if (goal === "Chưa xác định" && risk === "Cân bằng") aiStatus = "Mặc định";
@@ -448,10 +474,9 @@
           try {
               localStorage.setItem('customCategoryColors', JSON.stringify(wData.colors));
               
-              // 💡 SỬA: Đóng gói đúng format mới của API Categories
               const payloadObject = {
-                  expenseCategories: wData.categories,
-                  incomeCategories: ["Lương", "Thưởng", "Đầu tư", "Khác"]
+                  expenseCategories: wData.expenseCategories,
+                  incomeCategories: wData.incomeCategories
               };
               await fetch('/api/categories/edit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payloadObject) }).catch(e => {});
 
@@ -622,11 +647,10 @@
       };
 
       // =========================================
-      // KHỞI TẠO DỮ LIỆU (ĐÃ NÂNG CẤP ĐỌC 2 KHO DANH MỤC)
+      // KHỞI TẠO DỮ LIỆU
       // =========================================
       async function initialize() {
         try {
-          // 1. Tải cấu hình
           let config = { expenseCategories: ["Ăn uống", "Đi lại", "Mua sắm", "Hóa đơn", "Giải trí"], incomeCategories: ["Lương", "Thưởng", "Đầu tư", "Khác"], currency: "usd", startDate: 1 };
           try {
               const configResponse = await fetch("/api/config");
@@ -636,7 +660,6 @@
               }
           } catch(e) {}
           
-          // 2. Bóc tách 2 mảng Thu - Chi
           if (config.expenseCategories && config.incomeCategories) {
               expenseCategories = config.expenseCategories;
               incomeCategories = config.incomeCategories;
@@ -646,8 +669,6 @@
           }
           
           initialCategories = [...expenseCategories, ...incomeCategories];
-          
-          // 3. Gọi hàm cập nhật Dropdown
           updateExpenseFormCategoryOptions();
           
           window.currentCurrency = config.currency || 'usd'; currentCurrency = window.currentCurrency; window.startDate = config.startDate || 1;
@@ -671,7 +692,6 @@
               let safeDate = new Date().toISOString();
               if (typeof exp.date === 'string' && exp.date.trim() !== '') safeDate = exp.date;
               
-              // --- 💡 BỘ LỌC TỰ ĐỘNG ÉP KIỂU (AUTO-HEAL) ---
               let catName = exp.category || 'Khác';
               const exactMatch = initialCategories.find(c => c === catName);
               if (!exactMatch) {
@@ -995,6 +1015,7 @@
     
     <script src="/static/chatbot.js"></script>
     
+    <!-- MODALS -->
     <div id="aiModal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.7); align-items: center; justify-content: center;">
       <div style="background: linear-gradient(145deg, #1e1e2d, #2a2a40); border: 2px solid #8a2be2; border-radius: 12px; width: 90%; max-width: 500px; max-height: 80vh; overflow-y: auto; padding: 20px; box-shadow: 0 0 20px rgba(138, 43, 226, 0.4); position: relative;">
         <button onclick="closeAiModal()" style="position: absolute; right: 15px; top: 15px; background: none; border: none; color: #ff4d4d; font-size: 20px; cursor: pointer;"><i class="fa-solid fa-xmark"></i></button>
@@ -1014,6 +1035,7 @@
         </div>
       </div>
     </div>
+
     <div id="logoutConfirmModal" class="modal" style="display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); align-items: center; justify-content: center;">
         <div style="background-color: var(--bg-secondary); border: 1px solid var(--border); border-radius: 12px; width: 90%; max-width: 400px; padding: 25px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); text-align: center;">
             <h3 style="color: var(--accent); margin-top: 0; margin-bottom: 15px;">
