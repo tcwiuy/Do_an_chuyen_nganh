@@ -73,7 +73,7 @@
       <div class="form-container" style="background-color: var(--bg-secondary); padding: 15px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 20px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
             <select id="periodSelect" style="padding: 8px 15px; border-radius: 8px; background-color: var(--bg-primary); color: var(--text-primary); border: 1px solid var(--border); outline: none; cursor: pointer; font-family: inherit; font-weight: bold;">
-                <option value="week">Theo Tuần</option>
+                <option value="week" selected>Theo Tuần</option>
                 <option value="month">Theo Tháng</option>
                 <option value="year">Theo Năm</option>
                 <option value="all">Tất cả thời gian</option>
@@ -101,7 +101,7 @@
       </div>
 
       <div class="table-controls" style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
-        <button id="toggleExpenseFormBtn" class="nav-button"><i class="fa-solid fa-plus"></i> Thêm Chi Tiêu</button>
+        <button id="toggleExpenseFormBtn" class="nav-button"><i class="fa-solid fa-plus"></i> Thêm Giao Dịch</button>
         <button onclick="OCRScanner.open(function () { initialize(); })" class="nav-button"><i class="fa-solid fa-receipt"></i> Quét Hóa Đơn</button>
         <script src="/static/ocr_scanner.js"></script>
         <button onclick="PDFScanner.open(function() { initialize(); })" class="nav-button"><i class="fa-solid fa-file-pdf"></i> Quét File PDF</button>
@@ -138,7 +138,6 @@
                 
                 <div class="form-group">
                     <label>Số tiền</label>
-                    <!-- ĐÃ SỬA: Đổi sang text và thêm oninput -->
                     <input type="text" id="amount" placeholder="0" required oninput="formatCurrencyInput(this)">
                 </div>
                 
@@ -162,6 +161,11 @@
                     </select>
                 </div>
                 
+                <div class="form-group" id="jarSourceGroup">
+                    <label>Rút từ Quỹ (Hũ)</label>
+                    <select id="jar_id" style="background-color: var(--bg-primary);"></select>
+                </div>
+
                 <div class="form-group" style="position: relative;">
                     <label>Nhãn</label>
                     <div id="tags-input-container" style="width: 100%; display: flex; flex-wrap: wrap; border: 1px solid var(--border); border-radius: 4px; background-color: var(--bg-primary); cursor: text; padding: 0.25rem;">
@@ -226,6 +230,7 @@
       </div>
     </div>
 
+    <!-- WIZARD OVERLAY -->
     <div id="setupWizardOverlay" class="wizard-overlay" style="display: none;">
       <div class="wizard-box">
           <h2 style="color: #d4a5ff; text-align: center; margin-top: 0;"><i class="fa-solid fa-rocket"></i> Chào mừng người mới!</h2>
@@ -243,18 +248,22 @@
               <h3 style="margin-top: 0; color: #fff;">1. Thu nhập / Số dư ban đầu</h3>
               <p style="font-size: 0.9rem; color: #a0a0b0; line-height: 1.5;">Nhập số tiền hiện có trong ví hoặc tài khoản để bắt đầu theo dõi chính xác nhất.</p>
               <label style="color: #d4a5ff; font-weight: bold; margin-bottom: 5px; display: block;">Số dư hiện tại:</label>
-              <!-- ĐÃ SỬA: Đổi sang text và thêm oninput -->
               <input type="text" id="wBalance" class="wizard-input" placeholder="Ví dụ: 5,000,000" oninput="formatCurrencyInput(this)">
           </div>
 
           <div id="wStep2" class="wizard-step">
               <h3 style="margin-top: 0; color: #fff;">2. Danh mục & Màu sắc</h3>
-              <p style="font-size: 0.9rem; color: #a0a0b0; margin-bottom: 15px;">Thêm mới danh mục, xóa mục không cần thiết và chọn màu sắc đại diện cho từng mục.</p>
+              <p style="font-size: 0.9rem; color: #a0a0b0; margin-bottom: 10px;">Thêm mới danh mục, xóa mục không cần thiết và chọn màu sắc đại diện cho từng mục.</p>
               
-              <div id="wCatList" style="max-height: 220px; overflow-y: auto; margin-bottom: 15px; padding-right: 5px;"></div>
+              <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                  <button id="btnWizExp" onclick="switchWizCatType('expense')" class="nav-button" style="flex: 1; background: #8a2be2;">Khoản Chi</button>
+                  <button id="btnWizInc" onclick="switchWizCatType('income')" class="nav-button" style="flex: 1; background: #2a2a40; color: #a0a0b0;">Khoản Thu</button>
+              </div>
+              
+              <div id="wCatList" style="max-height: 180px; overflow-y: auto; margin-bottom: 15px; padding-right: 5px;"></div>
               
               <div style="display: flex; gap: 10px;">
-                  <input type="text" id="wNewCat" class="wizard-input" style="margin-bottom: 0;" placeholder="Tên danh mục mới...">
+                  <input type="text" id="wNewCat" class="wizard-input" style="margin-bottom: 0; flex: 1" placeholder="Tên danh mục mới...">
                   <button onclick="addWizCat()" class="nav-button" style="width: auto; background: #2a2a40;"><i class="fa-solid fa-plus"></i></button>
               </div>
           </div>
@@ -313,9 +322,9 @@
       </div>
     </div>
 
+    <!-- SCRIPTS -->
     <script src="/static/functions.js"></script>
     <script>
-      // HÀM MỚI: Xử lý định dạng tiền tệ trực tiếp khi gõ
       function formatCurrencyInput(input) {
           let value = input.value;
           value = value.replace(/[^\d.]/g, '');
@@ -331,6 +340,9 @@
           input.value = value;
       }
 
+      let expenseCategories = [];
+      let incomeCategories = [];
+
       let currentCurrency = "usd";
       let pieChart = null;
       let currentChartType = "doughnut";
@@ -341,17 +353,66 @@
       let allTags = new Set();
       let selectedTags = new Set();
       
-      let currentPeriodType = "week";
+      let currentPeriodType = "week"; // Mặc định hiển thị lịch theo tuần
       let isCalendarExpanded = false; 
       let selectedDayFilter = null;   
-      
-      let wStep = 1;
-      let wData = { balance: 0, categories: [], colors: {} };
-      let initialCategories = [];
+
+      // Tự động đổi danh mục dựa vào ô "Khoản thu"
+      function updateExpenseFormCategoryOptions() {
+          const categorySelect = document.getElementById("category");
+          const isIncome = document.getElementById("reportGain").checked;
+          const targetList = isIncome ? incomeCategories : expenseCategories;
+          
+          if(categorySelect) {
+              categorySelect.innerHTML = targetList.map((cat) => `<option value="${cat}">${cat}</option>`).join("");
+          }
+
+          // Ẩn ô chọn "Rút từ Hũ" nếu đang là Khoản Thu
+          const jarGroup = document.getElementById("jarSourceGroup");
+          if(jarGroup) {
+              jarGroup.style.display = isIncome ? 'none' : 'block';
+          }
+      }
+
+      document.addEventListener("DOMContentLoaded", () => {
+          const reportGainCheckbox = document.getElementById("reportGain");
+          if(reportGainCheckbox) {
+              reportGainCheckbox.addEventListener("change", updateExpenseFormCategoryOptions);
+          }
+      });
+
+      // HÀM TẢI DANH SÁCH HŨ TỪ DATABASE
+      let globalJars = [];
+      async function loadJarsForSelect() {
+          const token = localStorage.getItem('token');
+          const res = await fetch('/api/planning/jars', { headers: { 'Authorization': `Bearer ${token}` } });
+          if (res.ok) {
+              const jars = await res.json();
+              globalJars = jars;
+              const select = document.getElementById('jar_id');
+              if (select) {
+                  select.innerHTML = '<option value="">-- Chọn Quỹ để rút --</option>';
+                  jars.forEach(j => {
+                    //   let rate = (typeof exchangeRatesToVND !== "undefined") ? (exchangeRatesToVND[currentCurrency] || 1) : 1;
+                      select.innerHTML += `<option value="${j.id}">${j.name} (${formatCurrency(j.balance)})</option>`;
+                  });
+              }
+          }
+      }
+
+      function showCustomAlert(message) {
+          document.getElementById("alertMessage").textContent = message;
+          document.getElementById("customAlertModal").style.display = "flex";
+      }
 
       // =========================================
-      // WIZARD LOGIC
+      // WIZARD LOGIC (ĐÃ NÂNG CẤP ĐA DANH MỤC)
       // =========================================
+      let wStep = 1;
+      let wCurrentCatType = 'expense';
+      let wData = { balance: 0, expenseCategories: [], incomeCategories: [], colors: {} }; 
+      let initialCategories = [];
+
       function getUsernameFromToken() {
           try {
               const token = localStorage.getItem('token');
@@ -368,8 +429,9 @@
       function checkSetupWizard() {
           const username = getUsernameFromToken();
           if (!localStorage.getItem(`setupDone_${username}`)) {
-              wData.categories = [...initialCategories];
-              renderWizCats();
+              wData.expenseCategories = [...expenseCategories]; 
+              wData.incomeCategories = [...incomeCategories];
+              switchWizCatType('expense');
               document.getElementById('setupWizardOverlay').style.display = 'flex';
           }
       }
@@ -377,9 +439,26 @@
       function skipWizard() { markWizardDone(); document.getElementById('setupWizardOverlay').style.display = 'none'; if(window.showToast) showToast("Đã bỏ qua thiết lập ban đầu", "success"); }
       function markWizardDone() { localStorage.setItem(`setupDone_${getUsernameFromToken()}`, 'true'); }
 
+      function switchWizCatType(type) {
+          wCurrentCatType = type;
+          const btnExp = document.getElementById('btnWizExp');
+          const btnInc = document.getElementById('btnWizInc');
+          
+          if(type === 'expense') {
+              btnExp.style.background = '#8a2be2'; btnExp.style.color = '#fff';
+              btnInc.style.background = '#2a2a40'; btnInc.style.color = '#a0a0b0';
+          } else {
+              btnInc.style.background = '#8a2be2'; btnInc.style.color = '#fff';
+              btnExp.style.background = '#2a2a40'; btnExp.style.color = '#a0a0b0';
+          }
+          renderWizCats();
+      }
+
       function renderWizCats() {
           const list = document.getElementById('wCatList'); list.innerHTML = '';
-          wData.categories.forEach((cat, idx) => {
+          const activeArray = wCurrentCatType === 'expense' ? wData.expenseCategories : wData.incomeCategories;
+
+          activeArray.forEach((cat, idx) => {
               const color = wData.colors[cat] || categoryColors[cat] || colorPalette[idx % colorPalette.length] || "#8a2be2";
               wData.colors[cat] = color;
               list.innerHTML += `<div class="wiz-cat-item"><input type="text" value="${cat}" readonly><div style="display: flex; gap: 15px; align-items: center;"><input type="color" value="${color}" onchange="wData.colors['${cat}'] = this.value"><button onclick="removeWizCat(${idx})" style="background: none; border: none; color: #ff4d4d; cursor: pointer; padding: 5px;"><i class="fa-solid fa-trash"></i></button></div></div>`;
@@ -388,12 +467,14 @@
 
       function addWizCat() {
           const input = document.getElementById('wNewCat'); const val = input.value.trim().replace(/[<>]/g, '');
-          if (val && !wData.categories.includes(val)) { wData.categories.push(val); input.value = ''; renderWizCats(); }
+          const activeArray = wCurrentCatType === 'expense' ? wData.expenseCategories : wData.incomeCategories;
+          if (val && !activeArray.includes(val)) { activeArray.push(val); input.value = ''; renderWizCats(); }
       }
 
       window.removeWizCat = function(idx) {
-          if (wData.categories.length <= 1) { if(window.showToast) showToast('Cần giữ lại ít nhất một danh mục!', "error"); return; }
-          wData.categories.splice(idx, 1); renderWizCats();
+          const activeArray = wCurrentCatType === 'expense' ? wData.expenseCategories : wData.incomeCategories;
+          if (activeArray.length <= 1) { if(window.showToast) showToast('Cần giữ lại ít nhất một danh mục!', "error"); return; }
+          activeArray.splice(idx, 1); renderWizCats();
       }
 
       function updateWizardUI() {
@@ -404,13 +485,12 @@
           document.getElementById('wBtnFinish').style.display = wStep === 5 ? 'block' : 'none';
 
           if (wStep === 5) {
-              // ĐÃ SỬA: Lột bỏ dấu phẩy trước khi tính toán số dư
               let rawBal = document.getElementById('wBalance').value.replace(/,/g, '');
               wData.balance = parseFloat(rawBal) || 0;
               
               const rate = (typeof exchangeRatesToVND !== 'undefined') ? (exchangeRatesToVND[currentCurrency] || 1) : 1;
               document.getElementById('wConfirmBalance').textContent = formatCurrency(wData.balance * rate);
-              document.getElementById('wConfirmCats').textContent = wData.categories.length + " mục";
+              document.getElementById('wConfirmCats').textContent = `${wData.expenseCategories.length} Chi, ${wData.incomeCategories.length} Thu`;
               
               const goal = document.getElementById('wFinancialGoal').value; const risk = document.getElementById('wRiskTolerance').value;
               let aiStatus = "Đã thiết lập"; if (goal === "Chưa xác định" && risk === "Cân bằng") aiStatus = "Mặc định";
@@ -427,14 +507,19 @@
           const btn = document.getElementById('wBtnFinish'); btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang lưu...'; btn.disabled = true;
           try {
               localStorage.setItem('customCategoryColors', JSON.stringify(wData.colors));
-              await fetch('/api/categories/edit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(wData.categories) }).catch(e => {});
+              
+              const payloadObject = {
+                  expenseCategories: wData.expenseCategories,
+                  incomeCategories: wData.incomeCategories
+              };
+              await fetch('/api/categories/edit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payloadObject) }).catch(e => {});
 
               const goal = document.getElementById('wFinancialGoal').value; const risk = document.getElementById('wRiskTolerance').value;
               await fetch('/api/profile/edit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ goal: goal, risk: risk }) }).catch(e => {});
 
               if (wData.balance > 0) {
                   const rate = (typeof exchangeRatesToVND !== 'undefined') ? (exchangeRatesToVND[currentCurrency] || 1) : 1;
-                  const incCat = wData.categories.includes('Lương') ? 'Lương' : (wData.categories[0] || 'Khác');
+                  const incCat = incomeCategories.length > 0 ? incomeCategories[0] : 'Khác';
                   const todayStr = new Date().toISOString().split('T')[0];
                   const formData = { name: "Số dư ban đầu", category: incCat, amount: wData.balance * rate, date: new Date(todayStr + "T00:00:00Z").toISOString(), tags: ["Setup"], note: null, recurring_interval: null };
                   const res = await fetch('/api/expenses/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData) });
@@ -455,29 +540,15 @@
               btn.innerHTML = '<i class="fa-solid fa-rocket"></i> Hoàn tất'; btn.disabled = false;
           }
       }
-      
 
-      // HÀM HIỂN THỊ BẢNG ĐĂNG XUẤT
-        function showLogoutModal() {
-            document.getElementById('logoutConfirmModal').style.display = 'flex';
-        }
+      function showLogoutModal() { document.getElementById('logoutConfirmModal').style.display = 'flex'; }
+      function closeLogoutModal() { document.getElementById('logoutConfirmModal').style.display = 'none'; }
+      function proceedLogout() {
+          closeLogoutModal();
+          if (typeof logout === 'function') { logout(); } 
+          else { localStorage.removeItem('token'); window.location.href = '/login'; }
+      }
 
-        // HÀM ẨN BẢNG ĐĂNG XUẤT
-        function closeLogoutModal() {
-            document.getElementById('logoutConfirmModal').style.display = 'none';
-        }
-
-        // HÀM THỰC THI ĐĂNG XUẤT
-        function proceedLogout() {
-            closeLogoutModal();
-            // Gọi hàm logout gốc của bạn (hoặc thực thi logic xóa token)
-            if (typeof logout === 'function') {
-                logout();
-            } else {
-                localStorage.removeItem('token');
-                window.location.href = '/login';
-            }
-        }
       // =========================================
       // TÍNH NĂNG LỊCH HEATMAP
       // =========================================
@@ -614,18 +685,25 @@
       // =========================================
       async function initialize() {
         try {
-          let config = { categories: ["Ăn uống", "Đi lại", "Mua sắm", "Hóa đơn", "Giải trí"], currency: "usd", startDate: 1 };
+          let config = { expenseCategories: ["Ăn uống", "Đi lại", "Mua sắm", "Hóa đơn", "Giải trí"], incomeCategories: ["Lương", "Thưởng", "Đầu tư", "Khác"], currency: "usd", startDate: 1 };
           try {
               const configResponse = await fetch("/api/config");
               if (configResponse.ok) {
                   const fetchedConfig = await configResponse.json();
-                  if (fetchedConfig && fetchedConfig.categories) config = fetchedConfig;
+                  if (fetchedConfig) config = {...config, ...fetchedConfig};
               }
           } catch(e) {}
           
-          initialCategories = config.categories || [];
-          const categorySelect = document.getElementById("category");
-          categorySelect.innerHTML = initialCategories.map((cat) => `<option value="${cat}">${cat}</option>`).join("");
+          if (config.expenseCategories && config.incomeCategories) {
+              expenseCategories = config.expenseCategories;
+              incomeCategories = config.incomeCategories;
+          } else if (config.categories) {
+              expenseCategories = config.categories;
+              incomeCategories = ["Lương", "Thưởng", "Đầu tư", "Khác"];
+          }
+          
+          initialCategories = [...expenseCategories, ...incomeCategories];
+          updateExpenseFormCategoryOptions();
           
           window.currentCurrency = config.currency || 'usd'; currentCurrency = window.currentCurrency; window.startDate = config.startDate || 1;
 
@@ -647,7 +725,16 @@
               }
               let safeDate = new Date().toISOString();
               if (typeof exp.date === 'string' && exp.date.trim() !== '') safeDate = exp.date;
-              return { ...exp, amount: parseFloat(exp.amount) || 0, date: safeDate, tags: safeTags, category: exp.category || 'Khác' };
+              
+              let catName = exp.category || 'Khác';
+              const exactMatch = initialCategories.find(c => c === catName);
+              if (!exactMatch) {
+                  const lowerMatch = initialCategories.find(c => c.toLowerCase() === catName.toLowerCase());
+                  if (lowerMatch) {
+                      catName = lowerMatch;
+                  }
+              }
+              return { ...exp, amount: parseFloat(exp.amount) || 0, date: safeDate, tags: safeTags, category: catName };
           });
 
           allTags.clear();
@@ -658,11 +745,20 @@
           initialCategories.forEach(c => { if(!uniqueCategories.includes(c)) uniqueCategories.push(c); });
           
           uniqueCategories.forEach((category, index) => {
-            if (savedColors[category]) { categoryColors[category] = savedColors[category]; } 
-            else if (!categoryColors[category]) { categoryColors[category] = colorPalette[index % colorPalette.length] || "#8a2be2"; }
+            if (savedColors[category]) { 
+                categoryColors[category] = savedColors[category]; 
+            } else {
+                const foundKey = Object.keys(savedColors).find(k => k.toLowerCase() === category.toLowerCase());
+                if (foundKey) {
+                    categoryColors[category] = savedColors[foundKey];
+                } else if (!categoryColors[category]) { 
+                    categoryColors[category] = colorPalette[index % colorPalette.length] || "#8a2be2"; 
+                }
+            }
           });
 
           updatePeriodDisplayOverride(); updateChartAndLegend(); setupTagInput();
+          await loadJarsForSelect();
           checkSetupWizard();
 
         } catch (error) { console.error("Fatal error during initialization:", error); }
@@ -855,7 +951,6 @@
         e.preventDefault();
         const isGain = document.getElementById("reportGain").checked;
         
-        // ĐÃ SỬA: Loại bỏ dấu phẩy trước khi chuyển thành số cho Backend
         let rawStringAmount = document.getElementById("amount").value.replace(/,/g, '');
         let rawAmount = parseFloat(rawStringAmount);
         
@@ -865,26 +960,75 @@
         }
 
         const selectedCategory = document.getElementById("category").value;
+        const selectedJar = document.getElementById("jar_id").value;
 
         let rate = 1; if (typeof exchangeRatesToVND !== "undefined") { rate = exchangeRatesToVND[currentCurrency] || 1; }
-        let amountInVND = rawAmount * rate; 
+        let amountInVND = rawAmount * rate;
 
+        if (!isGain && !selectedJar) {
+            showCustomAlert("Bạn ơi, vui lòng chọn Quỹ (Hũ) để rút tiền nhé!");
+            return; 
+        }
+
+        if (!isGain && selectedJar) {
+            const jarId = parseInt(selectedJar);
+            const jarData = globalJars.find(j => j.id === jarId);
+            
+            if (jarData && jarData.balance < amountInVND) {
+                const balanceDisplay = formatCurrency(jarData.balance);
+                const amountDisplay = formatCurrency(amountInVND);
+                
+                showCustomAlert(`Quỹ "${jarData.name}" hiện không đủ tiền để thực hiện giao dịch này!\n\n- Số dư hiện tại: ${balanceDisplay}\n- Số tiền cần rút: ${amountDisplay}`);
+                return; 
+            }
+        }
+
+
+        // --- BẮT ĐẦU LOGIC KIỂM TRA NGÂN SÁCH (CHỈ KIỂM TRA KHOẢN CHI) ---
         if (!isGain && selectedCategory) {
-          const categoryExpenses = allExpenses.filter((exp) => exp.amount < 0 && exp.category === selectedCategory); let categoryAverageVND = 0;
-          if (categoryExpenses.length > 0) { const totalCategory = categoryExpenses.reduce((sum, exp) => sum + Math.abs(exp.amount), 0); categoryAverageVND = totalCategory / categoryExpenses.length; }
-          const minAlertAmountVND = 50 * exchangeRatesToVND["usd"];
-          if (categoryAverageVND > 0 && amountInVND > categoryAverageVND * 3 && amountInVND > minAlertAmountVND) {
-            const confirmMsg = `Số tiền bạn định lưu (${formatCurrency(amountInVND)}) lớn hơn GẤP NHIỀU LẦN so với mức chi tiêu trung bình của danh mục "${selectedCategory}" (${formatCurrency(categoryAverageVND)}).\n\nBạn có chắc chắn thông tin này là chính xác và muốn lưu không?`;
-            const userConfirmed = await showCustomConfirm(confirmMsg); if (!userConfirmed) return; 
+          try {
+             // 1. Kéo ngân sách tháng hiện tại về
+             const token = localStorage.getItem('token');
+             const resBudgets = await fetch('/api/planning/budgets', {
+                 headers: { 'Authorization': `Bearer ${token}` }
+             });
+             
+             if (resBudgets.ok) {
+                 const currentBudgets = await resBudgets.json();
+                 
+                 // 2. Tìm ngân sách của danh mục đang chọn
+                 const categoryBudget = currentBudgets.find(b => b.category === selectedCategory);
+                 
+                 // 3. Nếu danh mục này có đặt ngân sách (limit_amount > 0)
+                 if (categoryBudget && categoryBudget.limit_amount > 0) {
+                     const totalAfterExpense = categoryBudget.spent_amount + amountInVND;
+                     
+                     // 4. Nếu tổng tiền (đã tiêu + chuẩn bị tiêu) vượt quá hạn mức
+                     if (totalAfterExpense > categoryBudget.limit_amount) {
+                         const limitDisplay = formatCurrency(categoryBudget.limit_amount);
+                         const newTotalDisplay = formatCurrency(totalAfterExpense);
+                         
+                         const confirmMsg = `CẢNH BÁO VƯỢT NGÂN SÁCH!\n\nKhoản chi này sẽ làm bạn vượt hạn mức ngân sách của mục "${selectedCategory}".\n- Hạn mức: ${limitDisplay}\n- Tổng nếu lưu: ${newTotalDisplay}\n\nBạn có chắc chắn muốn tiếp tục lưu không?`;
+                         
+                         const userConfirmed = await showCustomConfirm(confirmMsg); 
+                         if (!userConfirmed) return; // Nếu user chọn "Hủy bỏ", dừng việc lưu lại
+                     }
+                 }
+             }
+          } catch(error) {
+              console.error("Không thể kiểm tra ngân sách:", error);
           }
         }
+        // --- KẾT THÚC LOGIC KIỂM TRA NGÂN SÁCH ---
+
 
         let finalAmountToSave = amountInVND; if (!isGain) { finalAmountToSave *= -1; }
 
         const formData = {
           name: document.getElementById("name").value.trim(), category: selectedCategory, amount: finalAmountToSave,
           date: new Date(document.getElementById("date").value + "T00:00:00Z").toISOString(), 
-          tags: Array.from(selectedTags).map(t => String(t)), note: document.getElementById("note").value.trim() || null, recurring_interval: document.getElementById("recurring_interval").value || null
+          tags: Array.from(selectedTags).map(t => String(t)), note: document.getElementById("note").value.trim() || null, recurring_interval: document.getElementById("recurring_interval").value || null,
+          jar_id: parseInt(document.getElementById("jar_id").value) || null
         };
 
         try {
@@ -955,6 +1099,7 @@
     
     <script src="/static/chatbot.js"></script>
     
+    <!-- MODALS -->
     <div id="aiModal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.7); align-items: center; justify-content: center;">
       <div style="background: linear-gradient(145deg, #1e1e2d, #2a2a40); border: 2px solid #8a2be2; border-radius: 12px; width: 90%; max-width: 500px; max-height: 80vh; overflow-y: auto; padding: 20px; box-shadow: 0 0 20px rgba(138, 43, 226, 0.4); position: relative;">
         <button onclick="closeAiModal()" style="position: absolute; right: 15px; top: 15px; background: none; border: none; color: #ff4d4d; font-size: 20px; cursor: pointer;"><i class="fa-solid fa-xmark"></i></button>
@@ -974,7 +1119,18 @@
         </div>
       </div>
     </div>
-    <!-- MODAL XÁC NHẬN ĐĂNG XUẤT ĐẸP -->
+
+
+    <div id="customAlertModal" style="display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.8); align-items: center; justify-content: center;">
+      <div style="background: linear-gradient(145deg, #2a1e2d, #402a30); border: 2px solid #ff4d4d; border-radius: 12px; width: 90%; max-width: 450px; padding: 25px; box-shadow: 0 0 25px rgba(255, 77, 77, 0.4); text-align: center;">
+        <h3 style="color: #ff4d4d; margin-top: 0; margin-bottom: 15px"><i class="fa-solid fa-circle-xmark fa-beat"></i> Lỗi Giao Dịch</h3>
+        <p id="alertMessage" style="color: #e0e0e0; line-height: 1.6; margin-bottom: 25px; white-space: pre-line; font-size: 15px;"></p>
+        <div style="display: flex; justify-content: center">
+          <button onclick="document.getElementById('customAlertModal').style.display='none'" style="padding: 10px 30px; background-color: #ff4d4d; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">Đã hiểu</button>
+        </div>
+      </div>
+    </div>
+
     <div id="logoutConfirmModal" class="modal" style="display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); align-items: center; justify-content: center;">
         <div style="background-color: var(--bg-secondary); border: 1px solid var(--border); border-radius: 12px; width: 90%; max-width: 400px; padding: 25px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); text-align: center;">
             <h3 style="color: var(--accent); margin-top: 0; margin-bottom: 15px;">

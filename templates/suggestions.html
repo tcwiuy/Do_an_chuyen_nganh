@@ -28,7 +28,6 @@
                 <a href="/planning" class="view-button" data-tooltip="Ngân sách"><i class="fa-solid fa-piggy-bank"></i></a>
                 <a href="/settings" class="view-button" data-tooltip="Cài Đặt"><i class="fa-solid fa-gear"></i></a>
                 
-                <!-- ĐÃ SỬA ONCLICK Ở DÒNG DƯỚI ĐÂY -->
                 <a href="javascript:void(0)" class="view-button" onclick="showLogoutModal()" data-tooltip="Đăng Xuất" style="margin-left: auto; color: #ff4d4d;"><i class="fa-solid fa-right-from-bracket"></i></a>
             </div>
         </header>
@@ -49,7 +48,8 @@
                         <input type="text" id="goalName" placeholder="VD: Mua xe máy mới..." style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border); background-color: var(--bg-secondary); color: var(--text-primary); outline: none; box-sizing: border-box; font-family: inherit;">
                     </div>
                     <div style="flex: 1; min-width: 150px;">
-                        <input type="number" id="goalAmount" placeholder="Số tiền mục tiêu..." style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border); background-color: var(--bg-secondary); color: var(--text-primary); outline: none; box-sizing: border-box; font-family: inherit;">
+                        <!-- ĐÃ SỬA: Đổi sang type="text" và thêm hàm formatCurrencyInput -->
+                        <input type="text" id="goalAmount" placeholder="Số tiền mục tiêu..." oninput="formatCurrencyInput(this)" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border); background-color: var(--bg-secondary); color: var(--text-primary); outline: none; box-sizing: border-box; font-family: inherit;">
                     </div>
                     <div style="flex: 1; min-width: 150px;">
                         <input type="number" id="goalMonths" placeholder="Đạt được trong mấy tháng?" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border); background-color: var(--bg-secondary); color: var(--text-primary); outline: none; box-sizing: border-box; font-family: inherit;">
@@ -78,7 +78,8 @@
         <div id="suggestionsSummary" class="form-container" style="display: none; background-color: var(--bg-secondary); border: 1px solid var(--border);"></div>
         <div id="suggestionsList" style="display: grid; gap: 12px;"></div>
     </div>
-    <!-- MODAL XÁC NHẬN ĐĂNG XUẤT ĐẸP -->
+
+    <!-- MODAL XÁC NHẬN ĐĂNG XUẤT -->
     <div id="logoutConfirmModal" class="modal" style="display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); align-items: center; justify-content: center;">
         <div style="background-color: var(--bg-secondary); border: 1px solid var(--border); border-radius: 12px; width: 90%; max-width: 400px; padding: 25px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); text-align: center;">
             <h3 style="color: var(--accent); margin-top: 0; margin-bottom: 15px;">
@@ -91,24 +92,37 @@
             </div>
         </div>
     </div>
+
     <script src="/static/functions.js"></script>
     <script src="/static/suggestions.js"></script>
     <script src="/static/chatbot.js"></script>
     <script>
-// HÀM HIỂN THỊ BẢNG ĐĂNG XUẤT
+        // HÀM FORMAT TIỀN TỆ TRỰC TIẾP TRÊN Ô INPUT
+        function formatCurrencyInput(input) {
+            let value = input.value;
+            value = value.replace(/[^\d.]/g, '');
+            const parts = value.split('.');
+            if (parts.length > 2) {
+                value = parts[0] + '.' + parts.slice(1).join('');
+            }
+            if (value) {
+                let splitValue = value.split('.');
+                splitValue[0] = splitValue[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+                value = splitValue.join('.');
+            }
+            input.value = value;
+        }
+
         function showLogoutModal() {
             document.getElementById('logoutConfirmModal').style.display = 'flex';
         }
 
-        // HÀM ẨN BẢNG ĐĂNG XUẤT
         function closeLogoutModal() {
             document.getElementById('logoutConfirmModal').style.display = 'none';
         }
 
-        // HÀM THỰC THI ĐĂNG XUẤT
         function proceedLogout() {
             closeLogoutModal();
-            // Gọi hàm logout gốc của bạn (hoặc thực thi logic xóa token)
             if (typeof logout === 'function') {
                 logout();
             } else {

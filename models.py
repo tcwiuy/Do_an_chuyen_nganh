@@ -32,6 +32,8 @@ class Transaction(Base):
     note = Column(String, nullable=True)
     recurring_interval = Column(String, nullable=True)
     
+    jar_id = Column(Integer, ForeignKey("jars.id"), nullable=True)
+    
     user_id = Column(Integer, ForeignKey("users.id"))
     owner = relationship("User", back_populates="transactions")
 

@@ -8,11 +8,8 @@
     <script>
         (function() {
             const theme = localStorage.getItem('theme') || 'system';
-            if (theme === 'light') {
-                document.documentElement.setAttribute('data-theme', 'light');
-            } else if (theme === 'dark') {
-                document.documentElement.setAttribute('data-theme', 'dark');
-            }
+            if (theme === 'light') { document.documentElement.setAttribute('data-theme', 'light'); } 
+            else if (theme === 'dark') { document.documentElement.setAttribute('data-theme', 'dark'); }
         })();
     </script>
     <title>Cài Đặt</title>
@@ -43,9 +40,29 @@
         .tag-pill {
             background: var(--bg-primary) !important; color: var(--text-secondary) !important; border: 1px solid var(--border) !important;
         }
-        /* Cân bằng form nhập liệu */
         .themed-input {
             width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border); background-color: var(--bg-primary); color: var(--text-primary); outline: none; box-sizing: border-box; font-family: inherit;
+        }
+        
+        .category-item {
+            transition: all 0.2s ease;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            padding: 8px 12px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .category-item:hover {
+            border-color: var(--accent);
+        }
+        .category-edit-mode {
+            background-color: var(--bg-primary);
+            border: 1px solid var(--accent) !important;
+            box-shadow: 0 0 10px rgba(138, 43, 226, 0.1);
+            padding: 5px;
         }
     </style>
 </head>
@@ -60,7 +77,6 @@
                 <a href="/planning" class="view-button" data-tooltip="Ngân sách"><i class="fa-solid fa-piggy-bank"></i></a>
                 <a href="/settings" class="view-button active" data-tooltip="Cài Đặt"><i class="fa-solid fa-gear"></i></a>
                 
-                <!-- ĐÃ SỬA ONCLICK Ở DÒNG DƯỚI ĐÂY -->
                 <a href="javascript:void(0)" class="view-button" onclick="showLogoutModal()" data-tooltip="Đăng Xuất" style="margin-left: auto; color: #ff4d4d;"><i class="fa-solid fa-right-from-bracket"></i></a>
             </div>
         </header>
@@ -125,11 +141,20 @@
         <div class="form-container">
             <h2 align="center">Quản Lý Danh Mục</h2>
             <div id="categories-manager">
-                <div id="categories-list" class="categories-list">
+                <!-- KHUNG CHI TIÊU -->
+                <h3 style="color: #ff4d4d; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-top: 10px;"><i class="fa-solid fa-arrow-trend-down"></i> Danh Mục Chi Tiêu</h3>
+                <div id="expense-categories-list" class="categories-list" style="margin-bottom: 15px;"></div>
+                <div class="category-input-container" style="margin-bottom: 30px;">
+                    <input type="text" id="newExpenseCategory" placeholder="Thêm chi tiêu mới...">
+                    <button onclick="addCategory('expense')" class="nav-button" style="background-color: #ff4d4d; color: white;">Thêm</button>
                 </div>
+
+                <!-- KHUNG THU NHẬP -->
+                <h3 style="color: #2EAB7D; border-bottom: 1px solid var(--border); padding-bottom: 10px;"><i class="fa-solid fa-arrow-trend-up"></i> Danh Mục Thu Nhập</h3>
+                <div id="income-categories-list" class="categories-list" style="margin-bottom: 15px;"></div>
                 <div class="category-input-container">
-                    <input type="text" id="newCategory" placeholder="Thêm danh mục mới...">
-                    <button id="addCategory" class="nav-button">Thêm</button>
+                    <input type="text" id="newIncomeCategory" placeholder="Thêm thu nhập mới...">
+                    <button onclick="addCategory('income')" class="nav-button" style="background-color: #2EAB7D; color: white;">Thêm</button>
                 </div>
             </div>
         </div>
@@ -198,6 +223,7 @@
                     </div>
                     <div class="form-group">
                         <label for="recurringCategory">Danh mục</label>
+                        <!-- Danh mục giờ phân loại optgroup -->
                         <select id="recurringCategory" required></select>
                     </div>
                     <div class="form-group">
@@ -251,6 +277,7 @@
         </div>
     </div>
 
+    <!-- MODAL XÓA GIAO DỊCH ĐỊNH KỲ -->
     <div id="deleteRecurringModal" class="modal">
         <div class="modal-content" style="background: var(--bg-secondary); border: 1px solid var(--border);">
             <h3 style="color: var(--text-primary);">Xóa Giao Dịch Định Kỳ</h3>
@@ -263,6 +290,7 @@
         </div>
     </div>
 
+    <!-- MODAL SỬA GIAO DỊCH ĐỊNH KỲ -->
     <div id="editRecurringModal" class="modal">
         <div class="modal-content" style="background: var(--bg-secondary); border: 1px solid var(--border); max-width: 600px; width: 90%;">
             <h3 style="color: var(--accent); margin-top: 0;"><i class="fa-solid fa-pen-to-square"></i> Sửa Giao Dịch Định Kỳ</h3>
@@ -319,18 +347,58 @@
         </div>
     </div>
 
+    <!-- BẢNG HỎI XÁC NHẬN CHUNG -->
+    <div id="customConfirmModal" style="display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); align-items: center; justify-content: center;">
+        <div style="background: linear-gradient(145deg, #2a1e2d, #402a30); border: 2px solid #ff4d4d; border-radius: 12px; width: 90%; max-width: 450px; padding: 25px; box-shadow: 0 0 25px rgba(255, 77, 77, 0.4); text-align: center;">
+            <h3 style="color: #ff4d4d; margin-top: 0; margin-bottom: 15px;">
+                <i class="fa-solid fa-triangle-exclamation fa-beat"></i> Cảnh Báo
+            </h3>
+            <p id="confirmMessage" style="color: #e0e0e0; line-height: 1.6; margin-bottom: 25px; white-space: pre-line; font-size: 15px;"></p>
+            <div style="display: flex; gap: 15px; justify-content: center;">
+                <button id="btnConfirmCancel" style="padding: 10px 20px; background-color: #4a4a60; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">Hủy bỏ</button>
+                <button id="btnConfirmProceed" style="padding: 10px 20px; background-color: #ff4d4d; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">Vẫn Thực Hiện</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL XÁC NHẬN ĐĂNG XUẤT -->
+    <div id="logoutConfirmModal" class="modal" style="display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); align-items: center; justify-content: center;">
+        <div style="background-color: var(--bg-secondary); border: 1px solid var(--border); border-radius: 12px; width: 90%; max-width: 400px; padding: 25px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); text-align: center;">
+            <h3 style="color: var(--accent); margin-top: 0; margin-bottom: 15px;">
+                <i class="fa-solid fa-right-from-bracket"></i> Xác nhận Đăng Xuất
+            </h3>
+            <p style="color: var(--text-secondary); line-height: 1.6; margin-bottom: 25px; font-size: 15px;">Bạn có chắc chắn muốn đăng xuất khỏi ExpenseOwl không?</p>
+            <div style="display: flex; gap: 15px; justify-content: center;">
+                <button onclick="closeLogoutModal()" style="flex: 1; padding: 10px 20px; background-color: var(--bg-primary); color: var(--text-primary); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s;">Hủy bỏ</button>
+                <button onclick="proceedLogout()" style="flex: 1; padding: 10px 20px; background-color: #ff4d4d; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s;">Đăng Xuất</button>
+            </div>
+        </div>
+    </div>
+
     <script src="/static/functions.js"></script>
     <script>
-        let categories = [];
+        // 💡 2 KHÔNG GIAN DỮ LIỆU ĐỘC LẬP
+        let expenseCategories = [];
+        let incomeCategories = [];
+        
         let allTags = new Set();
         let addFormSelectedTags = new Set();
         let editFormSelectedTags = new Set();
         let currentCurrency = "usd";
         let currentStartDate = 1;
-        let draggedItem = null;
         let recurringExpenses = [];
         let recurringExpenseToDelete = null;
         let recurringExpenseToEdit = null;
+        let categoryColors = {}; 
+        
+        // 💡 BỘ LỌC CHUẨN HÓA TIẾNG VIỆT
+        function normalizeVietnamese(str) {
+            if (!str) return "";
+            return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase().replace(/\s+/g, " ").trim();
+        }
+        
+        // TRẠNG THÁI SỬA DANH MỤC LƯU THEO NHÓM
+        let editingCategoryInfo = { type: null, index: -1 };
 
         // LẤY TÊN ĐĂNG NHẬP
         const token = localStorage.getItem('token'); 
@@ -341,16 +409,12 @@
                 const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
                     return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
                 }).join(''));
-                
                 const payload = JSON.parse(jsonPayload);
                 document.getElementById('currentUsername').value = payload.sub || "Không rõ"; 
-            } catch (error) {
-                document.getElementById('currentUsername').value = "Lỗi giải mã token";
-            }
-        } else {
-            document.getElementById('currentUsername').value = "Chưa đăng nhập";
-        }
+            } catch (error) { document.getElementById('currentUsername').value = "Lỗi giải mã token"; }
+        } else { document.getElementById('currentUsername').value = "Chưa đăng nhập"; }
 
+        // ĐỔI MẬT KHẨU
         document.getElementById('changePasswordForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const oldPassword = document.getElementById('oldPassword').value;
@@ -372,7 +436,6 @@
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                     body: JSON.stringify({ old_password: oldPassword, new_password: newPassword })
                 });
-
                 if (res.ok) {
                     if(window.showToast) showToast("Đổi mật khẩu thành công!", "success");
                     e.target.reset();
@@ -380,111 +443,265 @@
                     const err = await res.json();
                     if(window.showToast) showToast(err.detail || "Lỗi khi đổi mật khẩu!", "error");
                 }
-            } catch (error) {
-                if(window.showToast) showToast("Lỗi kết nối máy chủ!", "error");
-            } finally {
-                btn.innerHTML = '<i class="fa-solid fa-key"></i> Đổi Mật Khẩu';
-                btn.disabled = false;
-            }
+            } catch (error) { if(window.showToast) showToast("Lỗi kết nối máy chủ!", "error"); } 
+            finally { btn.innerHTML = '<i class="fa-solid fa-key"></i> Đổi Mật Khẩu'; btn.disabled = false; }
         });
 
-        // --- Category Management ---
+        // --- RENDER 2 DANH SÁCH DANH MỤC ---
         function renderCategories() {
-            const list = document.getElementById('categories-list');
-            list.innerHTML = '';
-            categories.forEach((category, index) => {
+            renderCategoryList('expense', expenseCategories, 'expense-categories-list');
+            renderCategoryList('income', incomeCategories, 'income-categories-list');
+            updateCategoryDropdowns();
+        }
+
+        function renderCategoryList(type, listArray, elementId) {
+            const listContainer = document.getElementById(elementId);
+            listContainer.innerHTML = '';
+            
+            listArray.forEach((category, index) => {
                 const item = document.createElement('div');
-                item.className = 'category-item';
-                item.draggable = true;
-                item.dataset.index = index;
-                item.innerHTML = `
-                    <div class="category-handle-area">
-                        <span class="drag-handle"><i class="fa-solid fa-grip-lines"></i></span>
-                        <span>${category}</span>
-                    </div>
-                    <button class="delete-button" onclick="removeCategory(${index})">
-                        <i class="fa-solid fa-times"></i>
-                    </button>
-                `;
-                item.addEventListener('dragstart', handleDragStart);
-                item.addEventListener('dragover', handleDragOver);
-                item.addEventListener('dragleave', handleDragLeave);
-                item.addEventListener('dragend', handleDragEnd);
-                item.addEventListener('drop', handleDrop);
-                list.appendChild(item);
+                const isEditing = (editingCategoryInfo.type === type && editingCategoryInfo.index === index);
+                item.className = 'category-item' + (isEditing ? ' category-edit-mode' : '');
+                
+                // Tránh lỗi nếu màu không có trong palette
+                const baseColor = type === 'expense' ? '#ff4d4d' : '#2EAB7D';
+                const color = categoryColors[category] || colorPalette[index % colorPalette.length] || baseColor;
+
+                if (isEditing) {
+                    item.innerHTML = `
+                        <div style="display: flex; gap: 10px; align-items: center; width: 100%; padding: 5px;">
+                            <input type="color" id="editCatColor_${type}_${index}" value="${color}" style="border: none; background: none; cursor: pointer; width: 35px; height: 35px; padding: 0; border-radius: 4px;" title="Đổi màu">
+                            <input type="text" id="editCatName_${type}_${index}" value="${escapeHTML(category)}" class="themed-input" style="margin-bottom: 0; flex: 1; border: 1px solid var(--accent); padding: 8px; font-weight: bold;">
+                            <div style="display: flex; gap: 5px;">
+                                <button type="button" onclick="saveCategoryEdit('${type}', ${index}, '${escapeHTML(category)}')" class="nav-button" style="width: auto; padding: 8px 12px; background: #2EAB7D; color: white; border: none; margin: 0;" title="Lưu">
+                                    <i class="fa-solid fa-check"></i>
+                                </button>
+                                <button type="button" onclick="cancelCategoryEdit()" class="nav-button" style="width: auto; padding: 8px 12px; background: transparent; border: 1px solid var(--border); color: var(--text-secondary); margin: 0;" title="Hủy">
+                                    <i class="fa-solid fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    item.innerHTML = `
+                        <div class="category-handle-area" style="display: flex; align-items: center; gap: 12px; flex: 1;">
+                            <div style="width: 16px; height: 16px; border-radius: 50%; background-color: ${color};"></div>
+                            <span style="font-weight: bold; color: var(--text-primary); cursor: pointer;" onclick="toggleEditCategory('${type}', ${index})" title="Bấm để sửa">${escapeHTML(category)}</span>
+                        </div>
+                        <div style="display: flex; gap: 5px;">
+                            <button type="button" class="edit-button" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; padding: 5px 10px;" onclick="toggleEditCategory('${type}', ${index})" title="Sửa danh mục">
+                                <i class="fa-solid fa-pen"></i>
+                            </button>
+                            <button type="button" class="delete-button" onclick="window.removeCategory('${type}', ${index}, event)" title="Xóa danh mục" style="background: none; border: none; color: #ff4d4d; cursor: pointer; padding: 5px 10px; position: relative; z-index: 10;">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </div>
+                    `;
+                }
+                listContainer.appendChild(item);
             });
         }
 
-        function handleDragStart(e) {
-            this.classList.add('dragging'); draggedItem = this; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/html', this.innerHTML); removePlaceholders();
+        // CẬP NHẬT GIAO DIỆN SELECT CHO GIAO DỊCH ĐỊNH KỲ
+        function updateCategoryDropdowns() {
+            const expOptions = expenseCategories.map(c => `<option value="${c}">${c}</option>`).join('');
+            const incOptions = incomeCategories.map(c => `<option value="${c}">${c}</option>`).join('');
+            const html = `<optgroup label="Chi Tiêu">${expOptions}</optgroup><optgroup label="Thu Nhập">${incOptions}</optgroup>`;
+            document.getElementById('recurringCategory').innerHTML = html;
+            document.getElementById('editRecurringCategory').innerHTML = html;
         }
 
-        function handleDragOver(e) {
-            e.preventDefault(); e.dataTransfer.dropEffect = 'move'; this.classList.add('drag-over');
-            if (this === draggedItem) return false;
-            const rect = this.getBoundingClientRect(); const clientY = e.clientY; const threshold = rect.top + (rect.height / 2); const isBefore = clientY < threshold;
-            removePlaceholders();
-            const placeholder = document.createElement('div'); placeholder.className = 'placeholder';
-            if (isBefore) { this.parentNode.insertBefore(placeholder, this); } else { this.parentNode.insertBefore(placeholder, this.nextSibling); }
-            return false;
+        // KÍCH HOẠT CHẾ ĐỘ SỬA
+        function toggleEditCategory(type, index) {
+            editingCategoryInfo = { type: type, index: index };
+            renderCategories();
+        }
+        function cancelCategoryEdit() {
+            editingCategoryInfo = { type: null, index: -1 };
+            renderCategories();
         }
 
-        function handleDragLeave() { this.classList.remove('drag-over'); }
-        function handleDragEnd() {
-            this.classList.remove('dragging');
-            document.querySelectorAll('.category-item, .tag-item').forEach(item => item.classList.remove('drag-over'));
-            removePlaceholders();
-        }
-        function removePlaceholders() { document.querySelectorAll('.placeholder').forEach(p => p.remove()); }
+        // LƯU KHI SỬA
+        async function saveCategoryEdit(type, index, oldName) {
+            const targetArray = type === 'expense' ? expenseCategories : incomeCategories;
+            const inputName = document.getElementById(`editCatName_${type}_${index}`);
+            const inputColor = document.getElementById(`editCatColor_${type}_${index}`);
+            let newName = inputName.value.trim().replace(/[<>]/g, ' ').trim();
+            const newColor = inputColor.value;
 
-        function handleDrop(e) {
-            e.stopPropagation(); e.preventDefault(); removePlaceholders();
-            if (draggedItem !== this) {
-                const fromIndex = parseInt(draggedItem.dataset.index, 10);
-                let toIndex = parseInt(this.dataset.index, 10);
-                const rect = this.getBoundingClientRect();
-                const isBefore = e.clientY < rect.top + rect.height / 2;
-                if (!isBefore) toIndex++;
-                if (fromIndex < toIndex) toIndex--;
-                const list = categories;
-                const movedItem = list.splice(fromIndex, 1)[0];
-                list.splice(toIndex, 0, movedItem);
-                renderCategories(); saveCategories(false); 
-            }
-            return false;
-        }
-
-        function addCategory() {
-            const input = document.getElementById('newCategory');
-            let category = input.value.trim();
-            category = category.replace(/[<>]/g, ' ').trim();
-            if (category && !categories.includes(category)) {
-                categories.push(category); renderCategories(); input.value = ''; saveCategories(true, 'Đã thêm danh mục mới'); 
-            } else if (categories.includes(category)) {
-                if(window.showToast) showToast('Danh mục đã tồn tại', "error");
-            } else if (!category) {
-                if(window.showToast) showToast('Tên danh mục không được để trống.', "error");
-            }
-        }
-
-        function removeCategory(index) {
-            if (categories.length <= 1) {
-                if(window.showToast) showToast('Cần giữ lại ít nhất một danh mục!', "error");
+            if (newName.length < 2 || newName.length > 30) {
+                if(window.showToast) showToast('Tên danh mục phải từ 2 đến 30 ký tự!', 'error');
                 return;
             }
-            categories.splice(index, 1); renderCategories(); saveCategories(true, 'Đã xóa danh mục'); 
+            const invalidChars = /[{}[\]\\\/|^$%&*@#~`]/;
+            if (invalidChars.test(newName)) {
+                if(window.showToast) showToast('Tên không được chứa ký tự đặc biệt lạ!', "error");
+                return;
+            }
+
+            if (newName !== oldName) {
+                const normalizedNewName = normalizeVietnamese(newName);
+                
+                // Quét chống trùng trên cả 2 mảng Thu và Chi
+                const allCategories = [...expenseCategories, ...incomeCategories];
+                const isDuplicate = allCategories.some(cat => {
+                    return cat !== oldName && normalizeVietnamese(cat) === normalizedNewName;
+                });
+
+                if (isDuplicate) {
+                    if(window.showToast) showToast('Tên danh mục này (hoặc tương tự) đã tồn tại!', 'error');
+                    return;
+                }
+                
+                if(window.showToast) showToast('Đang đồng bộ dữ liệu cũ. Vui lòng đợi...', 'success');
+                
+                targetArray[index] = newName;
+                targetArray.sort((a, b) => a.localeCompare(b, 'vi'));
+
+                categoryColors[newName] = newColor;
+                delete categoryColors[oldName];
+                localStorage.setItem('customCategoryColors', JSON.stringify(categoryColors));
+
+                // CASCADE UPDATE
+                try {
+                    const expRes = await fetch('/api/expenses/');
+                    if (expRes.ok) {
+                        const rawData = await expRes.json();
+                        const expensesList = Array.isArray(rawData) ? rawData : (rawData.expenses || []);
+                        const expensesToUpdate = expensesList.filter(e => e.category === oldName);
+                        for (let exp of expensesToUpdate) {
+                            exp.category = newName; 
+                            await fetch(`/api/expenses/${exp.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(exp) });
+                        }
+                    }
+                    const recRes = await fetch('/api/recurring-expenses');
+                    if (recRes.ok) {
+                        const recurringList = await recRes.json() || [];
+                        const recurringToUpdate = recurringList.filter(r => r.category === oldName);
+                        for (let rec of recurringToUpdate) {
+                            rec.category = newName; 
+                            await fetch(`/api/recurring-expenses/edit?id=${rec.id}&updateAll=true`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(rec) });
+                        }
+                    }
+                } catch(e) { console.error("Lỗi đồng bộ giao dịch cũ:", e); }
+
+            } else {
+                // Chỉ đổi màu
+                categoryColors[oldName] = newColor;
+                localStorage.setItem('customCategoryColors', JSON.stringify(categoryColors));
+            }
+            
+            editingCategoryInfo = { type: null, index: -1 };
+            renderCategories();
+            saveCategories(true, 'Đã cập nhật danh mục thành công!');
         }
 
+        // THÊM MỚI DANH MỤC TÙY LOẠI
+        function addCategory(type) {
+            const inputId = type === 'expense' ? 'newExpenseCategory' : 'newIncomeCategory';
+            const targetArray = type === 'expense' ? expenseCategories : incomeCategories;
+            const input = document.getElementById(inputId);
+            
+            let category = input.value.trim().replace(/[<>]/g, ' ').trim();
+            
+            if (category.length < 2 || category.length > 30) {
+                if(window.showToast) showToast('Tên danh mục phải từ 2 đến 30 ký tự!', "error");
+                return;
+            }
+            const invalidChars = /[{}[\]\\\/|^$%&*@#~`]/;
+            if (invalidChars.test(category)) {
+                if(window.showToast) showToast('Tên không được chứa ký tự đặc biệt lạ!', "error");
+                return;
+            }
+
+            const normalizedNewCat = normalizeVietnamese(category);
+            
+            // Chống trùng lặp trên cả 2 kho
+            const allCategories = [...expenseCategories, ...incomeCategories];
+            const isDuplicate = allCategories.some(existingCat => normalizeVietnamese(existingCat) === normalizedNewCat);
+            if (isDuplicate) {
+                if(window.showToast) showToast('Danh mục này (hoặc tên tương tự) đã tồn tại!', "error");
+                return;
+            }
+
+            targetArray.push(category); 
+            targetArray.sort((a, b) => a.localeCompare(b, 'vi'));
+            
+            input.value = ''; 
+            const arrLen = expenseCategories.length + incomeCategories.length;
+            categoryColors[category] = colorPalette[arrLen % colorPalette.length] || "#8a2be2";
+            localStorage.setItem('customCategoryColors', JSON.stringify(categoryColors));
+            
+            renderCategories(); 
+            saveCategories(true, 'Đã thêm danh mục mới'); 
+        }
+
+        // BẮT SỰ KIỆN ENTER CHO 2 Ô INPUT
+        document.getElementById('newExpenseCategory').addEventListener('keypress', e => e.key === 'Enter' && addCategory('expense'));
+        document.getElementById('newIncomeCategory').addEventListener('keypress', e => e.key === 'Enter' && addCategory('income'));
+
+        // XÓA DANH MỤC
+        window.removeCategory = async function(type, index, e) {
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            const targetArray = type === 'expense' ? expenseCategories : incomeCategories;
+
+            if (targetArray.length <= 1) {
+                if(window.showToast) showToast('Cần giữ lại ít nhất một danh mục trong nhóm này!', "error");
+                return;
+            }
+            
+            const catName = targetArray[index];
+            const confirmMsg = `Bạn có chắc chắn muốn xóa danh mục "${catName}" không?\n\nLưu ý: Các giao dịch cũ thuộc danh mục này sẽ không bị xóa khỏi báo cáo, nhưng bạn sẽ không thể chọn nó khi tạo giao dịch mới.`;
+            
+            const userConfirmed = await showCustomConfirm(confirmMsg);
+            if (!userConfirmed) return;
+
+            targetArray.splice(index, 1); 
+            
+            delete categoryColors[catName];
+            localStorage.setItem('customCategoryColors', JSON.stringify(categoryColors));
+            
+            editingCategoryInfo = { type: null, index: -1 }; 
+            
+            renderCategories(); 
+            saveCategories(true, `Đã xóa danh mục "${catName}"`); 
+        };
+
+        // LƯU CẢ 2 DANH SÁCH LÊN BACKEND
         async function saveCategories(showNotification = true, customMsg = 'Đã cập nhật danh mục') {
-            if (categories.length === 0) return;
+            // Tạm thời gộp lại thành 1 mảng để gửi Backend cũ, hoặc nếu backend bạn hỗ trợ JSON:
+            // ⚠️ LƯU Ý BACKEND CỦA BẠN: Gửi object {expenseCategories: [...], incomeCategories: [...]} 
+            // sẽ làm sập API cũ nếu API chỉ nhận Array. Mình sẽ gửi dạng Dictionary chuẩn.
+            
+            const payloadObject = {
+                expenseCategories: expenseCategories,
+                incomeCategories: incomeCategories
+            };
+
+            // CHÚ Ý DÀNH CHO BẠN: Nếu Backend Python/NodeJS của bạn chưa cập nhật để nhận Object này,
+            // bạn có thể đổi payloadObject thành mảng gộp: [...expenseCategories, ...incomeCategories]
+            // Tuy nhiên, cách tốt nhất là cập nhật Backend để nhận Object này nhé!
+
             try {
-                const response = await fetch('/api/categories/edit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(categories) });   
-                if (response.ok) { if(showNotification && window.showToast) showToast(customMsg, "success"); } 
-                else { const error = await response.json(); if(window.showToast) showToast(`Lỗi: ${error.error}`, "error"); }
+                const response = await fetch('/api/categories/edit', { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify(payloadObject) 
+                });   
+                if (response.ok) { 
+                    if(showNotification && window.showToast) showToast(customMsg, "success"); 
+                } else { 
+                    const error = await response.json(); 
+                    if(window.showToast) showToast(`Lỗi Backend: ${error.error || 'Backend chưa cập nhật để nhận 2 mảng dữ liệu'}`, "error"); 
+                }
             } catch (error) { if(window.showToast) showToast('Lỗi khi lưu danh mục', "error"); }
         }
         
-        // --- Tag Input Component ---
+        // --- CÁC HÀM CŨ GIỮ NGUYÊN (Tag, Tiền tệ, Ngày bắt đầu, Import CSV, Lịch sử AI...) ---
         function createTagInput(inputId, selectedContainerId, dropdownId, selectedTagsSet) {
             const input = document.getElementById(inputId); const selectedContainer = document.getElementById(selectedContainerId); const dropdown = document.getElementById(dropdownId);
             const renderSelected = () => {
@@ -526,7 +743,6 @@
             return { renderSelected };
         }
 
-        // --- Currency & Start Date ---
         function populateCurrencySelect() {
             const select = document.getElementById('currencySelect');
             select.innerHTML = Object.keys(currencyBehaviors).map(code => 
@@ -709,9 +925,8 @@
 
         document.getElementById('csv-export-file').addEventListener('click', async () => {
             const btn = document.getElementById('csv-export-file'); const originalHTML = btn.innerHTML;
-            const token = localStorage.getItem('token');
             if (!token) { if(window.showToast) showToast('Lỗi: Bạn chưa đăng nhập. Vui lòng đăng nhập lại!', 'error'); setTimeout(() => window.location.href = '/login', 1500); return; }
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang xuất dữ liệu...'; btn.style.pointerEvents = 'none';
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang xuất...'; btn.style.pointerEvents = 'none';
             try {
                 const response = await fetch('/api/expenses/export/csv', { method: 'GET', headers: { 'Authorization': `Bearer ${token}` } });
                 if (response.ok) {
@@ -720,19 +935,20 @@
                     document.body.appendChild(a); a.click(); window.URL.revokeObjectURL(url);
                     if(window.showToast) showToast('Xuất dữ liệu thành công!', 'success');
                 } else if (response.status === 401) {
-                    if(window.showToast) showToast('Lỗi: Phiên đăng nhập hết hạn. Đang chuyển hướng...', 'error');
+                    if(window.showToast) showToast('Lỗi: Phiên đăng nhập hết hạn.', 'error');
                     localStorage.removeItem('token'); setTimeout(() => window.location.href = '/login', 1500);
                 } else { if(window.showToast) showToast('Lỗi xử lý từ máy chủ.', 'error'); }
             } catch (error) { if(window.showToast) showToast('Lỗi kết nối khi xuất file', 'error'); } 
             finally { btn.innerHTML = originalHTML; btn.style.pointerEvents = 'auto'; }
         });
 
-        // --- Initialization ---
+        // --- KHỞI TẠO DỮ LIỆU ĐÃ NÂNG CẤP XỬ LÝ 2 MẢNG ---
         async function initialize() {
             try {
                 const [configResponse, expensesResponse, recurringExpensesResponse] = await Promise.all([
                     fetch('/api/config'), fetch('/api/expenses/'), fetch('/api/recurring-expenses')
                 ]);
+                
                 if (!configResponse.ok) throw new Error('Failed to fetch configuration');
                 const config = await configResponse.json();
                 
@@ -740,7 +956,24 @@
                 let recurringExpensesList = []; if (recurringExpensesResponse.ok) recurringExpensesList = await recurringExpensesResponse.json();
 
                 recurringExpenses = recurringExpensesList || [];
-                categories = [...(config.categories || [])];
+                
+                // 💡 ĐỌC DỮ LIỆU DANH MỤC THÔNG MINH TỪ BACKEND
+                // Nếu backend hỗ trợ 2 mảng:
+                if (config.expenseCategories && config.incomeCategories) {
+                    expenseCategories = [...config.expenseCategories];
+                    incomeCategories = [...config.incomeCategories];
+                } 
+                // Tương thích ngược: Nếu backend vẫn đang dùng mảng cũ
+                else if (config.categories) {
+                    // Mặc định nạp hết vào Chi tiêu
+                    expenseCategories = [...config.categories];
+                    // Tạo một kho Thu nhập mặc định để người dùng trải nghiệm
+                    incomeCategories = ["Lương", "Thưởng", "Đầu tư", "Khác"];
+                }
+
+                expenseCategories.sort((a, b) => a.localeCompare(b, 'vi'));
+                incomeCategories.sort((a, b) => a.localeCompare(b, 'vi'));
+
                 currentCurrency = config.currency || 'usd';
                 document.getElementById('aiFinancialGoal').value = config.financial_goal || "Chưa xác định";
                 document.getElementById('aiRiskTolerance').value = config.risk_tolerance || "Cân bằng";
@@ -749,16 +982,18 @@
                 (expenses || []).forEach(exp => (exp.tags || []).forEach(tag => allTags.add(tag)));
                 (recurringExpenses || []).forEach(exp => (exp.tags || []).forEach(tag => allTags.add(tag)));
 
-                renderCategories(); populateCurrencySelect(); populateStartDateInput();
-                document.getElementById('recurringCategory').innerHTML = categories.map(c => `<option value="${c}">${c}</option>`).join('');
-                document.getElementById('editRecurringCategory').innerHTML = categories.map(c => `<option value="${c}">${c}</option>`).join('');
+                categoryColors = JSON.parse(localStorage.getItem('customCategoryColors') || '{}');
+                
+                renderCategories(); 
+                populateCurrencySelect(); 
+                populateStartDateInput();
+                
                 renderRecurringExpenses(recurringExpenses);
                 createTagInput('tags-input', 'selected-tags', 'tags-dropdown', addFormSelectedTags);
                 
             } catch (error) { if(window.showToast) showToast('Lỗi tải trang cài đặt', "error"); }
         }
         
-        // --- Theme Management ---
         const themeSelect = document.getElementById('themeSelect');
         const currentTheme = localStorage.getItem('theme') || 'system';
         themeSelect.value = currentTheme;
@@ -772,14 +1007,10 @@
             applyTheme(selectedTheme); if(window.showToast) showToast('Đã cập nhật giao diện.', "success");
         });
 
-        // --- Event Listeners ---
-        document.getElementById('addCategory').addEventListener('click', addCategory);
         document.getElementById('saveCurrency').addEventListener('click', saveCurrency);
         document.getElementById('saveStartDate').addEventListener('click', saveStartDate);
         document.getElementById('csv-import-file').addEventListener('change', handleCsvImport);
-        document.getElementById('newCategory').addEventListener('keypress', e => e.key === 'Enter' && addCategory());
 
-        // --- SUBMIT TẠO GIAO DỊCH ĐỊNH KỲ ---
         document.getElementById('recurringExpenseForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const isGain = document.getElementById('recurringReportGain').checked;
@@ -815,6 +1046,16 @@
             finally { btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Lưu Hồ Sơ AI'; btn.disabled = false; }
         }
 
+        function showCustomConfirm(message) {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('customConfirmModal'); const msgEl = document.getElementById('confirmMessage'); const btnCancel = document.getElementById('btnConfirmCancel'); const btnProceed = document.getElementById('btnConfirmProceed');
+                msgEl.textContent = message; modal.style.display = 'flex';
+                const cleanup = () => { modal.style.display = 'none'; btnCancel.removeEventListener('click', onCancel); btnProceed.removeEventListener('click', onProceed); };
+                const onCancel = () => { cleanup(); resolve(false); }; const onProceed = () => { cleanup(); resolve(true); };  
+                btnCancel.addEventListener('click', onCancel); btnProceed.addEventListener('click', onProceed);
+            });
+        }
+
         window.escapeHTML = function(str) {
             if (str === null || str === undefined) return '';
             if (typeof str !== 'string') return String(str);
@@ -824,48 +1065,21 @@
         };
 
         document.addEventListener('DOMContentLoaded', initialize);
-        window.removeCategory = removeCategory;
         window.showRecurringDeleteModal = showRecurringDeleteModal;
         window.closeRecurringDeleteModal = closeRecurringDeleteModal;
         window.confirmRecurringDelete = confirmRecurringDelete;
         window.showRecurringEditModal = showRecurringEditModal;
         window.closeRecurringEditModal = closeRecurringEditModal;
         window.confirmRecurringUpdate = confirmRecurringUpdate;
-        // HÀM HIỂN THỊ BẢNG ĐĂNG XUẤT
-        function showLogoutModal() {
-            document.getElementById('logoutConfirmModal').style.display = 'flex';
-        }
-
-        // HÀM ẨN BẢNG ĐĂNG XUẤT
-        function closeLogoutModal() {
-            document.getElementById('logoutConfirmModal').style.display = 'none';
-        }
-
-        // HÀM THỰC THI ĐĂNG XUẤT
+        
+        function showLogoutModal() { document.getElementById('logoutConfirmModal').style.display = 'flex'; }
+        function closeLogoutModal() { document.getElementById('logoutConfirmModal').style.display = 'none'; }
         function proceedLogout() {
             closeLogoutModal();
-            // Gọi hàm logout gốc của bạn (hoặc thực thi logic xóa token)
-            if (typeof logout === 'function') {
-                logout();
-            } else {
-                localStorage.removeItem('token');
-                window.location.href = '/login';
-            }
+            if (typeof logout === 'function') { logout(); } 
+            else { localStorage.removeItem('token'); window.location.href = '/login'; }
         }
     </script>
     <script src="/static/chatbot.js"></script>
-    <!-- MODAL XÁC NHẬN ĐĂNG XUẤT ĐẸP -->
-    <div id="logoutConfirmModal" class="modal" style="display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); align-items: center; justify-content: center;">
-        <div style="background-color: var(--bg-secondary); border: 1px solid var(--border); border-radius: 12px; width: 90%; max-width: 400px; padding: 25px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); text-align: center;">
-            <h3 style="color: var(--accent); margin-top: 0; margin-bottom: 15px;">
-                <i class="fa-solid fa-right-from-bracket"></i> Xác nhận Đăng Xuất
-            </h3>
-            <p style="color: var(--text-secondary); line-height: 1.6; margin-bottom: 25px; font-size: 15px;">Bạn có chắc chắn muốn đăng xuất khỏi ExpenseOwl không?</p>
-            <div style="display: flex; gap: 15px; justify-content: center;">
-                <button onclick="closeLogoutModal()" style="flex: 1; padding: 10px 20px; background-color: var(--bg-primary); color: var(--text-primary); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s;">Hủy bỏ</button>
-                <button onclick="proceedLogout()" style="flex: 1; padding: 10px 20px; background-color: #ff4d4d; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s;">Đăng Xuất</button>
-            </div>
-        </div>
-    </div>
 </body>
 </html>

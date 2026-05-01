@@ -1,9 +1,15 @@
-let currentCurrency = 'usd';
+// ==========================================
+// FILE: suggestions.js - GỢI Ý CẮT GIẢM TỪ AI CÚ MÈO
+// ==========================================
 
-// Hàm mới: AI đã tính toán xong tiền tệ chuẩn, JS chỉ việc gắn ký hiệu mà KHÔNG chia tỷ giá VND nữa.
 function formatDirectCurrency(amount) {
     if (amount === undefined || amount === null) return '0';
-    const behavior = currencyBehaviors[currentCurrency] || { symbol: "$", useComma: false, useDecimals: true, useSpace: false, right: false };
+    
+    // Đảm bảo không bị lỗi nếu window.currentCurrency chưa kịp tải
+    const cur = window.currentCurrency || 'usd';
+    const behaviors = window.currencyBehaviors || {};
+    const behavior = behaviors[cur] || { symbol: "$", useComma: false, useDecimals: true, useSpace: false, right: false };
+    
     const isNegative = amount < 0;
     const absAmount = Math.abs(amount);
     const options = { minimumFractionDigits: behavior.useDecimals ? 2 : 0, maximumFractionDigits: behavior.useDecimals ? 2 : 0 };
@@ -15,6 +21,17 @@ function formatDirectCurrency(amount) {
 function renderSuggestions(data) {
     const summaryEl = document.getElementById('suggestionsSummary');
     const listEl = document.getElementById('suggestionsList');
+
+    const savedColors = JSON.parse(localStorage.getItem('customCategoryColors') || '{}');
+    const localPalette = ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#F7464A', '#8a2be2'];
+    
+    const getCategoryColor = (catName, index) => {
+        if (!catName) return '#8a2be2';
+        if (savedColors[catName]) return savedColors[catName];
+        const foundKey = Object.keys(savedColors).find(k => k.toLowerCase() === catName.toLowerCase());
+        if (foundKey) return savedColors[foundKey];
+        return localPalette[index % localPalette.length];
+    };
 
     summaryEl.style.display = 'block';
     
@@ -46,10 +63,13 @@ function renderSuggestions(data) {
     }
 
     listEl.innerHTML = items.map((item, idx) => {
+        const catName = item.category || 'Khác';
+        const catColor = getCategoryColor(catName, idx);
+
         return `
-            <div class="form-container" style="border: 1px solid #2a2a40; background: linear-gradient(145deg, #1e1e2d, #252538); padding: 15px;">
+            <div class="form-container" style="border: 1px solid #2a2a40; border-left: 5px solid ${catColor}; background: linear-gradient(145deg, #1e1e2d, #252538); padding: 15px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #3a3a50; padding-bottom: 10px; margin-bottom: 15px;">
-                    <h3 style="margin: 0; color: #d4a5ff; font-size: 16px;">${idx + 1}. Cắt giảm: ${item.category || 'Khác'}</h3>
+                    <h3 style="margin: 0; color: ${catColor}; font-size: 16px;">${idx + 1}. Cắt giảm: ${catName}</h3>
                     <span style="background: rgba(74, 222, 128, 0.1); padding: 6px 12px; border-radius: 6px; color: #4ade80; font-weight: bold; border: 1px solid rgba(74, 222, 128, 0.3);">
                         Giảm <i class="fa-solid fa-arrow-down"></i> ${formatDirectCurrency(item.reduction_amount)}
                     </span>
@@ -66,7 +86,7 @@ function renderSuggestions(data) {
                     </div>
                 </div>
 
-                <div style="background: rgba(138, 43, 226, 0.1); padding: 12px; border-radius: 8px; border-left: 4px solid #8a2be2;">
+                <div style="background: ${catColor}1A; padding: 12px; border-radius: 8px; border-left: 4px solid ${catColor};">
                     <p style="margin: 0; color: #e8e8ff; line-height: 1.5;"><strong>Cách thực hiện:</strong> ${item.how_to_achieve || 'Không có'}</p>
                 </div>
             </div>
@@ -82,17 +102,19 @@ async function loadSuggestions() {
     
     const monthWindow = Number(document.getElementById('monthWindow').value || 3);
     const goalName = document.getElementById('goalName').value.trim();
-    const goalAmountRaw = Number(document.getElementById('goalAmount').value) || 0;
+    // Lột bỏ dấu phẩy an toàn
+    const goalAmountRaw = Number(document.getElementById('goalAmount').value.replace(/,/g, '')) || 0;
     const goalMonths = Number(document.getElementById('goalMonths').value) || 0;
 
     const currentInputData = { monthWindow, goalName, goalAmountRaw, goalMonths };
     sessionStorage.setItem('ai_suggestion_inputs', JSON.stringify(currentInputData));
 
-    let rate = 1;
-    if (typeof exchangeRatesToVND !== 'undefined') {
-        rate = exchangeRatesToVND[currentCurrency] || 1;
-    }
-    const behavior = currencyBehaviors[currentCurrency] || { symbol: "$" };
+    const cur = window.currentCurrency || 'usd';
+    const rates = window.exchangeRatesToVND || {};
+    const behaviors = window.currencyBehaviors || {};
+
+    let rate = rates[cur] || 1;
+    const behavior = behaviors[cur] || { symbol: "$" };
 
     btn.disabled = true;
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang lập kế hoạch...';
@@ -109,13 +131,23 @@ async function loadSuggestions() {
                 goal_name: goalName,
                 goal_amount: goalAmountRaw, 
                 goal_months: goalMonths,
-                currency: currentCurrency,
+                currency: cur,
                 symbol: behavior.symbol,
                 rate: rate
             })
         });
 
-        const data = await response.json();
+        // 💡 CHỐT CHẶN: Kiểm tra nếu Backend trả về HTML lỗi 500 thay vì JSON
+        const contentType = response.headers.get("content-type");
+        let data;
+        
+        if (contentType && contentType.includes("application/json")) {
+            data = await response.json();
+        } else {
+            const errorText = await response.text();
+            throw new Error("Lỗi máy chủ nội bộ (500). Vui lòng làm BƯỚC 2 bên dưới!");
+        }
+
         if (!response.ok) {
             throw new Error(data.detail || 'Không thể tạo kế hoạch lúc này.');
         }
@@ -132,7 +164,7 @@ async function loadSuggestions() {
                 ${error.message || 'Có lỗi xảy ra khi gọi AI.'}
             </div>
         `;
-        if (window.showToast) showToast('AI đang bận hoặc lỗi kết nối. Vui lòng thử lại.', 'error');
+        if (window.showToast) showToast('Gặp lỗi khi tải dữ liệu từ máy chủ.', 'error');
     } finally {
         loading.style.display = 'none';
         btn.disabled = false;
@@ -145,7 +177,7 @@ async function initSuggestionsPage() {
         const res = await fetch('/api/config');
         if (res.ok) {
             const config = await res.json();
-            currentCurrency = config.currency || 'usd';
+            window.currentCurrency = config.currency || 'usd';
         }
 
         const savedInputs = sessionStorage.getItem('ai_suggestion_inputs');
@@ -153,7 +185,14 @@ async function initSuggestionsPage() {
             const inputs = JSON.parse(savedInputs);
             document.getElementById('monthWindow').value = inputs.monthWindow || 3;
             document.getElementById('goalName').value = inputs.goalName || '';
-            document.getElementById('goalAmount').value = inputs.goalAmountRaw || '';
+            
+            if (inputs.goalAmountRaw) {
+                let formatted = inputs.goalAmountRaw.toString();
+                let parts = formatted.split('.');
+                parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+                document.getElementById('goalAmount').value = parts.join('.');
+            }
+            
             document.getElementById('goalMonths').value = inputs.goalMonths || '';
         }
 

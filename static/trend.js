@@ -1,5 +1,5 @@
 // ==========================================
-// FILE: trend.js - BIỂU ĐỒ LỒNG NHAU & HIGHLIGHT CỘT & SỔ CHI TIẾT
+// FILE: trend.js - TỔNG HỢP: BIỂU ĐỒ LỒNG NHAU, HIGHLIGHT, CHI TIẾT & MÀU SẮC ĐỘNG
 // ==========================================
 
 window.exchangeRatesToVND = window.exchangeRatesToVND || {
@@ -20,6 +20,11 @@ var selectedBarIndex = null;
 var lastBaseCategoryContext = { curTxns: [], prevTxns: [], period: 'month' };
 
 var userCurrency = { code: 'VND', locale: 'vi-VN', rate: 1.0 };
+
+// 💡 BIẾN TOÀN CỤC CHỨA KHO DANH MỤC VÀ MÀU SẮC
+let initialCategories = [];
+let categoryColors = {};
+const colorPalette = ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#F7464A', '#8a2be2'];
 
 function getScaleUnit(maxAbs) {
     if (!isFinite(maxAbs) || maxAbs <= 0) return { divisor: 1, unit: '' };
@@ -56,12 +61,25 @@ async function loadCurrencyConfig() {
         if (res.ok) {
             const config = await res.json();
             userCurrency.code = (config.currency || 'VND').toLowerCase();
+
+            // 💡 NẠP KHO DANH MỤC MỚI TỪ BACKEND
+            let expenseCategories = [];
+            let incomeCategories = [];
+            
+            if (config.expenseCategories && config.incomeCategories) {
+                expenseCategories = config.expenseCategories;
+                incomeCategories = config.incomeCategories;
+            } else if (config.categories) {
+                expenseCategories = config.categories;
+                incomeCategories = ["Lương", "Thưởng", "Đầu tư", "Khác"];
+            }
+            initialCategories = [...expenseCategories, ...incomeCategories];
         }
         const localeMap = { 'vnd': 'vi-VN', 'usd': 'en-US', 'eur': 'de-DE', 'jpy': 'ja-JP' };
         userCurrency.locale = localeMap[userCurrency.code] || 'en-US';
         const rateToVnd = window.exchangeRatesToVND[userCurrency.code] || 1;
         userCurrency.rate = 1 / rateToVnd;
-    } catch (e) { console.warn("Dùng mặc định VND."); }
+    } catch (e) { console.warn("Dùng mặc định VND.", e); }
 }
 
 async function fetchTransactionsForTrends() {
@@ -70,7 +88,37 @@ async function fetchTransactionsForTrends() {
         const response = await fetch('/api/expenses/', { headers: { 'Authorization': `Bearer ${token}` } });
         if (response.ok) {
             const rawTxns = await response.json();
-            allTrendTransactions = rawTxns.map(t => ({ ...t, amount: t.amount * userCurrency.rate }));
+
+            // 💡 THUẬT TOÁN TỰ ĐỘNG ÉP KIỂU CHỮ HOA/THƯỜNG (AUTO-HEAL)
+            allTrendTransactions = rawTxns.map(t => {
+                let catName = t.category || 'Khác';
+                const exactMatch = initialCategories.find(c => c === catName);
+                if (!exactMatch) {
+                    const lowerMatch = initialCategories.find(c => c.toLowerCase() === catName.toLowerCase());
+                    if (lowerMatch) {
+                        catName = lowerMatch;
+                    }
+                }
+                return { ...t, amount: t.amount * userCurrency.rate, category: catName };
+            });
+
+            // 💡 NẠP BẢNG MÀU TỪ LOCALSTORAGE
+            const savedColors = JSON.parse(localStorage.getItem('customCategoryColors') || '{}');
+            const uniqueCategories = [...new Set(allTrendTransactions.map(exp => exp.category))];
+            initialCategories.forEach(c => { if(!uniqueCategories.includes(c)) uniqueCategories.push(c); });
+            
+            uniqueCategories.forEach((category, index) => {
+                if (savedColors[category]) { 
+                    categoryColors[category] = savedColors[category]; 
+                } else {
+                    const foundKey = Object.keys(savedColors).find(k => k.toLowerCase() === category.toLowerCase());
+                    if (foundKey) {
+                        categoryColors[category] = savedColors[foundKey];
+                    } else if (!categoryColors[category]) { 
+                        categoryColors[category] = colorPalette[index % colorPalette.length] || "#8a2be2"; 
+                    }
+                }
+            });
         }
     } catch (e) { console.error("Lỗi tải dữ liệu:", e); }
 }
@@ -157,13 +205,13 @@ function moveAnchor(direction) {
 }
 
 // ==========================================
-// TÍNH TOÁN DATA
+// TÍNH TOÁN DATA VÀ CẮT THỜI GIAN
 // ==========================================
 function processAndRenderTrends(period, anchorDate) {
     currentPeriod = period;
     const anchor = anchorDate ? new Date(anchorDate) : new Date();
 
-    // 1. TÍNH TOÁN DỮ LIỆU GỐC CHO TỔNG BÊN TRÊN
+    // 1. DỮ LIỆU GỐC CHO DANH MỤC VÀ TỔNG
     let cS, cE, pS, pE;
     if (period === 'week') {
         const day = anchor.getDay();
@@ -187,7 +235,7 @@ function processAndRenderTrends(period, anchorDate) {
     const curTxns = filterTxnsInRange(allTrendTransactions, cS, cE);
     const prevTxns = filterTxnsInRange(allTrendTransactions, pS, pE);
 
-    // 2. TẠO CÁC CỤM THỜI GIAN ĐỂ VẼ BIỂU ĐỒ 
+    // 2. DỮ LIỆU CẮT CHO BIỂU ĐỒ LỒNG
     const today = new Date();
     today.setHours(23, 59, 59, 999);
     
@@ -225,7 +273,6 @@ function processAndRenderTrends(period, anchorDate) {
             pBe = new Date(pBs.getFullYear(), 11, 31); pBe.setHours(23,59,59,999);
         }
 
-        // Logic "Cắt đến ngày hôm nay" để lồng vào trong biểu đồ
         let bCutoff = new Date(bE);
         if (isCompareEnabled) {
             if (period === 'week') {
@@ -281,6 +328,7 @@ function processAndRenderTrends(period, anchorDate) {
     renderTopCategories(curTxns, prevTxns, period, null);
 }
 
+// PLUGIN TẠO HIỆU ỨNG ĐƯỜNG KẺ DỌC TRÊN CHART
 const verticalLinePlugin = {
     id: 'verticalLine',
     afterDraw: chart => {
@@ -516,7 +564,7 @@ window.toggleCategoryDetails = function(categoryNameId) {
 };
 
 // ==========================================
-// GIAO DIỆN DANH MỤC CÓ TÍNH NĂNG CLICK ĐỂ SỔ RA CHI TIẾT
+// GIAO DIỆN DANH MỤC CÓ TÍNH NĂNG CLICK ĐỂ SỔ RA CHI TIẾT + MÀU SẮC ĐỘNG
 // ==========================================
 function renderTopCategories(curTxns, prevTxns, period, titleSuffix) {
     const container = document.getElementById('topCategoriesContainer');
@@ -596,6 +644,9 @@ function renderTopCategories(curTxns, prevTxns, period, titleSuffix) {
             : '';
 
         const safeId = 'cat-detail-' + index;
+        
+        // 💡 Lấy màu sắc chuẩn xác từ categoryColors (Hoặc màu mặc định nếu không có)
+        const catColor = categoryColors[name] || '#8a2be2';
 
         // Render các giao dịch chi tiết (Ẩn mặc định)
         const detailsHtml = dataObj.txns.sort((a, b) => new Date(b.date) - new Date(a.date)).map(t => {
@@ -611,9 +662,12 @@ function renderTopCategories(curTxns, prevTxns, period, titleSuffix) {
 
         return `
         <div style="margin-bottom: 10px;">
-            <div class="trend-category-item" style="cursor: pointer; margin-bottom: 0;" onclick="toggleCategoryDetails('${safeId}')">
+            <div class="trend-category-item" style="cursor: pointer; margin-bottom: 0; border-left: 5px solid ${catColor};" onclick="toggleCategoryDetails('${safeId}')">
                 <div style="flex:1; display:flex; align-items:flex-start; justify-content:space-between; gap: 12px;">
-                    <div style="font-weight: 800; color: var(--text-primary);">${escapeHtml(name)}</div>
+                    <div style="font-weight: 800; color: var(--text-primary); display: flex; align-items: center; gap: 10px;">
+                        <div style="width: 12px; height: 12px; border-radius: 50%; background-color: ${catColor};"></div>
+                        ${escapeHtml(name)}
+                    </div>
                     <div style="text-align:right; min-width: 120px;">
                         <div style="font-weight: 900; color: var(--text-primary);">${formatCurrencySafe(curVal)}</div>
                         ${deltaLine}
