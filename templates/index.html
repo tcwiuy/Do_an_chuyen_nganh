@@ -612,6 +612,12 @@
       // =========================================
       // KHỞI TẠO DỮ LIỆU
       // =========================================
+      // =========================================
+      // KHỞI TẠO DỮ LIỆU (ĐÃ FIX LỖI ĐỒNG BỘ MÀU & TÊN)
+      // =========================================
+      // =========================================
+      // KHỞI TẠO DỮ LIỆU (ĐÃ FIX LỖI ĐỒNG BỘ CHỮ HOA/THƯỜNG)
+      // =========================================
       async function initialize() {
         try {
           let config = { categories: ["Ăn uống", "Đi lại", "Mua sắm", "Hóa đơn", "Giải trí"], currency: "usd", startDate: 1 };
@@ -647,7 +653,21 @@
               }
               let safeDate = new Date().toISOString();
               if (typeof exp.date === 'string' && exp.date.trim() !== '') safeDate = exp.date;
-              return { ...exp, amount: parseFloat(exp.amount) || 0, date: safeDate, tags: safeTags, category: exp.category || 'Khác' };
+              
+              // --- 💡 BỘ LỌC TỰ ĐỘNG ÉP KIỂU (AUTO-HEAL) ---
+              let catName = exp.category || 'Khác';
+              // Kiểm tra xem tên cũ có khớp chính xác không
+              const exactMatch = initialCategories.find(c => c === catName);
+              if (!exactMatch) {
+                  // Nếu không khớp, thử tìm kiểu không phân biệt hoa/thường (Ăn uống = ăn uống)
+                  const lowerMatch = initialCategories.find(c => c.toLowerCase() === catName.toLowerCase());
+                  if (lowerMatch) {
+                      catName = lowerMatch; // Ép hóa đơn cũ dùng tên chuẩn mới nhất
+                  }
+              }
+              // ---------------------------------------------
+
+              return { ...exp, amount: parseFloat(exp.amount) || 0, date: safeDate, tags: safeTags, category: catName };
           });
 
           allTags.clear();
@@ -658,8 +678,18 @@
           initialCategories.forEach(c => { if(!uniqueCategories.includes(c)) uniqueCategories.push(c); });
           
           uniqueCategories.forEach((category, index) => {
-            if (savedColors[category]) { categoryColors[category] = savedColors[category]; } 
-            else if (!categoryColors[category]) { categoryColors[category] = colorPalette[index % colorPalette.length] || "#8a2be2"; }
+            if (savedColors[category]) { 
+                categoryColors[category] = savedColors[category]; 
+            } else {
+                // 💡 CHỐT CHẶN MÀU SẮC: Quét lại kho màu không phân biệt hoa thường
+                const foundKey = Object.keys(savedColors).find(k => k.toLowerCase() === category.toLowerCase());
+                if (foundKey) {
+                    categoryColors[category] = savedColors[foundKey];
+                } else if (!categoryColors[category]) { 
+                    // Nếu tuyệt vọng không thấy thì mới lấy màu mặc định
+                    categoryColors[category] = colorPalette[index % colorPalette.length] || "#8a2be2"; 
+                }
+            }
           });
 
           updatePeriodDisplayOverride(); updateChartAndLegend(); setupTagInput();

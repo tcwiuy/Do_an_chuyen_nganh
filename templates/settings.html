@@ -8,11 +8,8 @@
     <script>
         (function() {
             const theme = localStorage.getItem('theme') || 'system';
-            if (theme === 'light') {
-                document.documentElement.setAttribute('data-theme', 'light');
-            } else if (theme === 'dark') {
-                document.documentElement.setAttribute('data-theme', 'dark');
-            }
+            if (theme === 'light') { document.documentElement.setAttribute('data-theme', 'light'); } 
+            else if (theme === 'dark') { document.documentElement.setAttribute('data-theme', 'dark'); }
         })();
     </script>
     <title>Cài Đặt</title>
@@ -47,6 +44,28 @@
         .themed-input {
             width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border); background-color: var(--bg-primary); color: var(--text-primary); outline: none; box-sizing: border-box; font-family: inherit;
         }
+        
+        /* Chỉnh sửa giao diện khung Category */
+        .category-item {
+            transition: all 0.2s ease;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            padding: 8px 12px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .category-item:hover {
+            border-color: var(--accent);
+        }
+        .category-edit-mode {
+            background-color: var(--bg-primary);
+            border: 1px solid var(--accent) !important;
+            box-shadow: 0 0 10px rgba(138, 43, 226, 0.1);
+            padding: 5px;
+        }
     </style>
 </head>
 <body>
@@ -60,7 +79,6 @@
                 <a href="/planning" class="view-button" data-tooltip="Ngân sách"><i class="fa-solid fa-piggy-bank"></i></a>
                 <a href="/settings" class="view-button active" data-tooltip="Cài Đặt"><i class="fa-solid fa-gear"></i></a>
                 
-                <!-- ĐÃ SỬA ONCLICK Ở DÒNG DƯỚI ĐÂY -->
                 <a href="javascript:void(0)" class="view-button" onclick="showLogoutModal()" data-tooltip="Đăng Xuất" style="margin-left: auto; color: #ff4d4d;"><i class="fa-solid fa-right-from-bracket"></i></a>
             </div>
         </header>
@@ -319,6 +337,20 @@
         </div>
     </div>
 
+    <!-- BẢNG HỎI XÁC NHẬN CHUNG -->
+    <div id="customConfirmModal" style="display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); align-items: center; justify-content: center;">
+        <div style="background: linear-gradient(145deg, #2a1e2d, #402a30); border: 2px solid #ff4d4d; border-radius: 12px; width: 90%; max-width: 450px; padding: 25px; box-shadow: 0 0 25px rgba(255, 77, 77, 0.4); text-align: center;">
+            <h3 style="color: #ff4d4d; margin-top: 0; margin-bottom: 15px;">
+                <i class="fa-solid fa-triangle-exclamation fa-beat"></i> Cảnh Báo
+            </h3>
+            <p id="confirmMessage" style="color: #e0e0e0; line-height: 1.6; margin-bottom: 25px; white-space: pre-line; font-size: 15px;"></p>
+            <div style="display: flex; gap: 15px; justify-content: center;">
+                <button id="btnConfirmCancel" style="padding: 10px 20px; background-color: #4a4a60; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">Hủy bỏ</button>
+                <button id="btnConfirmProceed" style="padding: 10px 20px; background-color: #ff4d4d; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">Vẫn Thực Hiện</button>
+            </div>
+        </div>
+    </div>
+
     <script src="/static/functions.js"></script>
     <script>
         let categories = [];
@@ -327,10 +359,25 @@
         let editFormSelectedTags = new Set();
         let currentCurrency = "usd";
         let currentStartDate = 1;
-        let draggedItem = null;
         let recurringExpenses = [];
         let recurringExpenseToDelete = null;
         let recurringExpenseToEdit = null;
+        let categoryColors = {}; 
+        
+        // 💡 BỘ LỌC CHUẨN HÓA TIẾNG VIỆT (Bỏ dấu, đưa về chữ thường)
+        function normalizeVietnamese(str) {
+            if (!str) return "";
+            return str.normalize("NFD")             // Tách dấu ra khỏi chữ
+                      .replace(/[\u0300-\u036f]/g, "") // Xóa bỏ các dấu
+                      .replace(/đ/g, "d")           // Biến đ thường thành d
+                      .replace(/Đ/g, "D")           // Biến Đ hoa thành D
+                      .toLowerCase()                // Đưa tất cả về chữ thường
+                      .replace(/\s+/g, " ")         // Xóa khoảng trắng thừa
+                      .trim();
+        }
+        
+        // --- BIẾN TRẠNG THÁI SỬA DANH MỤC ---
+        let editingCategoryIndex = -1;
 
         // LẤY TÊN ĐĂNG NHẬP
         const token = localStorage.getItem('token'); 
@@ -392,94 +439,220 @@
         function renderCategories() {
             const list = document.getElementById('categories-list');
             list.innerHTML = '';
+            
             categories.forEach((category, index) => {
                 const item = document.createElement('div');
-                item.className = 'category-item';
-                item.draggable = true;
+                item.className = 'category-item' + (editingCategoryIndex === index ? ' category-edit-mode' : '');
                 item.dataset.index = index;
-                item.innerHTML = `
-                    <div class="category-handle-area">
-                        <span class="drag-handle"><i class="fa-solid fa-grip-lines"></i></span>
-                        <span>${category}</span>
-                    </div>
-                    <button class="delete-button" onclick="removeCategory(${index})">
-                        <i class="fa-solid fa-times"></i>
-                    </button>
-                `;
-                item.addEventListener('dragstart', handleDragStart);
-                item.addEventListener('dragover', handleDragOver);
-                item.addEventListener('dragleave', handleDragLeave);
-                item.addEventListener('dragend', handleDragEnd);
-                item.addEventListener('drop', handleDrop);
+                
+                const color = categoryColors[category] || colorPalette[index % colorPalette.length] || "#8a2be2";
+
+                if (editingCategoryIndex === index) {
+                    // CHẾ ĐỘ SỬA
+                    item.innerHTML = `
+                        <div style="display: flex; gap: 10px; align-items: center; width: 100%; padding: 5px;">
+                            <input type="color" id="editCatColor_${index}" value="${color}" style="border: none; background: none; cursor: pointer; width: 35px; height: 35px; padding: 0; border-radius: 4px;" title="Đổi màu">
+                            
+                            <input type="text" id="editCatName_${index}" value="${escapeHTML(category)}" class="themed-input" style="margin-bottom: 0; flex: 1; border: 1px solid var(--accent); padding: 8px; font-weight: bold;">
+                            
+                            <div style="display: flex; gap: 5px;">
+                                <button type="button" onclick="saveCategoryEdit(${index}, '${escapeHTML(category)}')" class="nav-button" style="width: auto; padding: 8px 12px; background: #2EAB7D; color: white; border: none; margin: 0;" title="Lưu">
+                                    <i class="fa-solid fa-check"></i>
+                                </button>
+                                <button type="button" onclick="cancelCategoryEdit()" class="nav-button" style="width: auto; padding: 8px 12px; background: transparent; border: 1px solid var(--border); color: var(--text-secondary); margin: 0;" title="Hủy">
+                                    <i class="fa-solid fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    // CHẾ ĐỘ HIỂN THỊ CƠ BẢN
+                    item.innerHTML = `
+                        <div class="category-handle-area" style="display: flex; align-items: center; gap: 12px; flex: 1;">
+                            <div style="width: 16px; height: 16px; border-radius: 50%; background-color: ${color};"></div>
+                            <span style="font-weight: bold; color: var(--text-primary); cursor: pointer;" onclick="toggleEditCategory(${index})" title="Bấm để sửa">${escapeHTML(category)}</span>
+                        </div>
+                        <div style="display: flex; gap: 5px;">
+                            <button type="button" class="edit-button" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; padding: 5px 10px;" onclick="toggleEditCategory(${index})" title="Sửa danh mục">
+                                <i class="fa-solid fa-pen"></i>
+                            </button>
+                            <button type="button" class="delete-button" onclick="window.removeCategory(${index}, event)" title="Xóa danh mục" style="background: none; border: none; color: #ff4d4d; cursor: pointer; padding: 5px 10px; position: relative; z-index: 10;">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </div>
+                    `;
+                }
                 list.appendChild(item);
             });
         }
 
-        function handleDragStart(e) {
-            this.classList.add('dragging'); draggedItem = this; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/html', this.innerHTML); removePlaceholders();
+        // KÍCH HOẠT CHẾ ĐỘ SỬA
+        function toggleEditCategory(index) {
+            editingCategoryIndex = index;
+            renderCategories();
         }
 
-        function handleDragOver(e) {
-            e.preventDefault(); e.dataTransfer.dropEffect = 'move'; this.classList.add('drag-over');
-            if (this === draggedItem) return false;
-            const rect = this.getBoundingClientRect(); const clientY = e.clientY; const threshold = rect.top + (rect.height / 2); const isBefore = clientY < threshold;
-            removePlaceholders();
-            const placeholder = document.createElement('div'); placeholder.className = 'placeholder';
-            if (isBefore) { this.parentNode.insertBefore(placeholder, this); } else { this.parentNode.insertBefore(placeholder, this.nextSibling); }
-            return false;
+        function cancelCategoryEdit() {
+            editingCategoryIndex = -1;
+            renderCategories();
         }
 
-        function handleDragLeave() { this.classList.remove('drag-over'); }
-        function handleDragEnd() {
-            this.classList.remove('dragging');
-            document.querySelectorAll('.category-item, .tag-item').forEach(item => item.classList.remove('drag-over'));
-            removePlaceholders();
-        }
-        function removePlaceholders() { document.querySelectorAll('.placeholder').forEach(p => p.remove()); }
+        // LƯU KHI SỬA VÀ KIỂM TRA TRÙNG LẶP CHUẨN TIẾNG VIỆT
+        async function saveCategoryEdit(index, oldName) {
+            const inputName = document.getElementById(`editCatName_${index}`);
+            const inputColor = document.getElementById(`editCatColor_${index}`);
+            let newName = inputName.value.trim().replace(/[<>]/g, ' ').trim();
+            const newColor = inputColor.value;
 
-        function handleDrop(e) {
-            e.stopPropagation(); e.preventDefault(); removePlaceholders();
-            if (draggedItem !== this) {
-                const fromIndex = parseInt(draggedItem.dataset.index, 10);
-                let toIndex = parseInt(this.dataset.index, 10);
-                const rect = this.getBoundingClientRect();
-                const isBefore = e.clientY < rect.top + rect.height / 2;
-                if (!isBefore) toIndex++;
-                if (fromIndex < toIndex) toIndex--;
-                const list = categories;
-                const movedItem = list.splice(fromIndex, 1)[0];
-                list.splice(toIndex, 0, movedItem);
-                renderCategories(); saveCategories(false); 
+            // 🛡️ CHỐT CHẶN 1 & 2 CHO PHẦN SỬA
+            if (newName.length < 2 || newName.length > 30) {
+                if(window.showToast) showToast('Tên danh mục phải từ 2 đến 30 ký tự!', 'error');
+                return;
             }
-            return false;
+            const invalidChars = /[{}[\]\\\/|^$%&*@#~`]/;
+            if (invalidChars.test(newName)) {
+                if(window.showToast) showToast('Tên không được chứa ký tự đặc biệt lạ!', "error");
+                return;
+            }
+
+            // KỊCH BẢN 1: ĐỔI TÊN DANH MỤC
+            if (newName !== oldName) {
+                const normalizedNewName = normalizeVietnamese(newName);
+                
+                // Kiểm tra trùng lặp thông minh
+                const isDuplicate = categories.some((cat, i) => {
+                    return i !== index && normalizeVietnamese(cat) === normalizedNewName;
+                });
+
+                if (isDuplicate) {
+                    if(window.showToast) showToast('Tên danh mục này (hoặc tương tự) đã tồn tại!', 'error');
+                    return;
+                }
+                
+                if(window.showToast) showToast('Đang đồng bộ dữ liệu cũ. Vui lòng đợi...', 'success');
+                
+                categories[index] = newName;
+                categories.sort((a, b) => a.localeCompare(b, 'vi'));
+
+                categoryColors[newName] = newColor;
+                delete categoryColors[oldName];
+                localStorage.setItem('customCategoryColors', JSON.stringify(categoryColors));
+
+                // CASCADE UPDATE
+                try {
+                    const expRes = await fetch('/api/expenses/');
+                    if (expRes.ok) {
+                        const rawData = await expRes.json();
+                        const expensesList = Array.isArray(rawData) ? rawData : (rawData.expenses || []);
+                        const expensesToUpdate = expensesList.filter(e => e.category === oldName);
+                        for (let exp of expensesToUpdate) {
+                            exp.category = newName; 
+                            await fetch(`/api/expenses/${exp.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(exp) });
+                        }
+                    }
+                    const recRes = await fetch('/api/recurring-expenses');
+                    if (recRes.ok) {
+                        const recurringList = await recRes.json() || [];
+                        const recurringToUpdate = recurringList.filter(r => r.category === oldName);
+                        for (let rec of recurringToUpdate) {
+                            rec.category = newName; 
+                            await fetch(`/api/recurring-expenses/edit?id=${rec.id}&updateAll=true`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(rec) });
+                        }
+                    }
+                } catch(e) { console.error("Lỗi đồng bộ giao dịch cũ:", e); }
+
+            } 
+            // KỊCH BẢN 2: CHỈ ĐỔI MÀU
+            else {
+                categoryColors[oldName] = newColor;
+                localStorage.setItem('customCategoryColors', JSON.stringify(categoryColors));
+            }
+            
+            editingCategoryIndex = -1;
+            renderCategories();
+            saveCategories(true, 'Đã cập nhật danh mục thành công!');
         }
 
+        // THÊM MỚI: TỰ ĐỘNG SẮP XẾP A-Z VÀ CHẶN TRÙNG LẶP CHUẨN TIẾNG VIỆT
         function addCategory() {
             const input = document.getElementById('newCategory');
-            let category = input.value.trim();
-            category = category.replace(/[<>]/g, ' ').trim();
-            if (category && !categories.includes(category)) {
-                categories.push(category); renderCategories(); input.value = ''; saveCategories(true, 'Đã thêm danh mục mới'); 
-            } else if (categories.includes(category)) {
-                if(window.showToast) showToast('Danh mục đã tồn tại', "error");
-            } else if (!category) {
-                if(window.showToast) showToast('Tên danh mục không được để trống.', "error");
+            // Lọc dấu <> chống XSS
+            let category = input.value.trim().replace(/[<>]/g, ' ').trim();
+            
+            // 🛡️ CHỐT CHẶN 1: Kiểm tra độ dài
+            if (category.length < 2 || category.length > 30) {
+                if(window.showToast) showToast('Tên danh mục phải từ 2 đến 30 ký tự!', "error");
+                return;
             }
+
+            // 🛡️ CHỐT CHẶN 2: Cấm ký tự đặc biệt
+            const invalidChars = /[{}[\]\\\/|^$%&*@#~`]/;
+            if (invalidChars.test(category)) {
+                if(window.showToast) showToast('Tên không được chứa ký tự đặc biệt lạ!', "error");
+                return;
+            }
+
+            const normalizedNewCat = normalizeVietnamese(category);
+            
+            // 🛡️ CHỐT CHẶN 3: Chống trùng lặp thông minh
+            const isDuplicate = categories.some(existingCat => normalizeVietnamese(existingCat) === normalizedNewCat);
+            if (isDuplicate) {
+                if(window.showToast) showToast('Danh mục này (hoặc tên tương tự) đã tồn tại!', "error");
+                return;
+            }
+
+            categories.push(category); 
+            categories.sort((a, b) => a.localeCompare(b, 'vi'));
+            
+            input.value = ''; 
+            categoryColors[category] = colorPalette[categories.length % colorPalette.length] || "#8a2be2";
+            localStorage.setItem('customCategoryColors', JSON.stringify(categoryColors));
+            
+            renderCategories(); 
+            saveCategories(true, 'Đã thêm danh mục mới'); 
         }
 
-        function removeCategory(index) {
+        // XÓA DANH MỤC (ĐÃ FIX XUNG ĐỘT SỰ KIỆN)
+        window.removeCategory = async function(index, e) {
+            // Chặn sự kiện lan ra các vùng khác
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
             if (categories.length <= 1) {
                 if(window.showToast) showToast('Cần giữ lại ít nhất một danh mục!', "error");
                 return;
             }
-            categories.splice(index, 1); renderCategories(); saveCategories(true, 'Đã xóa danh mục'); 
-        }
+            
+            const catName = categories[index];
+            const confirmMsg = `Bạn có chắc chắn muốn xóa danh mục "${catName}" không?\n\nLưu ý: Các giao dịch cũ thuộc danh mục này sẽ không bị xóa khỏi báo cáo, nhưng bạn sẽ không thể chọn nó khi tạo giao dịch mới.`;
+            
+            const userConfirmed = await showCustomConfirm(confirmMsg);
+            if (!userConfirmed) return;
+
+            categories.splice(index, 1); 
+            
+            // Dọn dẹp luôn màu sắc cũ cho sạch bộ nhớ
+            delete categoryColors[catName];
+            localStorage.setItem('customCategoryColors', JSON.stringify(categoryColors));
+            
+            editingCategoryIndex = -1; // Reset trạng thái sửa
+            
+            renderCategories(); 
+            saveCategories(true, `Đã xóa danh mục "${catName}"`); 
+        };
 
         async function saveCategories(showNotification = true, customMsg = 'Đã cập nhật danh mục') {
             if (categories.length === 0) return;
             try {
                 const response = await fetch('/api/categories/edit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(categories) });   
-                if (response.ok) { if(showNotification && window.showToast) showToast(customMsg, "success"); } 
+                if (response.ok) { 
+                    if(showNotification && window.showToast) showToast(customMsg, "success"); 
+                    // Cập nhật lại dropdown
+                    document.getElementById('recurringCategory').innerHTML = categories.map(c => `<option value="${c}">${c}</option>`).join('');
+                    document.getElementById('editRecurringCategory').innerHTML = categories.map(c => `<option value="${c}">${c}</option>`).join('');
+                } 
                 else { const error = await response.json(); if(window.showToast) showToast(`Lỗi: ${error.error}`, "error"); }
             } catch (error) { if(window.showToast) showToast('Lỗi khi lưu danh mục', "error"); }
         }
@@ -709,9 +882,8 @@
 
         document.getElementById('csv-export-file').addEventListener('click', async () => {
             const btn = document.getElementById('csv-export-file'); const originalHTML = btn.innerHTML;
-            const token = localStorage.getItem('token');
             if (!token) { if(window.showToast) showToast('Lỗi: Bạn chưa đăng nhập. Vui lòng đăng nhập lại!', 'error'); setTimeout(() => window.location.href = '/login', 1500); return; }
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang xuất dữ liệu...'; btn.style.pointerEvents = 'none';
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang xuất...'; btn.style.pointerEvents = 'none';
             try {
                 const response = await fetch('/api/expenses/export/csv', { method: 'GET', headers: { 'Authorization': `Bearer ${token}` } });
                 if (response.ok) {
@@ -720,7 +892,7 @@
                     document.body.appendChild(a); a.click(); window.URL.revokeObjectURL(url);
                     if(window.showToast) showToast('Xuất dữ liệu thành công!', 'success');
                 } else if (response.status === 401) {
-                    if(window.showToast) showToast('Lỗi: Phiên đăng nhập hết hạn. Đang chuyển hướng...', 'error');
+                    if(window.showToast) showToast('Lỗi: Phiên đăng nhập hết hạn.', 'error');
                     localStorage.removeItem('token'); setTimeout(() => window.location.href = '/login', 1500);
                 } else { if(window.showToast) showToast('Lỗi xử lý từ máy chủ.', 'error'); }
             } catch (error) { if(window.showToast) showToast('Lỗi kết nối khi xuất file', 'error'); } 
@@ -740,7 +912,11 @@
                 let recurringExpensesList = []; if (recurringExpensesResponse.ok) recurringExpensesList = await recurringExpensesResponse.json();
 
                 recurringExpenses = recurringExpensesList || [];
+                
+                // Nạp danh mục từ config và tự động sắp xếp A-Z lúc mới tải
                 categories = [...(config.categories || [])];
+                categories.sort((a, b) => a.localeCompare(b, 'vi'));
+
                 currentCurrency = config.currency || 'usd';
                 document.getElementById('aiFinancialGoal').value = config.financial_goal || "Chưa xác định";
                 document.getElementById('aiRiskTolerance').value = config.risk_tolerance || "Cân bằng";
@@ -749,6 +925,9 @@
                 (expenses || []).forEach(exp => (exp.tags || []).forEach(tag => allTags.add(tag)));
                 (recurringExpenses || []).forEach(exp => (exp.tags || []).forEach(tag => allTags.add(tag)));
 
+                // Nạp màu sắc đã lưu
+                categoryColors = JSON.parse(localStorage.getItem('customCategoryColors') || '{}');
+                
                 renderCategories(); populateCurrencySelect(); populateStartDateInput();
                 document.getElementById('recurringCategory').innerHTML = categories.map(c => `<option value="${c}">${c}</option>`).join('');
                 document.getElementById('editRecurringCategory').innerHTML = categories.map(c => `<option value="${c}">${c}</option>`).join('');
@@ -815,6 +994,17 @@
             finally { btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Lưu Hồ Sơ AI'; btn.disabled = false; }
         }
 
+        // TÁI SỬ DỤNG BẢNG HỎI XÁC NHẬN CHUNG
+        function showCustomConfirm(message) {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('customConfirmModal'); const msgEl = document.getElementById('confirmMessage'); const btnCancel = document.getElementById('btnConfirmCancel'); const btnProceed = document.getElementById('btnConfirmProceed');
+                msgEl.textContent = message; modal.style.display = 'flex';
+                const cleanup = () => { modal.style.display = 'none'; btnCancel.removeEventListener('click', onCancel); btnProceed.removeEventListener('click', onProceed); };
+                const onCancel = () => { cleanup(); resolve(false); }; const onProceed = () => { cleanup(); resolve(true); };  
+                btnCancel.addEventListener('click', onCancel); btnProceed.addEventListener('click', onProceed);
+            });
+        }
+
         window.escapeHTML = function(str) {
             if (str === null || str === undefined) return '';
             if (typeof str !== 'string') return String(str);
@@ -824,27 +1014,21 @@
         };
 
         document.addEventListener('DOMContentLoaded', initialize);
-        window.removeCategory = removeCategory;
         window.showRecurringDeleteModal = showRecurringDeleteModal;
         window.closeRecurringDeleteModal = closeRecurringDeleteModal;
         window.confirmRecurringDelete = confirmRecurringDelete;
         window.showRecurringEditModal = showRecurringEditModal;
         window.closeRecurringEditModal = closeRecurringEditModal;
         window.confirmRecurringUpdate = confirmRecurringUpdate;
-        // HÀM HIỂN THỊ BẢNG ĐĂNG XUẤT
+        
         function showLogoutModal() {
             document.getElementById('logoutConfirmModal').style.display = 'flex';
         }
-
-        // HÀM ẨN BẢNG ĐĂNG XUẤT
         function closeLogoutModal() {
             document.getElementById('logoutConfirmModal').style.display = 'none';
         }
-
-        // HÀM THỰC THI ĐĂNG XUẤT
         function proceedLogout() {
             closeLogoutModal();
-            // Gọi hàm logout gốc của bạn (hoặc thực thi logic xóa token)
             if (typeof logout === 'function') {
                 logout();
             } else {
@@ -854,18 +1038,5 @@
         }
     </script>
     <script src="/static/chatbot.js"></script>
-    <!-- MODAL XÁC NHẬN ĐĂNG XUẤT ĐẸP -->
-    <div id="logoutConfirmModal" class="modal" style="display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); align-items: center; justify-content: center;">
-        <div style="background-color: var(--bg-secondary); border: 1px solid var(--border); border-radius: 12px; width: 90%; max-width: 400px; padding: 25px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); text-align: center;">
-            <h3 style="color: var(--accent); margin-top: 0; margin-bottom: 15px;">
-                <i class="fa-solid fa-right-from-bracket"></i> Xác nhận Đăng Xuất
-            </h3>
-            <p style="color: var(--text-secondary); line-height: 1.6; margin-bottom: 25px; font-size: 15px;">Bạn có chắc chắn muốn đăng xuất khỏi ExpenseOwl không?</p>
-            <div style="display: flex; gap: 15px; justify-content: center;">
-                <button onclick="closeLogoutModal()" style="flex: 1; padding: 10px 20px; background-color: var(--bg-primary); color: var(--text-primary); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s;">Hủy bỏ</button>
-                <button onclick="proceedLogout()" style="flex: 1; padding: 10px 20px; background-color: #ff4d4d; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s;">Đăng Xuất</button>
-            </div>
-        </div>
-    </div>
 </body>
 </html>

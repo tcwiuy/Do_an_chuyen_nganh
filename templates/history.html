@@ -251,8 +251,17 @@
         };
 
         function assignCategoryColors(categories) {
+            // Lấy bảng màu tùy chỉnh mà bạn đã lưu ở Settings
+            const savedColors = JSON.parse(localStorage.getItem('customCategoryColors') || '{}');
+            const palette = ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#F7464A', '#8a2be2'];
+            
             categories.forEach((category, index) => {
-                if (!categoryColors[category]) categoryColors[category] = colorPalette[index % colorPalette.length]; 
+                // Nếu tìm thấy màu đã lưu thì dùng, không thì lấy màu mặc định
+                if (savedColors[category]) {
+                    categoryColors[category] = savedColors[category];
+                } else if (!categoryColors[category]) {
+                    categoryColors[category] = palette[index % palette.length]; 
+                }
             });
         }
 
