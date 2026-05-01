@@ -155,6 +155,12 @@
                             <option value="yearly">Hàng năm</option>
                         </select>
                     </div>
+
+                    <div class="form-group" id="jarSourceGroup">
+                        <label>Rút từ Quỹ (Hũ)</label>
+                        <select id="jar_id" style="background-color: var(--bg-primary);"></select>
+                    </div>
+                    
                     <div class="form-group" style="position: relative;">
                         <label>Nhãn</label>
                         <div id="tags-input-container" style="width: 100%; display: flex; flex-wrap: wrap; border: 1px solid var(--border); border-radius: 4px; background-color: var(--bg-primary); cursor: text; padding: 0.25rem;">
@@ -244,6 +250,35 @@
         let isCalendarExpanded = false;
         let selectedDayFilter = null;
 
+        let globalJars = [];
+
+        function showCustomAlert(message) {
+            const alertMsg = document.getElementById("alertMessage");
+            const alertModal = document.getElementById("customAlertModal");
+            if(alertMsg && alertModal) {
+                alertMsg.textContent = message;
+                alertModal.style.display = "flex";
+            } else {
+                alert(message); 
+            }
+        }
+
+        async function loadJarsForSelect() {
+            const token = localStorage.getItem('token');
+            const res = await fetch('/api/planning/jars', { headers: { 'Authorization': `Bearer ${token}` } });
+            if (res.ok) {
+                const jars = await res.json();
+                globalJars = jars; 
+                const select = document.getElementById('jar_id');
+                if (select) {
+                    select.innerHTML = '<option value="">-- Chọn Quỹ để rút --</option>';
+                    jars.forEach(j => {
+                        select.innerHTML += `<option value="${j.id}">${j.name} (${formatCurrency(j.balance)})</option>`;
+                    });
+                }
+            }
+        }
+
         // 💡 TỰ ĐỘNG ĐỔI DANH MỤC Ở FORM
         function updateExpenseFormCategoryOptions() {
             const categorySelect = document.getElementById("category");
@@ -252,6 +287,10 @@
             
             if(categorySelect) {
                 categorySelect.innerHTML = targetList.map((cat) => `<option value="${cat}">${cat}</option>`).join("");
+            }
+            const jarGroup = document.getElementById("jarSourceGroup");
+            if(jarGroup) {
+                jarGroup.style.display = isIncome ? 'none' : 'block';
             }
         }
 
@@ -797,6 +836,8 @@
                         [...allTags].map(tag => `<option value="${tag}">${escapeHTML(tag)}</option>`).join('');
                 }
 
+                await loadJarsForSelect();
+
                 updatePeriodDisplayOverride();
                 updateTable();
                 setupTagInput();
@@ -847,10 +888,47 @@
             }
 
             const selectedCategory = document.getElementById('category').value;
+            const selectedJar = document.getElementById('jar_id').value;
             let rate = 1; if (typeof exchangeRatesToVND !== 'undefined') { rate = exchangeRatesToVND[currentCurrency] || 1; }
             let amountInVND = rawAmount * rate; let finalAmountToSave = isGain ? amountInVND : -amountInVND;
 
+            if (!isGain && !selectedJar) {
+                showCustomAlert("Bạn ơi, vui lòng chọn Quỹ (Hũ) để rút tiền nhé!");
+                return; 
+            }
+
+            if (!isGain && selectedJar) {
+                const jarId = parseInt(selectedJar);
+                const jarData = globalJars.find(j => j.id === jarId);
+                
+                if (jarData && jarData.balance < amountInVND) {
+                    const balanceDisplay = formatCurrency(jarData.balance);
+                    const amountDisplay = formatCurrency(amountInVND);
+                    showCustomAlert(`Quỹ "${jarData.name}" hiện không đủ tiền để thực hiện giao dịch này!\n\n- Số dư hiện tại: ${balanceDisplay}\n- Số tiền cần rút: ${amountDisplay}`);
+                    return; 
+                }
+            }
+
             if (!isGain && selectedCategory) {
+                // 1. Kiểm tra Ngân Sách
+                try {
+                    const token = localStorage.getItem('token');
+                    const resBudgets = await fetch('/api/planning/budgets', { headers: { 'Authorization': `Bearer ${token}` } });
+                    if (resBudgets.ok) {
+                        const currentBudgets = await resBudgets.json();
+                        const categoryBudget = currentBudgets.find(b => b.category === selectedCategory);
+                        if (categoryBudget && categoryBudget.limit_amount > 0) {
+                            const totalAfterExpense = categoryBudget.spent_amount + amountInVND;
+                            if (totalAfterExpense > categoryBudget.limit_amount) {
+                                const confirmMsg = `CẢNH BÁO VƯỢT NGÂN SÁCH!\n\nKhoản chi này sẽ làm bạn vượt hạn mức ngân sách của mục "${selectedCategory}".\n- Hạn mức: ${formatCurrency(categoryBudget.limit_amount)}\n- Tổng nếu lưu: ${formatCurrency(totalAfterExpense)}\n\nBạn có chắc chắn muốn tiếp tục lưu không?`;
+                                const userConfirmed = await showCustomConfirm(confirmMsg);
+                                if (!userConfirmed) return; 
+                            }
+                        }
+                    }
+                } catch(error) { console.error("Lỗi kiểm tra ngân sách:", error); }
+
+                // 2. Kiểm tra AI Cú Mèo (Chi tiêu bất thường)
                 const categoryExpenses = allExpenses.filter(exp => exp.amount < 0 && exp.category === selectedCategory); let categoryAverageVND = 0;
                 if (categoryExpenses.length > 0) { const totalCategory = categoryExpenses.reduce((sum, exp) => sum + Math.abs(exp.amount), 0); categoryAverageVND = totalCategory / categoryExpenses.length; }
                 const minAlertAmountVND = 50 * exchangeRatesToVND['usd']; 
@@ -864,7 +942,8 @@
             const formData = {
                 name: document.getElementById('name').value.trim(), category: selectedCategory, amount: finalAmountToSave, 
                 date: new Date(document.getElementById('date').value + "T00:00:00Z").toISOString(), tags: Array.from(selectedTags).map(t => String(t)), 
-                note: document.getElementById('note').value.trim() || null, recurring_interval: document.getElementById('recurring_interval').value || null
+                note: document.getElementById('note').value.trim() || null, recurring_interval: document.getElementById('recurring_interval').value || null,
+                jar_id: parseInt(selectedJar) || null
             };
 
             try {
@@ -922,6 +1001,16 @@
                 <button onclick="proceedLogout()" style="flex: 1; padding: 10px 20px; background-color: #ff4d4d; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s;">Đăng Xuất</button>
             </div>
         </div>
+    </div>
+    
+    <div id="customAlertModal" style="display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.8); align-items: center; justify-content: center;">
+      <div style="background: linear-gradient(145deg, #2a1e2d, #402a30); border: 2px solid #ff4d4d; border-radius: 12px; width: 90%; max-width: 450px; padding: 25px; box-shadow: 0 0 25px rgba(255, 77, 77, 0.4); text-align: center;">
+        <h3 style="color: #ff4d4d; margin-top: 0; margin-bottom: 15px"><i class="fa-solid fa-circle-xmark fa-beat"></i> Lỗi Giao Dịch</h3>
+        <p id="alertMessage" style="color: #e0e0e0; line-height: 1.6; margin-bottom: 25px; white-space: pre-line; font-size: 15px;"></p>
+        <div style="display: flex; justify-content: center">
+          <button onclick="document.getElementById('customAlertModal').style.display='none'" style="padding: 10px 30px; background-color: #ff4d4d; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">Đã hiểu</button>
+        </div>
+      </div>
     </div>
 </body>
 </html>

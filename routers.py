@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from typing import List
 import uuid
 from fastapi.security import OAuth2PasswordRequestForm
@@ -337,15 +338,30 @@ def create_transaction(
         tags=transaction.tags if transaction.tags else ["Manual"],
         note=transaction.note,
         recurring_interval=transaction.recurring_interval,
+        jar_id=transaction.jar_id,
         user_id=current_user.id,
     )
     db.add(db_transaction)
     if transaction.amount > 0:
         distribute_to_jars(db, current_user.id, transaction.amount)
     elif transaction.amount < 0:
+        if transaction.jar_id:
+            jar = db.query(models.Jar).filter(models.Jar.id == transaction.jar_id, models.Jar.user_id == current_user.id).first()
+            if jar: 
+                # Chặn ngay nếu tiền trong Hũ ít hơn tiền định rút
+                if jar.balance < abs(transaction.amount):
+                    raise HTTPException(
+                        status_code=400, 
+                        detail=f"Quỹ '{jar.name}' không đủ tiền! (Hiện chỉ còn {jar.balance:,.0f})"
+                    )
+                
+                jar.balance -= abs(transaction.amount)
+                db.add(jar)
+
         update_budget_spent(
             db, current_user.id, transaction.category, abs(transaction.amount)
         )
+
     db.commit()
     db.refresh(db_transaction)
     return db_transaction
@@ -383,22 +399,28 @@ def update_transaction(
 
 
 @router.delete("/{transaction_id}")
-def delete_transaction(
-    transaction_id: str,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.get_current_user),
-):
-    db_txn = (
-        db.query(models.Transaction)
-        .filter(
-            models.Transaction.id == transaction_id,
-            models.Transaction.user_id == current_user.id,
-        )
-        .first()
-    )
+def delete_transaction(transaction_id: str, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
+    db_txn = db.query(models.Transaction).filter(models.Transaction.id == transaction_id, models.Transaction.user_id == current_user.id).first()
     if not db_txn:
         raise HTTPException(status_code=404, detail="Không tìm thấy giao dịch")
-
+    
+    if db_txn.amount < 0:
+        now = datetime.now()
+        if getattr(db_txn.date, 'month', -1) == now.month and getattr(db_txn.date, 'year', -1) == now.year:
+            budget = db.query(models.Budget).filter(
+                models.Budget.user_id == current_user.id,
+                models.Budget.category == db_txn.category,
+                models.Budget.month == now.month,
+                models.Budget.year == now.year
+            ).first()
+            if budget:
+                budget.spent_amount = max(0.0, budget.spent_amount - abs(db_txn.amount))
+    # -----------------------------------------------------
+    if db_txn.amount < 0 and db_txn.jar_id:
+        jar = db.query(models.Jar).filter(models.Jar.id == db_txn.jar_id).first()
+        if jar:
+            jar.balance += abs(db_txn.amount)
+            
     db.delete(db_txn)
     db.commit()
     return {"message": "Đã xóa thành công"}
@@ -1859,7 +1881,7 @@ def set_budget(
 def sync_old_data(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user),
-):
+):  
     now = datetime.now()
 
     user_jars = db.query(models.Jar).filter(models.Jar.user_id == current_user.id).all()
@@ -1893,7 +1915,10 @@ def sync_old_data(
                 and getattr(tx.date, "year", -1) == now.year
             ):
                 update_budget_spent(db, current_user.id, tx.category, abs(tx.amount))
-
+            if tx.jar_id:
+                jar = db.query(models.Jar).filter(models.Jar.id == tx.jar_id, models.Jar.user_id == current_user.id).first()
+                if jar:
+                    jar.balance -= abs(tx.amount)
     db.commit()
 
     return {"message": "Đã đồng bộ toàn bộ dữ liệu lịch sử thành công!"}

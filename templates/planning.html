@@ -96,6 +96,17 @@
             <div id="budgetInputsContainer" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; margin-bottom: 20px;">
             </div>
 
+            <div style="background-color: var(--bg-primary); padding: 15px; border-radius: 8px; border: 1px dashed var(--accent); margin-bottom: 20px;">
+                <h4 style="margin-top: 0; color: var(--text-primary); margin-bottom: 10px;">Tạo ngân sách</h4>
+                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                    <input type="text" id="newBudgetCategory" class="wizard-input" style="flex: 2; margin-bottom: 0;" placeholder="Tên danh mục mới (VD: Du lịch Đà Lạt)">
+                    <input type="number" id="newBudgetAmount" class="wizard-input" style="flex: 1; margin-bottom: 0;" placeholder="Hạn mức">
+                    <button onclick="addNewBudgetCategory()" class="nav-button" style="background-color: var(--accent); color: white; width: auto; border: none; padding: 12px 20px;">
+                        <i class="fa-solid fa-plus"></i> Thêm
+                    </button>
+                </div>
+            </div>
+
             <div style="text-align: right; border-top: 1px solid var(--border); padding-top: 15px; display: flex; justify-content: space-between; align-items: center;">
                 <div style="color: var(--text-primary); font-weight: bold;">Tổng hạn mức: <span id="totalBudgetDisplay" style="color: #4ade80;">0</span></div>
                 <button onclick="saveBudgetsBulk()" id="btnSaveAllBudgets" class="nav-button" style="background-color: var(--accent); color: white; border: none; padding: 12px 30px; width: auto;">
@@ -174,6 +185,8 @@
                     } else if (config.categories && config.categories.length > 0) {
                         window.categoriesList = config.categories; // Fallback an toàn
                     }
+
+                    window.incomeCategories = config.incomeCategories || ["Lương", "Thưởng", "Đầu tư", "Khác"];
                 }
             } catch (e) { console.error("Lỗi tải config:", e); }
         }
@@ -298,6 +311,47 @@
             } catch (e) { console.error("Lỗi nạp budget inputs:", e); }
         }
 
+        function addNewBudgetCategory() {
+            const catInput = document.getElementById('newBudgetCategory');
+            const amtInput = document.getElementById('newBudgetAmount');
+            const catName = catInput.value.trim();
+            const amtValue = amtInput.value;
+
+            if (!catName) {
+                showToast("Vui lòng nhập tên danh mục!", "error");
+                return;
+            }
+
+            // Nếu danh mục này chưa từng tồn tại, nhét nó vào danh sách
+            if (!window.categoriesList.includes(catName)) {
+                window.categoriesList.push(catName);
+            }
+
+            const container = document.getElementById('budgetInputsContainer');
+            let existingRow = document.querySelector(`.budget-mass-input[data-category="${catName}"]`);
+            
+            if (existingRow) {
+                existingRow.value = amtValue; // Nếu đã có trên màn hình thì chỉ đè tiền lên
+            } else {
+                // Tạo một row mới y hệt các row cũ
+                container.innerHTML += `
+                    <div style="background-color: var(--bg-primary); padding: 10px 15px; border-radius: 8px; display: flex; align-items: center; gap: 10px; border: 1px solid var(--border);">
+                        <span style="flex: 1; color: var(--accent); font-weight: 500;">${catName}</span>
+                        <input type="number" class="wizard-input budget-mass-input" 
+                               data-category="${catName}" 
+                               value="${amtValue}" 
+                               oninput="updateTotalBudgetSum()"
+                               style="width: 120px; margin-bottom: 0; text-align: right;" 
+                               placeholder="0">
+                    </div>`;
+            }
+
+            updateTotalBudgetSum();
+            catInput.value = '';
+            amtInput.value = '';
+            showToast(`Đã đẩy "${catName}" lên danh sách phía trên. Nhớ bấm "Lưu Tất Cả" nhé!`, "success");
+        }
+
         function updateTotalBudgetSum() {
             let total = 0;
             document.querySelectorAll('.budget-mass-input').forEach(input => {
@@ -322,16 +376,32 @@
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang lưu...';
 
             try {
-                const res = await fetch('/api/planning/budgets/bulk', {
+                const token = localStorage.getItem('token');
+                
+                const resBudgets = fetch('/api/planning/budgets/bulk', {
                     method: 'POST',
-                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}`, 'Content-Type': 'application/json' },
+                    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
                     body: JSON.stringify(budgetsData)
                 });
-                if (res.ok) {
-                    showToast("Đã lưu toàn bộ ngân sách tháng này!", "success");
-                    await loadPlanningData(); 
-                }
-            } catch (e) { showToast("Lỗi kết nối!", "error"); }
+
+                const payloadCats = {
+                    expenseCategories: window.categoriesList,
+                    incomeCategories: window.incomeCategories || ["Lương", "Thưởng", "Đầu tư", "Khác"]
+                };
+                const resCats = fetch('/api/categories/edit', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payloadCats)
+                });
+
+                await Promise.all([resBudgets, resCats]);
+
+                showToast("Đã lưu ngân sách và tạo danh mục mới thành công!", "success");
+                await loadPlanningData(); 
+                
+            } catch (e) { 
+                showToast("Lỗi kết nối khi lưu dữ liệu!", "error"); 
+            }
             btn.innerHTML = '<i class="fa-solid fa-save"></i> Lưu Tất Cả Ngân Sách';
         }
 

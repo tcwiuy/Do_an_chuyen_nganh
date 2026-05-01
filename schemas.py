@@ -49,7 +49,9 @@ class TransactionBase(BaseModel):
         return value
 
 class TransactionCreate(TransactionBase):
+    jar_id: Optional[int] = None
     pass
+
 
 class TransactionResponse(TransactionBase):
     id: str
