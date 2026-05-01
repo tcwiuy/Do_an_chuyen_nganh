@@ -3,6 +3,12 @@ from typing import List, Optional
 from decimal import Decimal
 from pydantic import BaseModel, field_validator, Field, ConfigDict
 
+# --- SCHEMAS CHO CẤU HÌNH NGƯỜI DÙNG ---
+class CategoriesPayload(BaseModel):
+    """Schema dùng để hứng dữ liệu 2 mảng Thu - Chi từ Frontend gửi lên"""
+    expenseCategories: List[str] = Field(default_factory=list)
+    incomeCategories: List[str] = Field(default_factory=list)
+
 # --- SCHEMAS CHO GIAO DỊCH THÔNG THƯỜNG ---
 class TransactionBase(BaseModel):
     name: str
@@ -21,8 +27,9 @@ class TransactionBase(BaseModel):
     def validate_amount(cls, value: Decimal):
         if value == Decimal('0'):
             raise ValueError("Số tiền giao dịch không được bằng 0.")
-        if value > Decimal('10000000000') or value < Decimal('-10000000000'):  
-            raise ValueError("Số tiền giao dịch quá lớn (vượt quá 10 tỷ VNĐ), hệ thống từ chối ghi nhận!")
+        # ĐÃ SỬA: Nâng hạn mức lên 1,000 tỷ VNĐ để hỗ trợ ghi chép mua nhà/đất/xe
+        if value > Decimal('1000000000000') or value < Decimal('-1000000000000'):  
+            raise ValueError("Số tiền giao dịch quá lớn (vượt quá 1,000 tỷ VNĐ), hệ thống từ chối ghi nhận!")
         return value
 
     # Chặn tên giao dịch nhập cho có (VD: "A", "B")
@@ -65,8 +72,8 @@ class RecurringTransactionBase(BaseModel):
     def validate_amount(cls, value: Decimal):
         if value == Decimal('0'):
             raise ValueError("Số tiền giao dịch không được bằng 0.")
-        if value > Decimal('10000000000') or value < Decimal('-10000000000'):  
-            raise ValueError("Số tiền giao dịch quá lớn (vượt quá 10 tỷ VNĐ).")
+        if value > Decimal('1000000000000') or value < Decimal('-1000000000000'):  
+            raise ValueError("Số tiền giao dịch quá lớn (vượt quá 1,000 tỷ VNĐ).")
         return value
 
     @field_validator('name')

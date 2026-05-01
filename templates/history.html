@@ -99,7 +99,6 @@
             </div>
         </div>
         
-        <!-- ĐÃ GỘP GỌN GÀNG THANH CÔNG CỤ LỌC ĐA NĂNG -->
         <div class="form-container" style="display: flex; gap: 15px; align-items: center; justify-content: flex-start; flex-wrap: wrap; padding: 1rem; margin-bottom: 1rem; background-color: var(--bg-secondary); border: 1px solid var(--border); border-radius: 12px;">
             <label for="showAllToggle" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; color: var(--text-primary); font-weight: bold; margin-right: 10px;">
                 <input type="checkbox" id="showAllToggle" class="styled-checkbox" style="transform: scale(1.2);"> Toàn bộ
@@ -156,7 +155,6 @@
                             <option value="yearly">Hàng năm</option>
                         </select>
                     </div>
-                    <!-- ĐÃ GIỮ NGUYÊN ĐOẠN CODE NHÃN (WRAP) CỦA BẠN -->
                     <div class="form-group" style="position: relative;">
                         <label>Nhãn</label>
                         <div id="tags-input-container" style="width: 100%; display: flex; flex-wrap: wrap; border: 1px solid var(--border); border-radius: 4px; background-color: var(--bg-primary); cursor: text; padding: 0.25rem;">
@@ -234,12 +232,35 @@
             input.value = value;
         }
 
+        // 💡 2 KHO DANH MỤC THU / CHI
+        let expenseCategories = [];
+        let incomeCategories = [];
+        let initialCategories = [];
+
         let currentCurrency = 'usd', currentDate = new Date(), allExpenses = [], expensesForTable = [], startDate = 1, allTags = new Set(), selectedTags = new Set(), categoryColors = {};
         let currentSortColumn = null, currentSortOrder = null;
         
         let currentPeriodType = "week";
         let isCalendarExpanded = false;
         let selectedDayFilter = null;
+
+        // 💡 TỰ ĐỘNG ĐỔI DANH MỤC Ở FORM
+        function updateExpenseFormCategoryOptions() {
+            const categorySelect = document.getElementById("category");
+            const isIncome = document.getElementById("reportGain").checked;
+            const targetList = isIncome ? incomeCategories : expenseCategories;
+            
+            if(categorySelect) {
+                categorySelect.innerHTML = targetList.map((cat) => `<option value="${cat}">${cat}</option>`).join("");
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            const reportGainCheckbox = document.getElementById("reportGain");
+            if(reportGainCheckbox) {
+                reportGainCheckbox.addEventListener("change", updateExpenseFormCategoryOptions);
+            }
+        });
 
         window.escapeHTML = function(str) {
             if (str === null || str === undefined) return '';
@@ -251,12 +272,10 @@
         };
 
         function assignCategoryColors(categories) {
-            // Lấy bảng màu tùy chỉnh mà bạn đã lưu ở Settings
             const savedColors = JSON.parse(localStorage.getItem('customCategoryColors') || '{}');
             const palette = ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#F7464A', '#8a2be2'];
             
             categories.forEach((category, index) => {
-                // Nếu tìm thấy màu đã lưu thì dùng, không thì lấy màu mặc định
                 if (savedColors[category]) {
                     categoryColors[category] = savedColors[category];
                 } else if (!categoryColors[category]) {
@@ -354,7 +373,6 @@
                         ${expenses.map((expense, index) => {
                             const catColor = categoryColors[expense.category] || '#d4a5ff';
                             
-                            // 1. XỬ LÝ HIỂN THỊ NHÃN (TAGS)
                             let tagsHtml = '-'; 
                             if (expense.tags && expense.tags.length > 0) {
                                 tagsHtml = expense.tags.map(tag => `
@@ -364,7 +382,6 @@
                                 `).join('');
                             }
 
-                            // 2. XỬ LÝ HIỂN THỊ GHI CHÚ (NOTE)
                             let noteHtml = '';
                             if (expense.note && expense.note.trim() !== '') {
                                 noteHtml = `<div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 4px; font-weight: normal; display: flex; align-items: flex-start; gap: 5px;">
@@ -612,7 +629,7 @@
         });
 
         // =========================================
-        // EDIT GIAO DỊCH
+        // EDIT GIAO DỊCH (ĐÃ NÂNG CẤP KHO DANH MỤC)
         // =========================================
         function editExpenseByIndex(index) {
             const expense = expensesForTable[index]; 
@@ -635,6 +652,11 @@
         }
 
         function editExpense(id, name, category, amount, tags, date, note, recurring_interval) {
+            // 💡 1. Cập nhật Checkbox Thu/Chi và lật lại Danh mục trước khi gán
+            document.getElementById('reportGain').checked = amount > 0;
+            updateExpenseFormCategoryOptions();
+            
+            // 💡 2. Gán giá trị vào form
             document.getElementById('name').value = name;
             document.getElementById('category').value = category;
             document.getElementById('note').value = note || '';
@@ -650,7 +672,6 @@
             parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
             document.getElementById('amount').value = parts.join('.');
             
-            document.getElementById('reportGain').checked = amount > 0;
             renderSelectedTags(tags);
             document.getElementById('date').value = date.split('T')[0];
             
@@ -665,6 +686,9 @@
         function cancelEditMode() {
             const form = document.getElementById('expenseForm');
             form.reset();
+            // Reset lại menu về Chi tiêu (Mặc định)
+            updateExpenseFormCategoryOptions();
+            
             document.getElementById('selected-tags').innerHTML = '';
             selectedTags.clear();
             delete form.dataset.editId;
@@ -682,18 +706,45 @@
             input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); if (input.value.trim()) addTag(input.value.trim()); }}); container.addEventListener('click', () => input.focus()); document.addEventListener('click', (e) => { if (!formGroup.contains(e.target)) dropdown.style.display = 'none'; });
         }
 
+        // =========================================
+        // KHỞI TẠO DỮ LIỆU
+        // =========================================
         async function initialize() {
             try {
-                const configResponse = await fetch('/api/config');
-                if (!configResponse.ok) throw new Error('Failed to fetch configuration');
-                const config = await configResponse.json();
+                let config = { expenseCategories: ["Ăn uống", "Đi lại", "Mua sắm", "Hóa đơn", "Giải trí"], incomeCategories: ["Lương", "Thưởng", "Đầu tư", "Khác"], currency: "usd", startDate: 1 };
+                try {
+                    const configResponse = await fetch('/api/config');
+                    if (configResponse.ok) {
+                        const fetchedConfig = await configResponse.json();
+                        if (fetchedConfig) config = {...config, ...fetchedConfig};
+                    }
+                } catch(e) {}
                 
-                document.getElementById('category').innerHTML = config.categories.map(cat => `<option value="${cat}">${cat}</option>`).join('');
-                document.getElementById('categoryFilter').innerHTML = `<option value="all">📁 Tất cả danh mục</option>` + config.categories.map(cat => `<option value="${cat}">${cat}</option>`).join('');
+                // 💡 Bóc tách 2 mảng Thu - Chi
+                if (config.expenseCategories && config.incomeCategories) {
+                    expenseCategories = config.expenseCategories;
+                    incomeCategories = config.incomeCategories;
+                } else if (config.categories) {
+                    expenseCategories = config.categories;
+                    incomeCategories = ["Lương", "Thưởng", "Đầu tư", "Khác"];
+                }
+                
+                initialCategories = [...expenseCategories, ...incomeCategories];
+                
+                // Gán vào form chỉnh sửa
+                updateExpenseFormCategoryOptions();
+
+                // 💡 CẬP NHẬT BỘ LỌC DANH MỤC THÀNH CÁC NHÓM
+                const catFilter = document.getElementById('categoryFilter');
+                if(catFilter) {
+                    const expOptions = expenseCategories.map(c => `<option value="${c}">${c}</option>`).join('');
+                    const incOptions = incomeCategories.map(c => `<option value="${c}">${c}</option>`).join('');
+                    catFilter.innerHTML = `<option value="all">📁 Tất cả danh mục</option><optgroup label="Chi Tiêu">${expOptions}</optgroup><optgroup label="Thu Nhập">${incOptions}</optgroup>`;
+                }
 
                 window.currentCurrency = config.currency || 'usd'; 
                 currentCurrency = window.currentCurrency;
-                startDate = config.startDate;
+                startDate = config.startDate || 1;
                 
                 const response = await fetch('/api/expenses/');
                 if (!response.ok) throw new Error('Failed to fetch data');
@@ -706,14 +757,38 @@
                     else if (typeof exp.tags === 'string') { try { safeTags = JSON.parse(exp.tags); } catch(e) {} if (!Array.isArray(safeTags) && exp.tags.trim() !== '') safeTags = [exp.tags]; }
                     let safeDate = new Date().toISOString(); if (typeof exp.date === 'string' && exp.date.trim() !== '') { safeDate = exp.date; }
 
-                    return { ...exp, name: exp.name || 'Không có mô tả', category: exp.category || 'Khác', amount: parseFloat(exp.amount) || 0, date: safeDate, tags: safeTags, note: exp.note || null, recurring_interval: exp.recurring_interval || null };
+                    // --- 💡 BỘ LỌC TỰ ĐỘNG ÉP KIỂU (AUTO-HEAL) ---
+                    let catName = exp.category || 'Khác';
+                    const exactMatch = initialCategories.find(c => c === catName);
+                    if (!exactMatch) {
+                        const lowerMatch = initialCategories.find(c => c.toLowerCase() === catName.toLowerCase());
+                        if (lowerMatch) {
+                            catName = lowerMatch;
+                        }
+                    }
+
+                    return { ...exp, name: exp.name || 'Không có mô tả', category: catName, amount: parseFloat(exp.amount) || 0, date: safeDate, tags: safeTags, note: exp.note || null, recurring_interval: exp.recurring_interval || null };
                 });
 
                 allTags.clear();
                 allExpenses.forEach(exp => { exp.tags.forEach(tag => allTags.add(tag)); });
 
+                const savedColors = JSON.parse(localStorage.getItem('customCategoryColors') || '{}');
                 const uniqueCategories = [...new Set(allExpenses.map(exp => exp.category))];
-                assignCategoryColors(uniqueCategories);
+                initialCategories.forEach(c => { if(!uniqueCategories.includes(c)) uniqueCategories.push(c); });
+
+                uniqueCategories.forEach((category, index) => {
+                    if (savedColors[category]) { 
+                        categoryColors[category] = savedColors[category]; 
+                    } else {
+                        const foundKey = Object.keys(savedColors).find(k => k.toLowerCase() === category.toLowerCase());
+                        if (foundKey) {
+                            categoryColors[category] = savedColors[foundKey];
+                        } else if (!categoryColors[category]) { 
+                            categoryColors[category] = colorPalette[index % colorPalette.length] || "#8a2be2"; 
+                        }
+                    }
+                });
 
                 // --- ĐỔ DỮ LIỆU VÀO DROPDOWN LỌC NHÃN ---
                 const tagSelect = document.getElementById('tagFilter');

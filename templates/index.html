@@ -101,7 +101,7 @@
       </div>
 
       <div class="table-controls" style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
-        <button id="toggleExpenseFormBtn" class="nav-button"><i class="fa-solid fa-plus"></i> Thêm Chi Tiêu</button>
+        <button id="toggleExpenseFormBtn" class="nav-button"><i class="fa-solid fa-plus"></i> Thêm Giao Dịch</button>
         <button onclick="OCRScanner.open(function () { initialize(); })" class="nav-button"><i class="fa-solid fa-receipt"></i> Quét Hóa Đơn</button>
         <script src="/static/ocr_scanner.js"></script>
         <button onclick="PDFScanner.open(function() { initialize(); })" class="nav-button"><i class="fa-solid fa-file-pdf"></i> Quét File PDF</button>
@@ -138,7 +138,6 @@
                 
                 <div class="form-group">
                     <label>Số tiền</label>
-                    <!-- ĐÃ SỬA: Đổi sang text và thêm oninput -->
                     <input type="text" id="amount" placeholder="0" required oninput="formatCurrencyInput(this)">
                 </div>
                 
@@ -243,7 +242,6 @@
               <h3 style="margin-top: 0; color: #fff;">1. Thu nhập / Số dư ban đầu</h3>
               <p style="font-size: 0.9rem; color: #a0a0b0; line-height: 1.5;">Nhập số tiền hiện có trong ví hoặc tài khoản để bắt đầu theo dõi chính xác nhất.</p>
               <label style="color: #d4a5ff; font-weight: bold; margin-bottom: 5px; display: block;">Số dư hiện tại:</label>
-              <!-- ĐÃ SỬA: Đổi sang text và thêm oninput -->
               <input type="text" id="wBalance" class="wizard-input" placeholder="Ví dụ: 5,000,000" oninput="formatCurrencyInput(this)">
           </div>
 
@@ -315,7 +313,6 @@
 
     <script src="/static/functions.js"></script>
     <script>
-      // HÀM MỚI: Xử lý định dạng tiền tệ trực tiếp khi gõ
       function formatCurrencyInput(input) {
           let value = input.value;
           value = value.replace(/[^\d.]/g, '');
@@ -330,6 +327,10 @@
           }
           input.value = value;
       }
+
+      // 💡 BỔ SUNG 2 KHO DANH MỤC
+      let expenseCategories = [];
+      let incomeCategories = [];
 
       let currentCurrency = "usd";
       let pieChart = null;
@@ -348,6 +349,26 @@
       let wStep = 1;
       let wData = { balance: 0, categories: [], colors: {} };
       let initialCategories = [];
+
+      // 💡 HÀM MỚI: TỰ ĐỘNG ĐỔI DANH MỤC DỰA VÀO Ô "KHOẢN THU"
+      function updateExpenseFormCategoryOptions() {
+          const categorySelect = document.getElementById("category");
+          const isIncome = document.getElementById("reportGain").checked;
+          const targetList = isIncome ? incomeCategories : expenseCategories;
+          
+          if(categorySelect) {
+              categorySelect.innerHTML = targetList.map((cat) => `<option value="${cat}">${cat}</option>`).join("");
+          }
+      }
+
+      // LẮNG NGHE SỰ KIỆN LẬT TRANG DANH MỤC
+      document.addEventListener("DOMContentLoaded", () => {
+          const reportGainCheckbox = document.getElementById("reportGain");
+          if(reportGainCheckbox) {
+              reportGainCheckbox.addEventListener("change", updateExpenseFormCategoryOptions);
+          }
+      });
+
 
       // =========================================
       // WIZARD LOGIC
@@ -368,7 +389,7 @@
       function checkSetupWizard() {
           const username = getUsernameFromToken();
           if (!localStorage.getItem(`setupDone_${username}`)) {
-              wData.categories = [...initialCategories];
+              wData.categories = [...expenseCategories]; // Lấy danh mục chi tiêu cơ bản cho wizard
               renderWizCats();
               document.getElementById('setupWizardOverlay').style.display = 'flex';
           }
@@ -404,7 +425,6 @@
           document.getElementById('wBtnFinish').style.display = wStep === 5 ? 'block' : 'none';
 
           if (wStep === 5) {
-              // ĐÃ SỬA: Lột bỏ dấu phẩy trước khi tính toán số dư
               let rawBal = document.getElementById('wBalance').value.replace(/,/g, '');
               wData.balance = parseFloat(rawBal) || 0;
               
@@ -427,14 +447,20 @@
           const btn = document.getElementById('wBtnFinish'); btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang lưu...'; btn.disabled = true;
           try {
               localStorage.setItem('customCategoryColors', JSON.stringify(wData.colors));
-              await fetch('/api/categories/edit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(wData.categories) }).catch(e => {});
+              
+              // 💡 SỬA: Đóng gói đúng format mới của API Categories
+              const payloadObject = {
+                  expenseCategories: wData.categories,
+                  incomeCategories: ["Lương", "Thưởng", "Đầu tư", "Khác"]
+              };
+              await fetch('/api/categories/edit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payloadObject) }).catch(e => {});
 
               const goal = document.getElementById('wFinancialGoal').value; const risk = document.getElementById('wRiskTolerance').value;
               await fetch('/api/profile/edit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ goal: goal, risk: risk }) }).catch(e => {});
 
               if (wData.balance > 0) {
                   const rate = (typeof exchangeRatesToVND !== 'undefined') ? (exchangeRatesToVND[currentCurrency] || 1) : 1;
-                  const incCat = wData.categories.includes('Lương') ? 'Lương' : (wData.categories[0] || 'Khác');
+                  const incCat = incomeCategories.length > 0 ? incomeCategories[0] : 'Khác';
                   const todayStr = new Date().toISOString().split('T')[0];
                   const formData = { name: "Số dư ban đầu", category: incCat, amount: wData.balance * rate, date: new Date(todayStr + "T00:00:00Z").toISOString(), tags: ["Setup"], note: null, recurring_interval: null };
                   const res = await fetch('/api/expenses/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData) });
@@ -455,29 +481,15 @@
               btn.innerHTML = '<i class="fa-solid fa-rocket"></i> Hoàn tất'; btn.disabled = false;
           }
       }
-      
 
-      // HÀM HIỂN THỊ BẢNG ĐĂNG XUẤT
-        function showLogoutModal() {
-            document.getElementById('logoutConfirmModal').style.display = 'flex';
-        }
+      function showLogoutModal() { document.getElementById('logoutConfirmModal').style.display = 'flex'; }
+      function closeLogoutModal() { document.getElementById('logoutConfirmModal').style.display = 'none'; }
+      function proceedLogout() {
+          closeLogoutModal();
+          if (typeof logout === 'function') { logout(); } 
+          else { localStorage.removeItem('token'); window.location.href = '/login'; }
+      }
 
-        // HÀM ẨN BẢNG ĐĂNG XUẤT
-        function closeLogoutModal() {
-            document.getElementById('logoutConfirmModal').style.display = 'none';
-        }
-
-        // HÀM THỰC THI ĐĂNG XUẤT
-        function proceedLogout() {
-            closeLogoutModal();
-            // Gọi hàm logout gốc của bạn (hoặc thực thi logic xóa token)
-            if (typeof logout === 'function') {
-                logout();
-            } else {
-                localStorage.removeItem('token');
-                window.location.href = '/login';
-            }
-        }
       // =========================================
       // TÍNH NĂNG LỊCH HEATMAP
       // =========================================
@@ -610,28 +622,33 @@
       };
 
       // =========================================
-      // KHỞI TẠO DỮ LIỆU
-      // =========================================
-      // =========================================
-      // KHỞI TẠO DỮ LIỆU (ĐÃ FIX LỖI ĐỒNG BỘ MÀU & TÊN)
-      // =========================================
-      // =========================================
-      // KHỞI TẠO DỮ LIỆU (ĐÃ FIX LỖI ĐỒNG BỘ CHỮ HOA/THƯỜNG)
+      // KHỞI TẠO DỮ LIỆU (ĐÃ NÂNG CẤP ĐỌC 2 KHO DANH MỤC)
       // =========================================
       async function initialize() {
         try {
-          let config = { categories: ["Ăn uống", "Đi lại", "Mua sắm", "Hóa đơn", "Giải trí"], currency: "usd", startDate: 1 };
+          // 1. Tải cấu hình
+          let config = { expenseCategories: ["Ăn uống", "Đi lại", "Mua sắm", "Hóa đơn", "Giải trí"], incomeCategories: ["Lương", "Thưởng", "Đầu tư", "Khác"], currency: "usd", startDate: 1 };
           try {
               const configResponse = await fetch("/api/config");
               if (configResponse.ok) {
                   const fetchedConfig = await configResponse.json();
-                  if (fetchedConfig && fetchedConfig.categories) config = fetchedConfig;
+                  if (fetchedConfig) config = {...config, ...fetchedConfig};
               }
           } catch(e) {}
           
-          initialCategories = config.categories || [];
-          const categorySelect = document.getElementById("category");
-          categorySelect.innerHTML = initialCategories.map((cat) => `<option value="${cat}">${cat}</option>`).join("");
+          // 2. Bóc tách 2 mảng Thu - Chi
+          if (config.expenseCategories && config.incomeCategories) {
+              expenseCategories = config.expenseCategories;
+              incomeCategories = config.incomeCategories;
+          } else if (config.categories) {
+              expenseCategories = config.categories;
+              incomeCategories = ["Lương", "Thưởng", "Đầu tư", "Khác"];
+          }
+          
+          initialCategories = [...expenseCategories, ...incomeCategories];
+          
+          // 3. Gọi hàm cập nhật Dropdown
+          updateExpenseFormCategoryOptions();
           
           window.currentCurrency = config.currency || 'usd'; currentCurrency = window.currentCurrency; window.startDate = config.startDate || 1;
 
@@ -656,17 +673,13 @@
               
               // --- 💡 BỘ LỌC TỰ ĐỘNG ÉP KIỂU (AUTO-HEAL) ---
               let catName = exp.category || 'Khác';
-              // Kiểm tra xem tên cũ có khớp chính xác không
               const exactMatch = initialCategories.find(c => c === catName);
               if (!exactMatch) {
-                  // Nếu không khớp, thử tìm kiểu không phân biệt hoa/thường (Ăn uống = ăn uống)
                   const lowerMatch = initialCategories.find(c => c.toLowerCase() === catName.toLowerCase());
                   if (lowerMatch) {
-                      catName = lowerMatch; // Ép hóa đơn cũ dùng tên chuẩn mới nhất
+                      catName = lowerMatch;
                   }
               }
-              // ---------------------------------------------
-
               return { ...exp, amount: parseFloat(exp.amount) || 0, date: safeDate, tags: safeTags, category: catName };
           });
 
@@ -681,12 +694,10 @@
             if (savedColors[category]) { 
                 categoryColors[category] = savedColors[category]; 
             } else {
-                // 💡 CHỐT CHẶN MÀU SẮC: Quét lại kho màu không phân biệt hoa thường
                 const foundKey = Object.keys(savedColors).find(k => k.toLowerCase() === category.toLowerCase());
                 if (foundKey) {
                     categoryColors[category] = savedColors[foundKey];
                 } else if (!categoryColors[category]) { 
-                    // Nếu tuyệt vọng không thấy thì mới lấy màu mặc định
                     categoryColors[category] = colorPalette[index % colorPalette.length] || "#8a2be2"; 
                 }
             }
@@ -885,7 +896,6 @@
         e.preventDefault();
         const isGain = document.getElementById("reportGain").checked;
         
-        // ĐÃ SỬA: Loại bỏ dấu phẩy trước khi chuyển thành số cho Backend
         let rawStringAmount = document.getElementById("amount").value.replace(/,/g, '');
         let rawAmount = parseFloat(rawStringAmount);
         
@@ -1004,7 +1014,6 @@
         </div>
       </div>
     </div>
-    <!-- MODAL XÁC NHẬN ĐĂNG XUẤT ĐẸP -->
     <div id="logoutConfirmModal" class="modal" style="display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); align-items: center; justify-content: center;">
         <div style="background-color: var(--bg-secondary); border: 1px solid var(--border); border-radius: 12px; width: 90%; max-width: 400px; padding: 25px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); text-align: center;">
             <h3 style="color: var(--accent); margin-top: 0; margin-bottom: 15px;">

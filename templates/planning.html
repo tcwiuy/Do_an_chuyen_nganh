@@ -52,7 +52,6 @@
                 <a href="/planning" class="view-button active" data-tooltip="Ngân sách"><i class="fa-solid fa-piggy-bank"></i></a>
                 <a href="/settings" class="view-button" data-tooltip="Cài Đặt"><i class="fa-solid fa-gear"></i></a>
                 
-                <!-- ĐÃ SỬA ONCLICK Ở DÒNG DƯỚI ĐÂY -->
                 <a href="javascript:void(0)" class="view-button" onclick="showLogoutModal()" data-tooltip="Đăng Xuất" style="margin-left: auto; color: #ff4d4d;"><i class="fa-solid fa-right-from-bracket"></i></a>
             </div>
         </header>
@@ -161,6 +160,7 @@
             return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
         }
 
+        // 💡 ĐÃ NÂNG CẤP: CHỈ LẤY DANH MỤC CHI TIÊU
         async function syncSettingsAndData() {
             const token = localStorage.getItem('token');
             try {
@@ -168,7 +168,12 @@
                 if (resConfig.ok) {
                     const config = await resConfig.json();
                     if (config.currency) window.planCurrency = config.currency.toLowerCase();
-                    if (config.categories && config.categories.length > 0) window.categoriesList = config.categories;
+                    
+                    if (config.expenseCategories && config.expenseCategories.length > 0) {
+                        window.categoriesList = config.expenseCategories;
+                    } else if (config.categories && config.categories.length > 0) {
+                        window.categoriesList = config.categories; // Fallback an toàn
+                    }
                 }
             } catch (e) { console.error("Lỗi tải config:", e); }
         }
@@ -451,6 +456,7 @@
                 }
             }).catch(e => console.error("Lỗi đồng bộ nền:", e));
         });
+
         // HÀM HIỂN THỊ BẢNG ĐĂNG XUẤT
         function showLogoutModal() {
             document.getElementById('logoutConfirmModal').style.display = 'flex';
@@ -464,7 +470,6 @@
         // HÀM THỰC THI ĐĂNG XUẤT
         function proceedLogout() {
             closeLogoutModal();
-            // Gọi hàm logout gốc của bạn (hoặc thực thi logic xóa token)
             if (typeof logout === 'function') {
                 logout();
             } else {
@@ -473,6 +478,7 @@
             }
         }
     </script>
+    
     <!-- MODAL XÁC NHẬN ĐĂNG XUẤT ĐẸP -->
     <div id="logoutConfirmModal" class="modal" style="display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); align-items: center; justify-content: center;">
         <div style="background-color: var(--bg-secondary); border: 1px solid var(--border); border-radius: 12px; width: 90%; max-width: 400px; padding: 25px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); text-align: center;">
