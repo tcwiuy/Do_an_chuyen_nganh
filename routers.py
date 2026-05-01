@@ -13,6 +13,9 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
 from fastapi import HTTPException, status
+from fastapi import APIRouter, HTTPException, Depends, Header
+from pydantic import BaseModel
+import re
 
 load_dotenv()
 import random
@@ -786,7 +789,7 @@ def chat_with_data(
     total_income = sum(t.amount for t in transactions if t.amount > 0)
     total_expense = sum(abs(t.amount) for t in transactions if t.amount < 0)
     current_balance_vnd = total_income - total_expense
-    current_balance_display = current_balance_vnd / req.rate
+    current_balance_display = float(current_balance_vnd) / req.rate
     
     data_context = "GIAO DỊCH GẦN ĐÂY:\n"
     if not transactions:
@@ -2000,3 +2003,129 @@ def setup_budgets_bulk(
 
     db.commit()
     return {"message": "Đã cập nhật ngân sách hàng loạt thành công!"}
+
+class N8nWebhookPayload(BaseModel):
+    source: str
+    sender: str
+    receiver: str
+    raw_content: str
+
+# Chìa khóa bảo mật
+N8N_API_KEY = os.getenv("N8N_API_KEY", "")
+
+def verify_api_key(x_api_key: str = Header(None)):
+    if not N8N_API_KEY or x_api_key != N8N_API_KEY:
+        raise HTTPException(status_code=401, detail="Webhook bị từ chối: Sai API Key")
+
+# 💡 Đã sửa URL: Bỏ chữ /api đi vì router đã có sẵn prefix /api/expenses
+@router.post("/webhooks/n8n-receipt", tags=["Webhooks"])
+def receive_n8n_receipt(
+    payload: N8nWebhookPayload, 
+    db: Session = Depends(get_db),
+    api_key_header: str = Depends(verify_api_key) 
+):
+    try:
+        # 1. Lấy API Key
+        api_key = get_random_api_key()
+        if not api_key:
+            raise HTTPException(status_code=500, detail="Chưa cấu hình GEMINI_API_KEY")
+
+        # 2. Tạo Prompt
+        prompt = f"""
+        Bạn là trợ lý tài chính. Hãy trích xuất giao dịch từ nội dung email sau:
+        {payload.raw_content}
+        
+        NHIỆM VỤ QUAN TRỌNG:
+        Đầu tiên, hãy kiểm tra xem email này CÓ PHẢI là một biên lai/thông báo biến động số dư hay không.
+        Nếu đây là email quảng cáo, bản tin, mã OTP, hoặc không chứa giao dịch tiền tệ, hãy trả về ĐÚNG MỘT khối JSON như sau:
+        {{
+            "is_transaction": false
+        }}
+
+        Nếu ĐÚNG là email giao dịch (chuyển tiền, nhận tiền, thanh toán), hãy trả về JSON (TUYỆT ĐỐI KHÔNG DÙNG MARKDOWN ```):
+        {{
+            "is_transaction": true,
+            "name": "Mô tả ngắn (VD: Thanh toán FOODY CORP)",
+            "amount": Số tiền (số nguyên dương, ví dụ: 64000),
+            "type": "income" (tiền vào) hoặc "expense" (tiền ra),
+            "category": "Ăn uống",
+            "date": "Ngày giờ giao dịch (chuẩn ISO 8601, ví dụ: 2026-04-25T12:31:00)"
+        }}
+        """
+        
+        # 3. GỌI AI THỰC TẾ
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+        ai_payload = {"contents": [{"parts": [{"text": prompt}]}]}
+
+        response = call_gemini_with_backoff(
+            url,
+            ai_payload,
+            headers={"Content-Type": "application/json"},
+            timeout=45,
+            retries=3,
+        )
+        _handle_gemini_http_status(response)
+
+        # 4. Bóc tách JSON
+        result_data = response.json()
+        ai_text = result_data["candidates"][0]["content"]["parts"][0]["text"]
+        clean_text = ai_text.strip().replace("```json", "").replace("```", "")
+        ai_result = json.loads(clean_text)
+        
+        # 5. CHỐT CHẶN: Bỏ qua nếu không phải giao dịch
+        if not ai_result.get("is_transaction", False):
+            print(f"Bỏ qua email từ {payload.sender} vì không phải giao dịch hợp lệ.")
+            return {"status": "ignored", "message": "Email không chứa giao dịch."}
+            
+        # 6. Xử lý logic tiền âm/dương
+        final_amount = float(ai_result.get("amount", 0))
+        if ai_result.get("type") == "expense":
+            final_amount = -abs(final_amount)
+        else:
+            final_amount = abs(final_amount)
+            
+        try:
+            parsed_date = datetime.fromisoformat(ai_result.get("date", "").replace("Z", "+00:00"))
+        except Exception:
+            parsed_date = datetime.now()
+
+        # 💡 THUẬT TOÁN ĐỊNH DANH USER (Khắc phục lỗi User ID = 1)
+        # Quét xem email người gửi (VD: tangcamminh2000@gmail.com) khớp với User nào trong DB
+        email_match = re.search(r'[\w\.-]+@[\w\.-]+\.\w+', payload.receiver)
+        extracted_email = email_match.group(0).lower() if email_match else payload.receiver.lower()
+
+        # Tìm User trong Database có email khớp với email nhận thư
+        target_user = db.query(models.User).filter(models.User.email == extracted_email).first()
+
+        if not target_user:
+            print(f"❌ Bỏ qua: Không tìm thấy tài khoản nào có email là {extracted_email}")
+            return {"status": "ignored", "message": "Email người nhận không có trong hệ thống!"}
+            
+        user_id_to_save = target_user.id
+        print(f"✅ Đã tìm thấy chủ nhân: ID {user_id_to_save} - {target_user.full_name}")
+
+        # 7. Lưu Database
+        new_expense = models.Transaction(
+            id=str(uuid.uuid4()),
+            name=ai_result.get("name", "Auto Receipt")[:255],
+            category=ai_result.get("category", "Khác"),
+            amount=final_amount,
+            date=parsed_date,
+            tags=["Auto-Gmail"],
+            user_id=user_id_to_save 
+        )
+        db.add(new_expense)
+        
+        # Cập nhật Hũ/Ngân sách (Optional)
+        if final_amount > 0:
+            distribute_to_jars(db, user_id_to_save, final_amount)
+        elif final_amount < 0:
+            update_budget_spent(db, user_id_to_save, new_expense.category, abs(final_amount))
+
+        db.commit()
+
+        return {"status": "success", "message": "Biên lai đã được tự động lưu!"}
+
+    except Exception as e:
+        print(f"🚨 Webhook Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Lỗi hệ thống: {str(e)}")
