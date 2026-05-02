@@ -13,7 +13,7 @@ class CategoriesPayload(BaseModel):
 class TransactionBase(BaseModel):
     name: str
     # Dùng Decimal thay cho float để giữ độ chính xác tuyệt đối cho tiền tệ/thuế
-    amount: float
+    amount: Decimal
     category: str
     date: datetime
     tags: Optional[List[str]] = Field(default_factory=list)
@@ -61,11 +61,11 @@ class TransactionResponse(TransactionBase):
 class RecurringTransactionBase(BaseModel):
     name: str
     # Dùng Decimal cho tính toán tài chính
-    amount: float
+    amount: Decimal
     category: str
     tags: Optional[List[str]] = Field(default_factory=list) 
     interval: str
-    startDate: date
+    startDate: datetime
     occurrences: int
 
     # Áp dụng các chốt chặn tương tự cho giao dịch định kỳ
@@ -123,3 +123,17 @@ class UserUpdatePassword(BaseModel):
         if len(value) > 72:
             raise ValueError("Mật khẩu mới quá dài! Vui lòng nhập dưới 72 ký tự.")
         return value
+    
+# Schema để trả về thông tin người dùng (không bao gồm mật khẩu)
+class UserOut(BaseModel):
+    id: int
+    username: str
+    full_name: str
+    email: str
+    gender: str | None = None
+    dob: str | None = None
+    financial_goal: str | None = "Chưa xác định"
+    risk_tolerance: str | None = "Cân bằng"
+
+    class Config:
+        from_attributes = True # Cho phép Pydantic đọc dữ liệu từ đối tượng SQLAlchemy

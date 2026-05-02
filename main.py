@@ -86,3 +86,7 @@ async def forgot_password_page(request: Request):
 @app.get("/register", response_class=HTMLResponse)
 async def register_page(request: Request):
     return templates.TemplateResponse(request=request, name="register.html")
+@app.get("/profile", response_class=HTMLResponse)
+async def profile_page(request: Request):
+    # Đưa request ra ngoài làm tham số riêng
+    return templates.TemplateResponse(request, "profile.html", {"request": request})

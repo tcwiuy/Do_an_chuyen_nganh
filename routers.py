@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
-from sqlalchemy import func
 from typing import List
 import uuid
 from fastapi.security import OAuth2PasswordRequestForm
@@ -33,12 +32,13 @@ import uuid
 from datetime import datetime
 from fastapi import UploadFile, File
 from fastapi.responses import StreamingResponse
-
+from typing import Union
 import fitz
 import pandas as pd
 
 _ai_cache = {}
 _ai_cache_lock = threading.Lock()
+
 
 # 💡 HÀM HELPER MỚI: TỰ ĐỘNG ÉP KIỂU DANH MỤC CŨ (LIST) VÀ MỚI (DICT) CHO AI HIỂU
 def get_flat_categories(user_config):
@@ -55,6 +55,7 @@ def get_flat_categories(user_config):
 
 # 1. Hàm tự động chia tiền vào 6 hũ khi có THU NHẬP (Số Dương)
 def distribute_to_jars(db: Session, user_id: int, income_amount: float):
+    # Lấy các hũ mà bạn ĐÃ TẠO trong DB
     user_jars = db.query(models.Jar).filter(models.Jar.user_id == user_id).all()
 
     if not user_jars:
@@ -62,6 +63,7 @@ def distribute_to_jars(db: Session, user_id: int, income_amount: float):
         return
 
     for jar in user_jars:
+        # Chia tiền dựa trên cột percent bạn vừa thêm vào DB
         allocated_money = income_amount * (jar.percent / 100)
         jar.balance += allocated_money
 
@@ -71,6 +73,7 @@ def distribute_to_jars(db: Session, user_id: int, income_amount: float):
 # 2. Hàm tự động trừ Ngân sách khi có CHI TIÊU (Số Âm)
 def update_budget_spent(db: Session, user_id: int, category: str, spent_amount: float):
     now = datetime.now()
+    # Tìm ngân sách của danh mục này trong tháng hiện tại
     budget = (
         db.query(models.Budget)
         .filter(
@@ -90,6 +93,7 @@ def update_budget_spent(db: Session, user_id: int, category: str, spent_amount: 
 # 🌟 HÀM TỰ ĐỘNG XOAY VÒNG API KEY
 def get_random_api_key():
     keys_str = os.getenv("GEMINI_API_KEY", "")
+    # Tách các key bằng dấu phẩy và xóa khoảng trắng
     keys = [k.strip() for k in keys_str.split(",") if k.strip()]
     if not keys:
         return None
@@ -116,55 +120,56 @@ def _cache_set(key, value, ttl_seconds=1800):
 def call_gemini_with_backoff(url, payload, headers=None, timeout=30, retries=3):
     last_error = None
     headers = headers or {"Content-Type": "application/json"}
-    
     for attempt in range(retries):
         try:
-            # GỌI API GOOGLE (Thêm verify=False tạm thời để test xem có phải lỗi SSL không)
             response = requests.post(
-                url, json=payload, headers=headers, timeout=timeout, verify=False
+                url, json=payload, headers=headers, timeout=timeout
             )
 
-            # Xử lý quá tải (Rate limit)
+            # Handle transient rate-limit / overload with backoff
             if response.status_code == 429 or response.status_code == 503:
+                # honor Retry-After if provided
                 ra = response.headers.get("Retry-After")
                 try:
-                    sleep_for = float(ra) if ra is not None else (2**attempt) + random.random()
+                    sleep_for = (
+                        float(ra) if ra is not None else (2**attempt) + random.random()
+                    )
                 except Exception:
                     sleep_for = (2**attempt) + random.random()
-                
                 if response.status_code == 429:
                     last_error = "Đã vượt giới hạn gọi AI tạm thời (quota/rate limit). Vui lòng thử lại sau ít phút."
                 else:
-                    last_error = "Máy chủ Gemini đang quá tải. Vui lòng thử lại sau 1 phút!"
-                
+                    last_error = (
+                        "Máy chủ Gemini đang quá tải. Vui lòng thử lại sau 1 phút!"
+                    )
                 time.sleep(min(sleep_for, 30))
                 continue
 
-            # Bắt HTTP Error từ Google
             if response.status_code >= 400:
+                # Non-transient error: raise with existing handler
                 _handle_gemini_http_status(response)
 
             return response
 
-        # BẮT LỖI MẠNG VÀ IN RA TERMINAL ĐỂ BẮT BỆNH
-        except requests.exceptions.Timeout as e:
-            print(f"\n🚨 [DEBUG AI] TIMEOUT LẦN {attempt + 1}: {str(e)}")
+        except requests.exceptions.Timeout:
             last_error = "Gemini API timeout. Vui lòng thử lại."
             time.sleep((2**attempt) + random.random())
-            
-        except requests.exceptions.RequestException as e:
-            print(f"\n🚨 [DEBUG AI] LỖI MẠNG LẦN {attempt + 1}: {str(e)}")
+        except requests.exceptions.RequestException:
             last_error = "Không thể kết nối Gemini lúc này. Vui lòng thử lại sau."
             time.sleep((2**attempt) + random.random())
 
-    # Nếu thử 3 lần đều rớt mạng thì ném lỗi 502
+    # after retries
     raise HTTPException(
         status_code=502, detail=last_error or "Không thể liên hệ Gemini lúc này."
     )
 
+
 def _handle_gemini_http_status(response):
     if response.status_code >= 400:
+        # 1. Bắt Google khai ra toàn bộ thông tin
         error_msg = response.text
+
+        # 2. In ra Terminal của VS Code để bạn đọc được
         print("\n" + "=" * 40)
         print("🚨 GOOGLE API ERROR 🚨")
         print(f"URL ĐANG GỌI: {response.url}")
@@ -172,6 +177,7 @@ def _handle_gemini_http_status(response):
         print(f"CHI TIẾT: {error_msg}")
         print("=" * 40 + "\n")
 
+        # 3. Trả lỗi về cho Frontend
         if response.status_code == 429:
             raise HTTPException(
                 status_code=429, detail="Đã vượt giới hạn gọi AI. Vui lòng thử lại sau."
@@ -192,6 +198,9 @@ router = APIRouter(prefix="/api/expenses", tags=["Expenses"])
 # client = genai.Client()
 
 
+# ==========================================
+# 1. API XUẤT DỮ LIỆU RA FILE CSV
+# ==========================================
 @router.get("/export/csv")
 def export_csv(
     db: Session = Depends(get_db),
@@ -205,6 +214,8 @@ def export_csv(
     )
 
     output = io.StringIO()
+
+    # THÊM ĐÚNG DÒNG NÀY ĐỂ FIX LỖI FONT TIẾNG VIỆT TRÊN EXCEL
     output.write("\ufeff")
 
     writer = csv.writer(output)
@@ -224,6 +235,9 @@ def export_csv(
     )
 
 
+# ==========================================
+# 2. API NHẬP DỮ LIỆU TỪ FILE CSV
+# ==========================================
 @router.post("/import/csv")
 async def import_csv(
     file: UploadFile = File(...),
@@ -247,10 +261,11 @@ async def import_csv(
         .filter(models.UserConfig.user_id == current_user.id)
         .first()
     )
-    
-    # 💡 Áp dụng hàm Adapter
-    flat_cats = get_flat_categories(user_config)
-    existing_categories = set(flat_cats)
+    existing_categories = (
+        set(user_config.categories)
+        if user_config and user_config.categories
+        else set(["Ăn uống", "Đi lại", "Mua sắm", "Hóa đơn", "Giải trí"])
+    )
 
     for row in reader:
         total_processed += 1
@@ -282,16 +297,7 @@ async def import_csv(
             skipped += 1
 
     if new_categories_set and user_config:
-        cats = user_config.categories
-        if isinstance(cats, dict):
-            # Mặc định thêm các danh mục mới từ CSV vào mục Chi tiêu
-            new_expense_cats = cats.get("expenseCategories", []) + list(new_categories_set)
-            user_config.categories = {
-                "expenseCategories": new_expense_cats,
-                "incomeCategories": cats.get("incomeCategories", [])
-            }
-        else:
-            user_config.categories = list(existing_categories)
+        user_config.categories = list(existing_categories)
 
     db.commit()
 
@@ -308,6 +314,7 @@ def get_transactions(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user),
 ):
+    # CHỈ LẤY giao dịch của user đang đăng nhập
     return (
         db.query(models.Transaction)
         .filter(models.Transaction.user_id == current_user.id)
@@ -329,13 +336,15 @@ def create_transaction(
         category=transaction.category,
         date=transaction.date,
         tags=transaction.tags if transaction.tags else ["Manual"],
+        # --- THÊM 2 DÒNG NÀY ---
         note=transaction.note,
         recurring_interval=transaction.recurring_interval,
-        jar_id=transaction.jar_id,
+        # -----------------------
         user_id=current_user.id,
     )
     db.add(db_transaction)
     if transaction.amount > 0:
+        # Nếu là Thu Nhập -> Chia tiền vào 6 Hũ
         distribute_to_jars(db, current_user.id, transaction.amount)
     elif transaction.amount < 0:
         if transaction.jar_id:
@@ -354,7 +363,6 @@ def create_transaction(
         update_budget_spent(
             db, current_user.id, transaction.category, abs(transaction.amount)
         )
-
     db.commit()
     db.refresh(db_transaction)
     return db_transaction
@@ -383,8 +391,11 @@ def update_transaction(
     db_txn.category = transaction_update.category
     db_txn.date = transaction_update.date
     db_txn.tags = transaction_update.tags
+
+    # --- THÊM 2 DÒNG NÀY ---
     db_txn.note = transaction_update.note
     db_txn.recurring_interval = transaction_update.recurring_interval
+    # -----------------------
 
     db.commit()
     db.refresh(db_txn)
@@ -392,28 +403,23 @@ def update_transaction(
 
 
 @router.delete("/{transaction_id}")
-def delete_transaction(transaction_id: str, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
-    db_txn = db.query(models.Transaction).filter(models.Transaction.id == transaction_id, models.Transaction.user_id == current_user.id).first()
+def delete_transaction(
+    transaction_id: str,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    # Đảm bảo giao dịch thuộc về user hiện tại mới cho phép xóa
+    db_txn = (
+        db.query(models.Transaction)
+        .filter(
+            models.Transaction.id == transaction_id,
+            models.Transaction.user_id == current_user.id,
+        )
+        .first()
+    )
     if not db_txn:
         raise HTTPException(status_code=404, detail="Không tìm thấy giao dịch")
-    
-    if db_txn.amount < 0:
-        now = datetime.now()
-        if getattr(db_txn.date, 'month', -1) == now.month and getattr(db_txn.date, 'year', -1) == now.year:
-            budget = db.query(models.Budget).filter(
-                models.Budget.user_id == current_user.id,
-                models.Budget.category == db_txn.category,
-                models.Budget.month == now.month,
-                models.Budget.year == now.year
-            ).first()
-            if budget:
-                budget.spent_amount = max(0.0, budget.spent_amount - abs(db_txn.amount))
-    # -----------------------------------------------------
-    if db_txn.amount < 0 and db_txn.jar_id:
-        jar = db.query(models.Jar).filter(models.Jar.id == db_txn.jar_id).first()
-        if jar:
-            jar.balance += abs(db_txn.amount)
-            
+
     db.delete(db_txn)
     db.commit()
     return {"message": "Đã xóa thành công"}
@@ -456,7 +462,7 @@ def create_recurring_transaction(
         interval=transaction.interval,
         startDate=transaction.startDate,
         occurrences=transaction.occurrences,
-        user_id=current_user.id,
+        user_id=current_user.id,  # LƯU VÀO ID THẬT
     )
     db.add(db_transaction)
     db.commit()
@@ -527,20 +533,24 @@ auth_router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
 @auth_router.post("/register")
 def register_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
+    # 1. Kiểm tra trùng Tên đăng nhập
     existing_user = (
         db.query(models.User).filter(models.User.username == user.username).first()
     )
     if existing_user:
         raise HTTPException(status_code=400, detail="Tên đăng nhập đã tồn tại")
 
+    # 2. Kiểm tra trùng Email
     existing_email = (
         db.query(models.User).filter(models.User.email == user.email).first()
     )
     if existing_email:
         raise HTTPException(status_code=400, detail="Email này đã được sử dụng")
 
+    # 3. Mã hóa mật khẩu
     hashed_password = auth.get_password_hash(user.password)
 
+    # 4. Lưu toàn bộ thông tin vào DB
     new_user = models.User(
         username=user.username,
         hashed_password=hashed_password,
@@ -568,30 +578,38 @@ def login_user(
     username = form_data.username
     now = datetime.now()
 
+    # --- BƯỚC 1: KIỂM TRA TRẠNG THÁI KHÓA ---
     if username in login_attempts:
         attempt_info = login_attempts[username]
+        # Nếu đang có lịch hẹn mở khóa
         if attempt_info.get("lock_until"):
             if now < attempt_info["lock_until"]:
+                # Tính số phút còn lại
                 remaining_time = int((attempt_info["lock_until"] - now).total_seconds() / 60)
                 if remaining_time < 1: 
-                    remaining_time = 1
+                    remaining_time = 1  # Báo tối thiểu là 1 phút để UX mượt hơn
+                    
                 raise HTTPException(
                     status_code=403, 
                     detail=f"Tài khoản bị tạm khóa. Vui lòng thử lại sau {remaining_time} phút."
                 )
             else:
+                # Đã qua thời gian khóa -> Reset lại bộ đếm về 0
                 login_attempts[username] = {"count": 0, "lock_until": None}
 
+    # --- BƯỚC 2: KIỂM TRA MẬT KHẨU NHƯ BÌNH THƯỜNG ---
     user = (
         db.query(models.User).filter(models.User.username == form_data.username).first()
     )
     
     if not user or not auth.verify_password(form_data.password, user.hashed_password):
+        # Khởi tạo bộ đếm cho user này nếu là lần sai đầu tiên
         if username not in login_attempts:
             login_attempts[username] = {"count": 0, "lock_until": None}
         
         login_attempts[username]["count"] += 1
         
+        # Nếu đã chạm ngưỡng 5 lần -> Kích hoạt khóa
         if login_attempts[username]["count"] >= MAX_ATTEMPTS:
             login_attempts[username]["lock_until"] = now + timedelta(minutes=LOCK_TIME_MINUTES)
             raise HTTPException(
@@ -599,15 +617,19 @@ def login_user(
                 detail=f"Bạn đã nhập sai {MAX_ATTEMPTS} lần. Tài khoản bị khóa tạm thời {LOCK_TIME_MINUTES} phút."
             )
         
+        # Nếu chưa tới 5 lần -> Báo lỗi và đếm ngược số lần còn lại
         remaining_attempts = MAX_ATTEMPTS - login_attempts[username]["count"]
         raise HTTPException(
             status_code=401, 
             detail=f"Tên đăng nhập hoặc mật khẩu không đúng. Bạn còn {remaining_attempts} lần thử."
         )
 
+    # --- BƯỚC 3: ĐĂNG NHẬP THÀNH CÔNG ---
+    # Xóa lịch sử nhập sai của user này để không bị cộng dồn vào lần sau
     if username in login_attempts:
         del login_attempts[username]
 
+    # Cấp phát Token
     access_token = auth.create_access_token(data={"sub": user.username})
     return {"access_token": access_token, "token_type": "bearer"}
 
@@ -617,16 +639,19 @@ def change_password(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user),
 ):
+    # 1. Kiểm tra xem mật khẩu cũ nhập vào có đúng không
     if not auth.verify_password(passwords.old_password, current_user.hashed_password):
         raise HTTPException(
             status_code=400, detail="Mật khẩu hiện tại không chính xác!"
         )
 
+    # 2. Kiểm tra mật khẩu mới không được trùng mật khẩu cũ
     if auth.verify_password(passwords.new_password, current_user.hashed_password):
         raise HTTPException(
             status_code=400, detail="Mật khẩu mới không được giống mật khẩu cũ!"
         )
 
+    # 3. Băm mật khẩu mới và lưu vào cơ sở dữ liệu
     current_user.hashed_password = auth.get_password_hash(passwords.new_password)
     db.commit()
 
@@ -640,16 +665,21 @@ class EmailSyncUpdate(BaseModel):
 # ---------------------------------------------------------
 ai_router = APIRouter(prefix="/api/ai", tags=["AI Integration"])
 
+
+# Schema cho API Nhập liệu
 class AIRequest(BaseModel):
     text: str
     currency: str = "vnd"
     rate: float = 1.0
 
+
+# Schema mới cho API Chatbot
 class ChatRequest(BaseModel):
     message: str
     history: list = []
     currency: str = "vnd"
     rate: float = 1.0
+
 
 class SpendingSuggestionRequest(BaseModel):
     month_window: int = 3
@@ -661,6 +691,7 @@ class SpendingSuggestionRequest(BaseModel):
     rate: float = 1.0
 
 
+# 1. API NHẬP LIỆU BẰNG NGÔN NGỮ TỰ NHIÊN
 @ai_router.post("/parse-expense")
 def parse_expense_from_text(
     req: AIRequest,
@@ -673,22 +704,24 @@ def parse_expense_from_text(
             status_code=500, detail="Chưa cấu hình GEMINI_API_KEY trong file .env"
         )
 
+    # Lấy danh sách danh mục (Categories) hiện tại của người dùng từ Database
     user_config = (
         db.query(models.UserConfig)
         .filter(models.UserConfig.user_id == current_user.id)
         .first()
     )
-    
-    # 💡 Áp dụng hàm Adapter
-    flat_cats = get_flat_categories(user_config)
-    categories_str = ", ".join(flat_cats)
+    if user_config and user_config.categories:
+        categories_str = ", ".join(user_config.categories)
+    else:
+        categories_str = "Ăn uống, Đi lại, Mua sắm, Hóa đơn, Giải trí, Thu nhập"
 
     today_str = datetime.now().strftime("%Y-%m-%d")
 
+    # Fix 2: Chuẩn hóa lại Prompt, dùng đúng biến req.currency và răn đe AI
     prompt = f"""
     Hôm nay là ngày {today_str}.
     Tôi có một câu mô tả dòng tiền: "{req.text}"
-    Hãy trích xuất thôngত্তি và trả về DUY NHẤT một chuỗi JSON hợp lệ.
+    Hãy trích xuất thông tin và trả về DUY NHẤT một chuỗi JSON hợp lệ.
 
     QUY TẮC TIỀN TỆ & TÍNH TOÁN (TỐI QUAN TRỌNG):
     - Hệ thống của người dùng hiện ĐANG CÀI ĐẶT TIỀN TỆ LÀ: {req.currency.upper()}
@@ -706,7 +739,7 @@ def parse_expense_from_text(
     }}
     """
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key={api_key}"
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
 
     try:
@@ -725,6 +758,7 @@ def parse_expense_from_text(
         clean_text = ai_text.strip().replace("```json", "").replace("```", "")
         data = json.loads(clean_text)
 
+        # Fix 3: KIỂM TRA SỐ TIỀN TẠI CHỖ (Ngăn số 0)
         try:
             amount = float(data.get("amount", 0))
         except (ValueError, TypeError):
@@ -736,6 +770,7 @@ def parse_expense_from_text(
                 detail="Trợ lý AI không nhận diện được số tiền! Vui lòng nhập rõ con số nhé (VD: Ăn cơm 10).",
             )
 
+        # Xử lý ngày
         try:
             parsed_date = datetime.strptime(
                 data.get("date", today_str), "%Y-%m-%d"
@@ -743,6 +778,7 @@ def parse_expense_from_text(
         except ValueError:
             parsed_date = datetime.now().date()
 
+        # Fix 4: CẤM LƯU DATABASE Ở ĐÂY, CHỈ TRẢ VỀ DỮ LIỆU JSON
         new_id = str(uuid.uuid4())
         return {
             "message": "AI đã phân tích thành công!",
@@ -766,6 +802,9 @@ def parse_expense_from_text(
         raise HTTPException(status_code=500, detail="Lỗi AI khi phân tích giao dịch.")
 
 
+# ---------------------------------------------------------
+# 2. API CHATBOT TRUY VẤN DỮ LIỆU CÓ TRÍ NHỚ (RAG + MEMORY + AUTO SAVE)
+# ---------------------------------------------------------
 @ai_router.post("/chat")
 def chat_with_data(
     req: ChatRequest,
@@ -776,15 +815,32 @@ def chat_with_data(
     if not api_key:
         raise HTTPException(status_code=500, detail="Chưa cấu hình GEMINI_API_KEY")
 
+    # BƯỚC 1: Lấy Cấu hình, Danh mục và HỒ SƠ TÍNH CÁCH hiện tại
     user_config = (
         db.query(models.UserConfig)
         .filter(models.UserConfig.user_id == current_user.id)
         .first()
     )
     
-    # 💡 Áp dụng hàm Adapter
-    flat_cats = get_flat_categories(user_config)
-    categories_str = ", ".join(flat_cats)
+
+    cats = user_config.categories if user_config and user_config.categories else None
+    allowed_categories = [] # 🛡️ Lính gác cổng
+    
+    if isinstance(cats, dict):
+        exp_cats = cats.get("expenseCategories", ["Ăn uống", "Đi lại", "Mua sắm", "Hóa đơn", "Giải trí"])
+        inc_cats = cats.get("incomeCategories", ["Lương", "Thưởng", "Đầu tư", "Khác"])
+        categories_str = f"Chi tiêu gồm ({', '.join(exp_cats)}) | Thu nhập gồm ({', '.join(inc_cats)})"
+        allowed_categories = exp_cats + inc_cats
+    elif isinstance(cats, list):
+        categories_str = ", ".join(cats)
+        allowed_categories = cats
+    else:
+        categories_str = "Chi tiêu: Ăn uống, Đi lại, Mua sắm | Thu nhập: Lương, Thưởng"
+        allowed_categories = ["Ăn uống", "Đi lại", "Mua sắm", "Lương", "Thưởng", "Khác"]
+
+    # Đảm bảo luôn có tùy chọn "Khác" để dự phòng
+    if "Khác" not in allowed_categories: 
+        allowed_categories.append("Khác")
 
     current_goal = (
         user_config.financial_goal
@@ -797,59 +853,93 @@ def chat_with_data(
         else "Cân bằng"
     )
 
+    # BƯỚC 2: Rút trích dữ liệu của riêng người dùng (RAG)
     transactions = (
         db.query(models.Transaction)
         .filter(models.Transaction.user_id == current_user.id)
         .all()
     )
 
+    # CODE PYTHON TỰ TÍNH TOÁN SỐ DƯ
     total_income = sum(t.amount for t in transactions if t.amount > 0)
     total_expense = sum(abs(t.amount) for t in transactions if t.amount < 0)
     current_balance_vnd = total_income - total_expense
-    current_balance_display = float(current_balance_vnd) / req.rate
+    current_balance_display = current_balance_vnd / Decimal(str(req.rate))
     
-    data_context = "GIAO DỊCH GẦN ĐÂY:\n"
+    # 💡 CẤP QUYỀN SỬA: THÊM ID VÀO DỮ LIỆU GỬI CHO AI
+    data_context = "GIAO DỊCH GẦN ĐÂY CỦA USER:\n"
     if not transactions:
         data_context += "Trống.\n"
     else:
-        for t in sorted(transactions, key=lambda x: x.date, reverse=True)[:30]:
-            data_context += f"{t.date.strftime('%Y-%m-%d')} | {t.name} | {t.amount} | {t.category}\n"
+        for t in sorted(transactions, key=lambda x: x.date, reverse=True)[:10]:
+            data_context += f"ID: {t.id} | Ngày: {t.date.strftime('%Y-%m-%d')} | Tên: {t.name} | Tiền: {t.amount} | Nhóm: {t.category}\n"
 
+    # BƯỚC 3: Xử lý lịch sử Chat
     history_text = ""
     if req.history:
         history_text = "LỊCH SỬ CHAT:\n"
         for turn in req.history[-3:]:  
             history_text += f"User: {turn.get('user', '')}\nAI: {turn.get('ai', '')}\n"
 
+    # BƯỚC 4: PROMPT TỐI ƯU HÓA (Dạy AI cách cập nhật)
     today_str = datetime.now().strftime("%Y-%m-%d")
+    t_income = float(total_income) / req.rate
+    t_expense = float(total_expense) / req.rate
+    t_balance = float(current_balance_vnd) / req.rate
     prompt = f"""
     Bạn là "Cú Mèo" - Cố vấn tài chính cá nhân của ExpenseOwl. Hôm nay: {today_str}.
     TIỀN TỆ HIỆN TẠI: {req.currency.upper()} (Tỷ giá 1 {req.currency.upper()} = {req.rate} VNĐ).
 
     HỒ SƠ KHÁCH HÀNG: Mục tiêu: {current_goal} | Khẩu vị rủi ro: {current_risk}.
+    
+    📊 THỐNG KÊ CHÍNH XÁC TỪ MÁY CHỦ (TUYỆT ĐỐI TIN TƯỞNG SỐ NÀY, KHÔNG TỰ CỘNG LẠI):
+    - Tổng thu: {t_income:,.0f} {req.currency.upper()}
+    - Tổng chi: {t_expense:,.0f} {req.currency.upper()}
+    - Số dư hiện tại: {t_balance:,.0f} {req.currency.upper()}
+
     {data_context}
     {history_text}
     
     CÂU HỎI TỪ KHÁCH HÀNG: "{req.message}"
     
     NHIỆM VỤ: Trả về DUY NHẤT 1 KHỐI JSON TỰ THUẦN (Không kèm markdown ```).
-    QUY TẮC BẮT BUỘC:
-    1. "reply": Tư vấn thân thiện dựa trên HỒ SƠ KHÁCH HÀNG. Báo cáo số tiền bằng {req.currency.upper()} (Tự chia dữ liệu lịch sử cho {req.rate}. Tuyệt đối không nhắc tới VNĐ nếu tiền tệ khác VND).
-    2. "action": Quyết định 1 trong 3 hành động sau:
-       - "save": Nếu khách cung cấp ĐỦ Tên khoản VÀ Số tiền. (Thu=DƯƠNG, Chi=ÂM). Nếu khách nói số không đơn vị, ngầm hiểu là {req.currency.upper()}. Giá trị lưu 'amount' PHẢI nhân với {req.rate} để ra VNĐ.
-       - "update_profile": CHỈ KHI khách có quyết định thay đổi mục tiêu DÀI HẠN. TUYỆT ĐỐI KHÔNG thay đổi hồ sơ nếu đó chỉ là các khoản vay mượn lặt vặt.
-       - "chat": Nếu thiếu số tiền/tên khoản, hoặc nhờ lập kế hoạch ngắn hạn, hoặc trò chuyện. KHÔNG tự bịa số tiền.
+    
+    🚨 QUY TẮC TỐI THƯỢNG (KIỂM TRA ĐẦU TIÊN):
+    Nếu câu nói của khách CÓ SỐ TIỀN nhưng KHÔNG CÓ TÊN MÓN HÀNG/MỤC ĐÍCH (VD: "Hôm qua tiêu mất 500k", "Mới rớt 100k"):
+    => BẠN BẮT BUỘC PHẢI DỪNG MỌI TƯ VẤN KHÁC. Trả về action "chat" và đặt câu hỏi ép khách khai báo: "Cú Mèo rất tiếc/chúc mừng bạn! Nhưng khoản [Số tiền] đó bạn dùng vào việc gì vậy? Khai báo để Cú Mèo lưu sổ nhé!". TUYỆT ĐỐI KHÔNG báo cáo số dư hay khuyên bảo dài dòng trong trường hợp này.
+
+    QUY TẮC XỬ LÝ (Nếu đã qua được trạm kiểm duyệt trên):
+    1. "reply": Tư vấn thân thiện, ngắn gọn. Báo cáo số dư bằng {req.currency.upper()} nếu cần thiết (Tự chia dữ liệu lịch sử cho {req.rate}).
+    2. DANH MỤC: TUYỆT ĐỐI KHÔNG TỰ BỊA DANH MỤC MỚI. Nếu không có danh mục phù hợp, ép vào "Khác" VÀ dặn khách: "Cú Mèo tạm xếp vào [Khác]. Bạn hãy vào Cài đặt thêm danh mục mới nhé!".
+    3. "action": Quyết định 1 trong 4 hành động:
+       - "save": TẠO MỚI (Có ĐỦ Tên khoản VÀ Số tiền). Giá trị lưu 'amount' PHẢI nhân với {req.rate} để ra VNĐ.
+       - "update": SỬA giao dịch. ⚠️ LUẬT THÉP: Nhìn vào danh sách GIAO DỊCH GẦN ĐÂY. Nếu từ khóa khách dùng khớp TỪ 2 GIAO DỊCH TRỞ LÊN, TUYỆT ĐỐI KHÔNG ĐƯỢC ĐOÁN. Phải dùng "chat" hỏi: "Bạn muốn sửa khoản nào?". CHỈ dùng "update" khi khớp DUY NHẤT 1 kết quả.
+       - "update_profile": CHỈ KHI khách đổi mục tiêu DÀI HẠN. ⚠️ BẠN PHẢI GOM NHÓM YÊU CẦU CỦA KHÁCH. 
+         BẮT BUỘC điền vào "data": [{{ 
+             "name": "COPY ĐÚNG 1 CỤM TỪ GẦN NGHĨA NHẤT TRONG: [Tiết kiệm phòng thân, Đầu tư sinh lời, Trả dứt điểm nợ, Mua sắm tài sản lớn, Cải thiện dòng tiền]", 
+             "category": "COPY ĐÚNG 1 TỪ TRONG: [An toàn, Cân bằng, Mạo hiểm]" 
+         }}]
+       - "chat": Trò chuyện bình thường, giải đáp thắc mắc.
+
        
     CẤU TRÚC JSON:
     {{
         "reply": "Câu trả lời của Cú Mèo",
-        "action": "chat" | "save" | "update_profile",
-        "data": {{ "name": "...", "amount": ±VNĐ, "category": "Chọn 1: {categories_str}", "date": "YYYY-MM-DD" }} | null,
+        "action": "chat" | "save" | "update" | "update_profile",
+        "transaction_id": "Mã ID của giao dịch cần sửa (CHỈ CÓ KHI action là update)" | null,
+        "data": {{ 
+            "name": "...", 
+            "amount": ±VNĐ, 
+            "category": "BẮT BUỘC COPY ĐÚNG 1 TỪ: {categories_str}", 
+            "date": "YYYY-MM-DD" 
+        }} (LƯU Ý: Nếu khách kể nhiều giao dịch, hãy trả về MẢNG [{{...}}, {{...}}] chứa nhiều object) | null,
         "profile_update": {{ "financial_goal": "Mục tiêu mới", "risk_tolerance": "Rủi ro mới" }} | null
     }}
     """
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+    # BƯỚC 5: Gọi Gemini
+    # BƯỚC 5: Gọi Gemini
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key={api_key}"
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {"temperature": 0.2},
@@ -857,11 +947,7 @@ def chat_with_data(
 
     try:
         response = call_gemini_with_backoff(
-            url,
-            payload,
-            headers={"Content-Type": "application/json"},
-            timeout=30,
-            retries=3,
+            url, payload, headers={"Content-Type": "application/json"}, timeout=30, retries=3
         )
         _handle_gemini_http_status(response)
 
@@ -872,6 +958,7 @@ def chat_with_data(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Lỗi AI: {str(e)}")
 
+    # BƯỚC 6: Xử lý KẾT QUẢ VÀ CẬP NHẬT DB NGẦM
     try:
         clean_text = ai_text.strip().replace("```json", "").replace("```", "")
         result_json = json.loads(clean_text)
@@ -879,72 +966,147 @@ def chat_with_data(
         transaction_data = None
         final_action = result_json.get("action", "chat")
 
+        # 6.1. TẠO MỚI GIAO DỊCH (HỖ TRỢ NHẬP NHIỀU MÓN CÙNG LÚC)
         if final_action == "save" and result_json.get("data"):
-            data = result_json["data"]
-            try:
-                parsed_date = datetime.strptime(
-                    data.get("date", today_str), "%Y-%m-%d"
-                ).date()
-            except Exception:
-                parsed_date = datetime.now()
-                
-            new_tx_id = str(uuid.uuid4())
-            new_transaction = models.Transaction(
-                id=new_tx_id,
-                name=str(data.get("name", "Giao dịch AI"))[:255],
-                amount=float(data.get("amount", 0)),
-                category=str(data.get("category", "Other")),
-                date=parsed_date,
-                tags=["AI Chatbot"],
-                user_id=current_user.id,
-            )
-            db.add(new_transaction)
+            raw_data = result_json["data"]
+            
+            # 💡 TIẾN HÓA: Nếu AI trả về 1 list thì giữ nguyên, nếu trả 1 món (dict) thì bọc nó vào list
+            data_list = raw_data if isinstance(raw_data, list) else [raw_data]
+            saved_txns = []
 
-            amount = new_transaction.amount
-            if amount > 0:
-                distribute_to_jars(db, current_user.id, amount)
-            elif amount < 0:
-                update_budget_spent(
-                    db, current_user.id, new_transaction.category, abs(amount)
+            for data in data_list:
+                if not isinstance(data, dict): 
+                    continue # Bỏ qua nếu dữ liệu rác
+                    
+                try:
+                    parsed_date = datetime.strptime(data.get("date", today_str), "%Y-%m-%d").date()
+                except Exception:
+                    parsed_date = datetime.now().date()
+                    
+                new_tx_id = str(uuid.uuid4())
+                new_transaction = models.Transaction(
+                    id=new_tx_id,
+                    name=str(data.get("name", "Giao dịch AI"))[:255],
+                    amount=float(data.get("amount", 0)),
+                    category=data.get("category") if data.get("category") in allowed_categories else "Khác",
+                    date=parsed_date,
+                    tags=["AI Chatbot"],
+                    user_id=current_user.id,
                 )
+                db.add(new_transaction)
 
-            db.commit()
-            db.refresh(new_transaction)
+                # Cập nhật Hũ / Ngân sách cho từng món
+                amount = new_transaction.amount
+                if amount > 0:
+                    distribute_to_jars(db, current_user.id, amount)
+                elif amount < 0:
+                    update_budget_spent(db, current_user.id, new_transaction.category, abs(amount))
 
-            transaction_data = {
-                "id": new_tx_id,
-                "name": new_transaction.name,
-                "amount": new_transaction.amount,
-                "category": new_transaction.category,
-                "date": new_transaction.date.isoformat(),
-                "tags": new_transaction.tags,
-            }
+                db.commit()
+                db.refresh(new_transaction)
 
-        if result_json.get("profile_update"):
-            p_data = result_json["profile_update"]
-            new_goal = p_data.get("financial_goal")
-            new_risk = p_data.get("risk_tolerance")
+                # Ghi nhận lại những món đã lưu thành công
+                saved_txns.append({
+                    "id": new_tx_id, 
+                    "name": new_transaction.name, 
+                    "amount": new_transaction.amount,
+                    "category": new_transaction.category, 
+                    "date": new_transaction.date.isoformat(), 
+                    "tags": new_transaction.tags,
+                })
 
+            # Lấy giao dịch ĐẦU TIÊN gửi về Frontend để Frontend hiển thị cảnh báo (nếu có)
+            transaction_data = saved_txns[0] if saved_txns else None
+
+        # 6.2. 💡 SỬA GIAO DỊCH HIỆN CÓ
+        elif final_action == "update" and result_json.get("transaction_id") and result_json.get("data"):
+            target_id = result_json["transaction_id"]
+            data = result_json["data"]
+            
+            # Tìm giao dịch cũ
+            tx_to_update = db.query(models.Transaction).filter(
+                models.Transaction.id == target_id, 
+                models.Transaction.user_id == current_user.id
+            ).first()
+            
+            if tx_to_update:
+                old_amount = tx_to_update.amount
+                old_category = tx_to_update.category
+                new_amount = float(data.get("amount", old_amount))
+                raw_category = str(data.get("category", old_category))
+                new_category = raw_category if raw_category in allowed_categories else "Khác"
+
+                # Hoàn tác Ngân sách / Hũ cũ
+                if old_amount > 0:
+                    distribute_to_jars(db, current_user.id, -old_amount)
+                elif old_amount < 0:
+                    update_budget_spent(db, current_user.id, old_category, -abs(old_amount))
+                
+                # Cập nhật thông tin mới
+                if data.get("name"): tx_to_update.name = str(data.get("name"))[:255]
+                tx_to_update.category = new_category
+                tx_to_update.amount = new_amount
+                try:
+                    tx_to_update.date = datetime.strptime(data.get("date", today_str), "%Y-%m-%d").date()
+                except:
+                    pass
+
+                # Trừ / Cộng Ngân sách mới
+                if new_amount > 0:
+                    distribute_to_jars(db, current_user.id, new_amount)
+                elif new_amount < 0:
+                    update_budget_spent(db, current_user.id, new_category, abs(new_amount))
+
+                db.commit()
+                db.refresh(tx_to_update)
+
+                transaction_data = {
+                    "id": tx_to_update.id, "name": tx_to_update.name, "amount": tx_to_update.amount,
+                    "category": tx_to_update.category, "date": tx_to_update.date.isoformat(), "tags": tx_to_update.tags,
+                }
+            else:
+                final_action = "chat" # Nếu truyền ID tào lao không có trong DB thì hủy lệnh
+
+        # 6.3. ĐỔI HỒ SƠ TÀI CHÍNH
+        elif final_action == "update_profile":
+            new_goal = None
+            new_risk = None
+
+            # 1. Giăng lưới số 1: Bắt trường hợp AI ngoan ngoãn ghi vào "profile_update"
+            if result_json.get("profile_update") and isinstance(result_json["profile_update"], dict):
+                p_update = result_json["profile_update"]
+                new_goal = p_update.get("financial_goal")
+                new_risk = p_update.get("risk_tolerance")
+
+            # 2. Giăng lưới số 2: Bắt trường hợp AI bướng bỉnh ghi vào "data"
+            if not new_goal and not new_risk and result_json.get("data"):
+                p_data = result_json["data"]
+                if isinstance(p_data, list) and len(p_data) > 0:
+                    p_data = p_data[0]
+                if isinstance(p_data, dict):
+                    new_goal = p_data.get("name")
+                    new_risk = p_data.get("category")
+
+            # 3. Tiến hành lưu Database nếu tóm được dữ liệu
             if new_goal or new_risk:
                 if user_config:
-                    if new_goal:
-                        user_config.financial_goal = new_goal
-                    if new_risk:
-                        user_config.risk_tolerance = new_risk
+                    if new_goal and new_goal != "Khác": 
+                        user_config.financial_goal = str(new_goal)
+                    if new_risk and new_risk != "Khác": 
+                        user_config.risk_tolerance = str(new_risk)
                 else:
                     user_config = models.UserConfig(
-                        user_id=current_user.id,
-                        financial_goal=new_goal or "Chưa xác định",
-                        risk_tolerance=new_risk or "Cân bằng",
+                        user_id=current_user.id, 
+                        financial_goal=str(new_goal) if new_goal else "Chưa xác định", 
+                        risk_tolerance=str(new_risk) if new_risk else "Cân bằng"
                     )
                     db.add(user_config)
+                
                 db.commit()
-                final_action = "update_profile"  
-
         return {
-            "reply": result_json.get("reply", "Lỗi phản hồi"),
+            "reply": result_json.get("reply", "Cú Mèo đã ghi nhận yêu cầu của bạn!"),
             "action": final_action,
-            "transaction_data": transaction_data,
+            "transaction_data": transaction_data
         }
 
     except json.JSONDecodeError:
@@ -953,15 +1115,20 @@ def chat_with_data(
         raise HTTPException(status_code=500, detail=f"Lỗi xử lý: {str(e)}")
 
 
+# ---------------------------------------------------------
+# 3. API PHÂN TÍCH XU HƯỚNG VÀ PHÁT HIỆN BẤT THƯỜNG
+# ---------------------------------------------------------
 @ai_router.get("/analyze-trends")
 def analyze_trends_and_anomalies(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user),
 ):
+    # SỬ DỤNG HÀM LẤY KEY RANDOM Ở ĐÂY
     api_key = get_random_api_key()
     if not api_key:
         raise HTTPException(status_code=500, detail="Chưa cấu hình GEMINI_API_KEY")
 
+    # 1. Lấy toàn bộ giao dịch của người dùng
     transactions = (
         db.query(models.Transaction)
         .filter(models.Transaction.user_id == current_user.id)
@@ -973,6 +1140,7 @@ def analyze_trends_and_anomalies(
             "reply": "Chưa có đủ dữ liệu giao dịch để phân tích. Bạn hãy ghi chép thêm nhé!"
         }
 
+    # 2. Ráp dữ liệu thành bảng văn bản
     data_context = "DANH SÁCH GIAO DỊCH TRONG QUÁ KHỨ VÀ HIỆN TẠI:\nNgày | Tên giao dịch | Số tiền | Danh mục\n"
     data_context += "-" * 50 + "\n"
     for t in transactions:
@@ -980,6 +1148,7 @@ def analyze_trends_and_anomalies(
             f"{t.date.strftime('%Y-%m-%d')} | {t.name} | {t.amount} | {t.category}\n"
         )
 
+    # 3. Viết Prompt yêu cầu phân tích
     today_str = datetime.now().strftime("%Y-%m-%d")
     prompt = f"""
     Hôm nay là ngày {today_str}.
@@ -998,7 +1167,8 @@ def analyze_trends_and_anomalies(
     (1 hành động cụ thể để tối ưu hóa dòng tiền)
     """
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+    # 4. Gọi API Gemini
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key={api_key}"
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
 
     try:
@@ -1049,11 +1219,13 @@ def get_spending_suggestions(
         .filter(models.UserConfig.user_id == current_user.id)
         .first()
     )
-    
-    # 💡 Áp dụng hàm Adapter
-    flat_cats = get_flat_categories(user_config)
-    categories_str = ", ".join(flat_cats)
+    categories_str = (
+        ", ".join(user_config.categories)
+        if user_config and user_config.categories
+        else "Ăn uống, Đi lại, Mua sắm, Hóa đơn, Giải trí"
+    )
 
+    # Lấy thông tin tiền tệ từ Frontend gửi lên
     currency_code = req.currency.upper()
     symbol = req.symbol
     rate = req.rate if req.rate > 0 else 1.0
@@ -1061,7 +1233,8 @@ def get_spending_suggestions(
     expense_rows = []
     income_rows = []
     for t in transactions:
-        converted_amount = float(t.amount) / rate
+        # QUY TRÌNH MỚI: Đổi tiền VND trong DB sang tiền hiển thị ngay tại Backend
+        converted_amount = t.amount / rate
         row = f"{t.date.strftime('%Y-%m-%d')} | {t.name} | {converted_amount:.2f} | {t.category}"
         if t.amount < 0:
             expense_rows.append(row)
@@ -1110,7 +1283,7 @@ Hãy trả về DUY NHẤT JSON hợp lệ theo schema sau (không markdown, kh�
 }}
     """
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key={api_key}"
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {"temperature": 0.2},
@@ -1126,7 +1299,7 @@ Hãy trả về DUY NHẤT JSON hợp lệ theo schema sau (không markdown, kh�
             url,
             payload,
             headers={"Content-Type": "application/json"},
-            timeout=90,
+            timeout=60,
             retries=3,
         )
         result_data = response.json()
@@ -1166,7 +1339,7 @@ Hãy trả về DUY NHẤT JSON hợp lệ theo schema sau (không markdown, kh�
 # ---------------------------------------------------------
 config_router = APIRouter(prefix="/api", tags=["User Config"])
 
-# 💡 TRẢ VỀ CẤU TRÚC 2 MẢNG CHO FRONTEND SETTINGS.HTML
+
 @config_router.get("/config")
 def get_config(
     db: Session = Depends(get_db),
@@ -1186,12 +1359,18 @@ def get_config(
             "startDate": 1,
             "expenseCategories": ["Ăn uống", "Đi lại", "Mua sắm", "Hóa đơn", "Giải trí"],
             "incomeCategories": ["Lương", "Thưởng", "Đầu tư", "Khác"],
-            "is_email_sync_enabled": False # <--- TRẠNG THÁI MẶC ĐỊNH LÀ TẮT
+            "is_email_sync_enabled": False, # <--- TRẠNG THÁI MẶC ĐỊNH LÀ TẮT
+            "financial_goal": "Chưa xác định",
+            "risk_tolerance": "Cân bằng"
         }
 
     cats = user_config.categories
     # Đọc trạng thái từ Database (Dùng getattr để chống lỗi nếu cột chưa có)
     is_sync = getattr(user_config, 'is_email_sync_enabled', False)
+    
+    # 💡 LẤY THÊM MỤC TIÊU VÀ RỦI RO ĐỂ GỬI VỀ CHO FRONTEND
+    goal = getattr(user_config, 'financial_goal', "Chưa xác định")
+    risk = getattr(user_config, 'risk_tolerance', "Cân bằng")
 
     # 2. NẾU CÓ CONFIG -> TÀI KHOẢN CŨ (Đã chia 2 mảng)
     if isinstance(cats, dict):
@@ -1201,7 +1380,9 @@ def get_config(
             "startDate": user_config.startDate,
             "expenseCategories": cats.get("expenseCategories", ["Ăn uống", "Đi lại", "Mua sắm"]),
             "incomeCategories": cats.get("incomeCategories", ["Lương", "Thưởng"]),
-            "is_email_sync_enabled": is_sync # <--- GỬI TRẠNG THÁI XUỐNG WEB
+            "is_email_sync_enabled": is_sync,
+            "financial_goal": goal, # 👈 ĐÃ BỔ SUNG
+            "risk_tolerance": risk  # 👈 ĐÃ BỔ SUNG
         }
     else:
         # 3. TƯƠNG THÍCH NGƯỢC (Tài khoản tạo từ thời phiên bản cũ)
@@ -1211,12 +1392,14 @@ def get_config(
             "startDate": user_config.startDate,
             "expenseCategories": cats if cats else ["Ăn uống", "Đi lại"],
             "incomeCategories": ["Lương", "Thưởng", "Đầu tư", "Khác"],
-            "is_email_sync_enabled": is_sync # <--- GỬI TRẠNG THÁI XUỐNG WEB
+            "is_email_sync_enabled": is_sync,
+            "financial_goal": goal, # 👈 ĐÃ BỔ SUNG
+            "risk_tolerance": risk  # 👈 ĐÃ BỔ SUNG
         }
-
 
 # 1. API Lưu Loại Tiền Tệ
 from fastapi import Body
+
 
 @config_router.post("/currency/edit")
 def edit_currency(
@@ -1231,6 +1414,7 @@ def edit_currency(
             .first()
         )
         if not user_config:
+            # Nếu chưa có cấu hình, tạo mới
             user_config = models.UserConfig(
                 user_id=current_user.id, currency=currency_code.lower()
             )
@@ -1292,18 +1476,14 @@ def toggle_email_sync(
     db.commit()
     return {"message": "Đã cập nhật trạng thái", "status": payload.is_enabled}
 
-# 💡 3. API LƯU DANH MỤC THÔNG MINH (ADAPTER CHẤP NHẬN CẢ LIST LẪN DICT)
-class CategoriesPayload(BaseModel):
-    expenseCategories: List[str] = []
-    incomeCategories: List[str] = []
-
+# 3. API Lưu Danh Mục Chi Tiêu (Categories)
 @config_router.post("/categories/edit")
 def edit_categories(
-    payload: CategoriesPayload,
+    categories: Union[dict, list] = Body(...),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user),
 ):
-    if not payload.expenseCategories and not payload.incomeCategories:
+    if not categories:
         raise HTTPException(status_code=400, detail="Phải có ít nhất một danh mục")
 
     try:
@@ -1312,20 +1492,13 @@ def edit_categories(
             .filter(models.UserConfig.user_id == current_user.id)
             .first()
         )
-        
-        # Gói vào Dictionary để lưu DB
-        data_to_save = {
-            "expenseCategories": payload.expenseCategories,
-            "incomeCategories": payload.incomeCategories
-        }
-        
         if not user_config:
             user_config = models.UserConfig(
-                user_id=current_user.id, categories=data_to_save
+                user_id=current_user.id, categories=categories
             )
             db.add(user_config)
         else:
-            user_config.categories = data_to_save
+            user_config.categories = categories
 
         db.commit()
         return {"message": "Cập nhật danh mục thành công"}
@@ -1374,24 +1547,32 @@ async def scan_receipt(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user),
 ):
+    """
+    Bước 1: OCR hóa đơn bằng Gemini Vision → trả về data để user review.
+    KHÔNG tự lưu DB. Frontend hiển thị để user xác nhận rồi mới gọi /confirm.
+    """
+    # SỬ DỤNG HÀM LẤY KEY RANDOM Ở ĐÂY
     api_key = get_random_api_key()
     if not api_key:
         raise HTTPException(
             status_code=500, detail="Chưa cấu hình GEMINI_API_KEY trong file .env"
         )
 
+    # Lấy danh mục của user hiện tại
     user_config = (
         db.query(models.UserConfig)
         .filter(models.UserConfig.user_id == current_user.id)
         .first()
     )
 
-    # 💡 Áp dụng hàm Adapter
-    flat_cats = get_flat_categories(user_config)
-    categories_str = ", ".join(flat_cats)
+    if user_config and user_config.categories:
+        categories_str = ", ".join(user_config.categories)
+    else:
+        categories_str = "Ăn uống, ĐI lại, Mua sắm, Hóa đơn, Giải trí, Thu nhập"
 
     today_str = datetime.now().strftime("%Y-%m-%d")
 
+    # Kiểm tra MIME type hợp lệ
     content_type = file.content_type or "image/jpeg"
     allowed_types = [
         "image/jpeg",
@@ -1411,11 +1592,14 @@ async def scan_receipt(
         original_bytes = await file.read()
         img = Image.open(io.BytesIO(original_bytes))
 
+        # Chuyển đổi sang RGB
         if img.mode in ("RGBA", "P"):
             img = img.convert("RGB")
 
+        # Thu nhỏ ảnh nếu quá lớn
         img.thumbnail((1024, 1024), Image.Resampling.LANCZOS)
 
+        # Lưu ảnh đã nén vào cache
         output_buffer = io.BytesIO()
         img.save(output_buffer, format="JPEG", quality=85)
         compressed_bytes = output_buffer.getvalue()
@@ -1442,7 +1626,7 @@ Quy tắc quan trọng:
 - Nếu không đọc được số tiền, đặt amount = -1
 - Đơn vị là VND (Việt Nam Đồng), không cần dấu phẩy hay chấm phân cách"""
 
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key={api_key}"
 
         payload = {
             "contents": [
@@ -1466,6 +1650,7 @@ Quy tắc quan trọng:
         _handle_gemini_http_status(response)
         result_data = response.json()
 
+        # Kiểm tra response có candidates không
         if not result_data.get("candidates"):
             raise HTTPException(
                 status_code=422,
@@ -1474,9 +1659,11 @@ Quy tắc quan trọng:
 
         ai_text = result_data["candidates"][0]["content"]["parts"][0]["text"]
 
+        # Làm sạch markdown nếu Gemini trả về có backtick
         clean_text = ai_text.strip()
         if clean_text.startswith("```"):
             lines = clean_text.split("\n")
+            # Bỏ dòng đầu (```json) và dòng cuối (```)
             inner = []
             for line in lines[1:]:
                 if line.strip() == "```":
@@ -1487,6 +1674,7 @@ Quy tắc quan trọng:
 
         extracted_data = json.loads(clean_text)
 
+        # Validate và đảm bảo đủ fields
         name = str(extracted_data.get("name", "Hóa đơn")).strip()[:100]
         amount = float(extracted_data.get("amount", -1))
         date_str = str(extracted_data.get("date", today_str)).strip()
@@ -1500,6 +1688,7 @@ Quy tắc quan trọng:
             tags.append("OCR")
         notes = str(extracted_data.get("notes", "")).strip()
 
+        # Validate ngày
         try:
             datetime.strptime(date_str, "%Y-%m-%d")
         except ValueError:
@@ -1535,13 +1724,18 @@ async def confirm_scan_receipt(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user),
 ):
+    """
+    Bước 2: Lưu giao dịch đã được user xác nhận vào database.
+    """
     try:
+        # Parse và validate ngày
         date_str = str(transaction_data.get("date", "")).strip()
         try:
             parsed_date = datetime.strptime(date_str, "%Y-%m-%d")
         except (ValueError, AttributeError):
             parsed_date = datetime.now().date()
 
+        # Validate amount
         try:
             amount = float(transaction_data.get("amount", 0))
         except (ValueError, TypeError):
@@ -1550,12 +1744,15 @@ async def confirm_scan_receipt(
         if amount == 0:
             raise HTTPException(status_code=400, detail="Số tiền không được bằng 0")
 
+        # Validate name
         name = str(transaction_data.get("name", "Hóa đơn")).strip()
         if len(name) < 1:
             name = "Hóa đơn"
 
+        # Validate category
         category = str(transaction_data.get("category", "Shopping")).strip()
 
+        # Tags
         tags = transaction_data.get("tags", ["OCR"])
         if not isinstance(tags, list):
             tags = [str(tags)] if tags else ["OCR"]
@@ -1617,25 +1814,30 @@ async def scan_pdf_receipt(
             status_code=500, detail="Chưa cấu hình GEMINI_API_KEY trong file .env"
         )
 
+    # 1. Kiểm tra định dạng file phải là PDF
     if not file.filename.lower().endswith(".pdf"):
         raise HTTPException(
             status_code=400, detail="Định dạng không hỗ trợ. Vui lòng tải lên file .pdf"
         )
 
+    # 2. Lấy danh mục của user (giống logic OCR cũ)
     user_config = (
         db.query(models.UserConfig)
         .filter(models.UserConfig.user_id == current_user.id)
         .first()
     )
-    
-    # 💡 Áp dụng hàm Adapter
-    flat_cats = get_flat_categories(user_config)
-    categories_str = ", ".join(flat_cats)
+    categories_str = (
+        ", ".join(user_config.categories)
+        if user_config and user_config.categories
+        else "Ăn uống, Đi lại, Mua sắm, Hóa đơn, Giải trí, Thu nhập"
+    )
     today_str = datetime.now().strftime("%Y-%m-%d")
 
     try:
+        # 3. Đọc file PDF và rút trích Text bằng PyMuPDF
         pdf_bytes = await file.read()
 
+        # Kiểm tra dung lượng (tối đa 15MB cho PDF)
         if len(pdf_bytes) > 15 * 1024 * 1024:
             raise HTTPException(
                 status_code=400, detail="File PDF quá lớn! Tối đa 15MB."
@@ -1654,13 +1856,14 @@ async def scan_pdf_receipt(
                 detail="Không thể đọc được chữ trong file PDF này. File có thể là ảnh quét mờ.",
             )
 
+        # 4. Viết Prompt riêng cho dữ liệu Text (không dùng inline_data hình ảnh)
         prompt = f"""Hôm nay là {today_str}.
 Dưới đây là nội dung văn bản được trích xuất từ một file PDF hóa đơn/sao kê. 
 Hãy phân tích và trích xuất thông tin tài chính.
 Danh mục hợp lệ của người dùng: {categories_str}
 
 NỘI DUNG PDF:
-{extracted_text[:3000]}
+{extracted_text[:3000]} # Giới hạn 3000 ký tự đầu để tránh tràn token nếu file quá dài
 
 Trả về CHỈ một JSON object thuần túy (không markdown):
 {{
@@ -1672,7 +1875,8 @@ Trả về CHỈ một JSON object thuần túy (không markdown):
     "notes": "ghi chú ngắn"
 }}
 """
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+        # 5. Gọi AI bằng hàm backoff có sẵn của bạn
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key={api_key}"
         payload = {
             "contents": [{"parts": [{"text": prompt}]}],
             "generationConfig": {"temperature": 0.1},
@@ -1695,6 +1899,7 @@ Trả về CHỈ một JSON object thuần túy (không markdown):
 
         ai_text = result_data["candidates"][0]["content"]["parts"][0]["text"]
 
+        # Làm sạch JSON
         clean_text = ai_text.strip()
         if clean_text.startswith("```"):
             clean_text = "\n".join(clean_text.split("\n")[1:-1]).strip()
@@ -1741,6 +1946,7 @@ async def scan_csv_file(
     import io
     import json
 
+    # Lấy API Key (bạn tùy chỉnh logic lấy key đang dùng)
     api_key = get_random_api_key()
     if not api_key:
         raise HTTPException(status_code=500, detail="Chưa cấu hình API_KEY")
@@ -1753,19 +1959,21 @@ async def scan_csv_file(
         .filter(models.UserConfig.user_id == current_user.id)
         .first()
     )
-    
-    # 💡 Áp dụng hàm Adapter
-    flat_cats = get_flat_categories(user_config)
-    categories_str = ", ".join(flat_cats)
+    categories_str = (
+        ", ".join(user_config.categories)
+        if user_config and user_config.categories
+        else "Ăn uống, Đi lại, Mua sắm, Hóa đơn, Giải trí, Thu nhập"
+    )
     today_str = datetime.now().strftime("%Y-%m-%d")
 
     try:
         content = await file.read()
 
+        # 1. Dùng pandas đọc CSV
         try:
             df = pd.read_csv(io.BytesIO(content))
             df.dropna(how="all", inplace=True)
-            df = df.head(50)  
+            df = df.head(50)  # Tối đa 50 dòng để tiết kiệm token
             csv_text = df.to_csv(index=False)
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"Không thể đọc CSV: {str(e)}")
@@ -1790,12 +1998,14 @@ YÊU CẦU: Trả về DUY NHẤT một MẢNG JSON. Mỗi phần tử là 1 gia
     }}
 ]
 """
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+        # Gọi Gemini API
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key={api_key}"
         payload = {
             "contents": [{"parts": [{"text": prompt}]}],
             "generationConfig": {"temperature": 0.1},
         }
 
+        # Hàm gọi qua requests của bạn
         response = call_gemini_with_backoff(
             url,
             payload,
@@ -1811,6 +2021,7 @@ YÊU CẦU: Trả về DUY NHẤT một MẢNG JSON. Mỗi phần tử là 1 gia
 
         ai_text = result_data["candidates"][0]["content"]["parts"][0]["text"]
 
+        # Làm sạch Markdown JSON
         clean_text = ai_text.strip()
         if clean_text.startswith("```"):
             clean_text = "\n".join(clean_text.split("\n")[1:-1]).strip()
@@ -1820,6 +2031,7 @@ YÊU CẦU: Trả về DUY NHẤT một MẢNG JSON. Mỗi phần tử là 1 gia
         if not isinstance(extracted_data, list):
             extracted_data = [extracted_data]
 
+        # Trả về chuẩn Data cho Frontend CSVScanner đọc
         return {
             "status": "success",
             "data": extracted_data,
@@ -1871,6 +2083,7 @@ def set_budget(
 ):
     now = datetime.now()
 
+    # Kiểm tra xem tháng này đã đặt ngân sách cho mục này chưa
     budget = (
         db.query(models.Budget)
         .filter(
@@ -1883,7 +2096,7 @@ def set_budget(
     )
 
     if budget:
-        budget.limit_amount = limit_amount  
+        budget.limit_amount = limit_amount  # Cập nhật nếu đã có
     else:
         new_budget = models.Budget(
             category=category,
@@ -1903,13 +2116,15 @@ def set_budget(
 def sync_old_data(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user),
-):  
+):
     now = datetime.now()
 
+    # 1. KHÔNG XÓA HŨ (Không dùng .delete()), chỉ reset số dư tiền về 0 để tính lại
     user_jars = db.query(models.Jar).filter(models.Jar.user_id == current_user.id).all()
     for jar in user_jars:
         jar.balance = 0.0
 
+    # Reset Ngân sách hiện tại về 0
     budgets = (
         db.query(models.Budget)
         .filter(
@@ -1923,6 +2138,7 @@ def sync_old_data(
         b.spent_amount = 0.0
     db.commit()
 
+    # 2. Quét lại toàn bộ lịch sử giao dịch để tính toán lại
     transactions = (
         db.query(models.Transaction)
         .filter(models.Transaction.user_id == current_user.id)
@@ -1937,10 +2153,8 @@ def sync_old_data(
                 and getattr(tx.date, "year", -1) == now.year
             ):
                 update_budget_spent(db, current_user.id, tx.category, abs(tx.amount))
-            if tx.jar_id:
-                jar = db.query(models.Jar).filter(models.Jar.id == tx.jar_id, models.Jar.user_id == current_user.id).first()
-                if jar:
-                    jar.balance -= abs(tx.amount)
+
+    # LƯU KẾT QUẢ VÀO DATABASE
     db.commit()
 
     return {"message": "Đã đồng bộ toàn bộ dữ liệu lịch sử thành công!"}
@@ -1953,6 +2167,7 @@ def delete_budget(
     current_user: models.User = Depends(auth.get_current_user),
 ):
     now = datetime.now()
+    # Tìm ngân sách của tháng hiện tại theo danh mục
     budget = (
         db.query(models.Budget)
         .filter(
@@ -1990,20 +2205,24 @@ def create_jar(
 
 from fastapi import Body
 
+
 @planning_router.post("/jars/bulk")
 def setup_jars_bulk(
     jars_data: list = Body(...),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user),
 ):
+    # 1. Kiểm tra tổng phần trăm
     total_percent = sum(float(j.get("percent", 0)) for j in jars_data)
     if total_percent != 100:
         raise HTTPException(
             status_code=400, detail="Tổng phần trăm phải đúng bằng 100%"
         )
 
+    # 2. Xóa các hũ cũ của user này
     db.query(models.Jar).filter(models.Jar.user_id == current_user.id).delete()
 
+    # 3. Thêm danh sách hũ mới (Số dư ban đầu là 0)
     for j in jars_data:
         new_jar = models.Jar(
             name=j["name"],
@@ -2029,6 +2248,7 @@ def setup_budgets_bulk(
         category = item.get("category")
         limit = float(item.get("limit_amount", 0))
 
+        # Tìm xem tháng này đã có ngân sách cho mục này chưa
         existing = (
             db.query(models.Budget)
             .filter(
@@ -2115,7 +2335,7 @@ def receive_n8n_receipt(
         """
         
         # 3. GỌI AI THỰC TẾ
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key={api_key}"
         ai_payload = {"contents": [{"parts": [{"text": prompt}]}]}
 
         response = call_gemini_with_backoff(
@@ -2195,3 +2415,24 @@ def receive_n8n_receipt(
     except Exception as e:
         print(f"🚨 Webhook Error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Lỗi hệ thống: {str(e)}")
+    
+
+# API Lấy thông tin tài khoản đầy đủ
+@auth_router.get("/me", response_model=schemas.UserOut)
+def get_user_profile(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    # Lấy thông tin config để lấy Mục tiêu và Rủi ro từ Database
+    user_config = db.query(models.UserConfig).filter(models.UserConfig.user_id == current_user.id).first()
+    
+    return {
+        "id": current_user.id,
+        "username": current_user.username,
+        "full_name": current_user.full_name,
+        "email": current_user.email,
+        "gender": current_user.gender,
+        "dob": current_user.dob.isoformat() if current_user.dob else None, # Chuyển date sang string
+        "financial_goal": getattr(user_config, 'financial_goal', "Chưa xác định"),
+        "risk_tolerance": getattr(user_config, 'risk_tolerance', "Cân bằng")
+    }

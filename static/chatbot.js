@@ -78,9 +78,6 @@ function loadChatbotSuggestions() {
     });
 }
 
-// ==========================================
-// 1. TẠO KHÓA BỘ NHỚ THEO TỪNG TÀI KHOẢN (ISOLATION)
-// ==========================================
 function getChatUsername() {
     const token = localStorage.getItem('token');
     if (!token) return 'guest';
@@ -94,13 +91,8 @@ function getChatUsername() {
     } catch(e) { return 'guest'; }
 }
 
-// Khóa bộ nhớ giờ đây có gắn tên đăng nhập ở cuối!
 const MEMORY_KEY = 'expenseOwl_memory_' + getChatUsername();
 let conversationMemory = JSON.parse(sessionStorage.getItem(MEMORY_KEY)) || [];
-
-// ==========================================
-// 2. BIẾN THEO DÕI TRẠNG THÁI AI ĐỂ KHÓA CHUYỂN TRANG
-// ==========================================
 let isAIGenerating = false;
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -128,20 +120,13 @@ document.addEventListener("DOMContentLoaded", () => {
         if (e.key === 'Enter') sendChatMessage();
     });
 
-    // ----------------------------------------------------
-    // 🛡️ BẢO VỆ CHỐNG MẤT DỮ LIỆU KHI ĐANG ĐỢI AI
-    // ----------------------------------------------------
-    
-    // Ngăn người dùng bấm vào các Link chuyển menu
     document.addEventListener('click', function(e) {
         const link = e.target.closest('a');
         if (link && link.href && !link.href.includes('javascript') && isAIGenerating) {
-            e.preventDefault(); // Chặn việc tải trang mới
+            e.preventDefault(); 
             if(window.showToast) {
                 showToast('Cú Mèo đang ghi chép, bạn đợi vài giây hẵng chuyển trang nhé!', 'error');
             }
-            
-            // Tự động bật khung chat lên nếu họ đang đóng
             const chatWin = document.getElementById('chat-window');
             if (chatWin.style.display === 'none' || !chatWin.style.display) {
                 toggleChat();
@@ -149,7 +134,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    // Ngăn người dùng bấm nút Reload (F5) hoặc tắt trình duyệt đột ngột
     window.addEventListener('beforeunload', function (e) {
         if (isAIGenerating) {
             e.preventDefault();
@@ -157,14 +141,9 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    // ----------------------------------------------------
-    // 🧹 TỰ ĐỘNG DỌN DẸP LỊCH SỬ KHI ĐĂNG XUẤT
-    // ----------------------------------------------------
     const originalLogout = window.logout;
     window.logout = function() {
-        sessionStorage.removeItem(MEMORY_KEY); // Xóa trí nhớ của user này
-        
-        // Trả lại chức năng đăng xuất nguyên thủy
+        sessionStorage.removeItem(MEMORY_KEY); 
         if (typeof originalLogout === 'function') {
             originalLogout();
         } else {
@@ -186,6 +165,9 @@ window.toggleChat = function() {
 }
 
 window.sendChatMessage = async function() {
+    // CHỐNG CLICK NHIỀU LẦN
+    if (isAIGenerating) return;
+
     const input = document.getElementById('chatInput');
     const message = input.value.trim();
     const messagesContainer = document.getElementById('chat-messages');
@@ -209,17 +191,24 @@ window.sendChatMessage = async function() {
     `;
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
     
-    // BẬT KHÓA BẢO VỆ
+    // KHÓA GIAO DIỆN
     sendBtn.disabled = true;
+    input.disabled = true;
     isAIGenerating = true;
 
     try {
-        const currentRate = (typeof exchangeRatesToVND !== 'undefined') ? (exchangeRatesToVND[currentCurrency] || 1) : 1;
+        // 💡 SỬA LỖI BIẾN TÀNG HÌNH: Kiểm tra cực kỳ an toàn trước khi đọc tỷ giá
+        const curr = typeof currentCurrency !== 'undefined' ? currentCurrency : 'usd';
+        const currentRate = (typeof exchangeRatesToVND !== 'undefined' && exchangeRatesToVND[curr]) ? exchangeRatesToVND[curr] : 1;
+        const jwtToken = localStorage.getItem('token');
         
         const res = await fetch('/api/ai/chat', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: message, history: conversationMemory, currency: currentCurrency, rate: currentRate })
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${jwtToken}`
+            },
+            body: JSON.stringify({ message: message, history: conversationMemory, currency: curr, rate: currentRate })
         });
 
         document.getElementById(loadingId).remove();
@@ -227,13 +216,14 @@ window.sendChatMessage = async function() {
         if (res.ok) {
             const data = await res.json();
             
-            conversationMemory.push({ user: message, ai: data.reply });
-            if (conversationMemory.length > 5) conversationMemory.shift(); 
+            // 💡 CHỐNG LỖI KHI AI TRẢ VỀ DỮ LIỆU RỖNG
+            const safeReply = data.reply || "Cú Mèo đã cập nhật xong!";
             
-            // LƯU LẠI VÀO ĐÚNG HỘP BỘ NHỚ CỦA USER ĐÓ
+            conversationMemory.push({ user: message, ai: safeReply });
+            if (conversationMemory.length > 5) conversationMemory.shift(); 
             sessionStorage.setItem(MEMORY_KEY, JSON.stringify(conversationMemory));
             
-            let formattedReply = data.reply.replace(/\*\*(.*?)\*\*/g, '<b style="color:#d4a5ff;">$1</b>').replace(/\n/g, '<br>');
+            let formattedReply = safeReply.replace(/\*\*(.*?)\*\*/g, '<b style="color:#d4a5ff;">$1</b>').replace(/\n/g, '<br>');
             messagesContainer.innerHTML += `
                 <div style="align-self: flex-start; max-width: 80%; background-color: #2a2a40; padding: 12px; border-radius: 0 15px 15px 15px; color: #ffffff; font-size: 14px; line-height: 1.5;">
                     ${formattedReply}
@@ -241,6 +231,34 @@ window.sendChatMessage = async function() {
             `;
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
+            // XỬ LÝ CẬP NHẬT GIAO DIỆN SETTING KHI ĐỔI PROFILE
+            if (data.action === "update_profile") {
+                const goalSelect = document.getElementById("aiFinancialGoal");
+                const riskSelect = document.getElementById("aiRiskTolerance");
+
+                if (goalSelect && riskSelect) {
+                    fetch('/api/config', { 
+                        headers: { 
+                            'Authorization': `Bearer ${jwtToken}`,
+                            'Cache-Control': 'no-cache' 
+                        } 
+                    })
+                    .then(r => r.json())
+                    .then(configData => {
+                        goalSelect.value = configData.financial_goal || "Chưa xác định";
+                        riskSelect.value = configData.risk_tolerance || "Cân bằng";
+                        if(window.showToast) showToast("Hồ sơ tài chính trên màn hình đã tự động làm mới!", "success");
+                    })
+                    .catch(err => console.error("Lỗi tự động cập nhật UI:", err));
+                }
+            }
+
+            // XỬ LÝ KHI CÚ MÈO VỪA SỬA MỘT GIAO DỊCH 
+            if (data.action === "update") {
+                if (typeof initialize === "function") await initialize();
+            }
+
+            // XỬ LÝ KHI TẠO MỚI GIAO DỊCH
             if (data.action === "save" && data.transaction_data) {
                 const parsedTxn = data.transaction_data;
                 let amountInVND = Math.abs(parsedTxn.amount); 
@@ -248,13 +266,11 @@ window.sendChatMessage = async function() {
                 let rate = 1;
                 let currencyName = 'VND';
                 if (typeof exchangeRatesToVND !== 'undefined') {
-                    const curr = typeof currentCurrency !== 'undefined' ? currentCurrency : 'usd';
                     rate = exchangeRatesToVND[curr] || 1;
                     currencyName = curr.toUpperCase(); 
                 }
                 
-                let finalAmountToSave = parsedTxn.amount; 
-                let shouldSave = true;
+                let shouldKeep = true;
 
                 if (parsedTxn.amount < 0) { 
                     let categoryAverageVND = 0;
@@ -278,7 +294,7 @@ window.sendChatMessage = async function() {
                         let fmtAmount = amountDisplay.toLocaleString('vi-VN', { maximumFractionDigits: 2 }) + " " + currencyName;
                         let fmtAvg = avgDisplay.toLocaleString('vi-VN', { maximumFractionDigits: 2 }) + " " + currencyName;
 
-                        const confirmMsg = `Cú Mèo phát hiện khoản chi RẤT LỚN!\n\nSố tiền bạn nhập (${fmtAmount}) lớn hơn GẤP NHIỀU LẦN mức trung bình của danh mục "${parsedTxn.category}" (${fmtAvg}).\n\nBạn có chắc chắn muốn lưu giao dịch này không?`;
+                        const confirmMsg = `Cú Mèo phát hiện khoản chi RẤT LỚN!\n\nSố tiền bạn nhập (${fmtAmount}) lớn hơn GẤP NHIỀU LẦN mức trung bình của danh mục "${parsedTxn.category}" (${fmtAvg}).\n\nBạn có chắc chắn muốn giữ lại giao dịch này không?`;
                         
                         let userConfirmed = false;
                         if (typeof showCustomConfirm === 'function') {
@@ -288,7 +304,14 @@ window.sendChatMessage = async function() {
                         }
 
                         if (!userConfirmed) {
-                            shouldSave = false;
+                            shouldKeep = false;
+                            try {
+                                await fetch(`/api/expenses/${parsedTxn.id}`, { 
+                                    method: 'DELETE',
+                                    headers: { 'Authorization': `Bearer ${jwtToken}` }
+                                });
+                            } catch(e) { console.error("Lỗi hoàn tác:", e); }
+
                             conversationMemory.pop();
                             sessionStorage.setItem(MEMORY_KEY, JSON.stringify(conversationMemory));
                             messagesContainer.innerHTML += `<div style="align-self: flex-start; max-width: 80%; background-color: #3f1d1d; border: 1px solid #ff4d4d; padding: 12px; border-radius: 0 15px 15px 15px; color: #ff4d4d; font-size: 14px;">❌ Đã hủy lệnh lưu giao dịch!</div>`;
@@ -297,31 +320,9 @@ window.sendChatMessage = async function() {
                     }
                 }
 
-                if (shouldSave) {
-                    try {
-                        const saveRes = await fetch('/api/expenses/', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                name: parsedTxn.name,
-                                category: parsedTxn.category,
-                                amount: finalAmountToSave, 
-                                date: parsedTxn.date, 
-                                tags: parsedTxn.tags || ["AI Chatbot"],
-                                note: null,
-                                recurring_interval: null
-                            })
-                        });
-
-                        if (saveRes.ok) {
-                            if(window.showToast) showToast('Cú Mèo đã lưu giao dịch thành công!', 'success');
-                            if (typeof initialize === "function") await initialize(); 
-                        } else {
-                            if(window.showToast) showToast('Có lỗi xảy ra khi Cú Mèo lưu dữ liệu.', 'error');
-                        }
-                    } catch (e) {
-                        if(window.showToast) showToast('Lỗi kết nối khi lưu giao dịch.', 'error');
-                    }
+                if (shouldKeep) {
+                    if(window.showToast) showToast('Cú Mèo đã ghi nhận giao dịch!', 'success');
+                    if (typeof initialize === "function") await initialize(); 
                 }
             }
 
@@ -331,18 +332,22 @@ window.sendChatMessage = async function() {
             messagesContainer.innerHTML += `<div style="align-self: flex-start; max-width: 80%; background-color: #3f1d1d; border: 1px solid #ff4d4d; padding: 12px; border-radius: 0 15px 15px 15px; color: #ff4d4d; font-size: 14px;">❌ ${detail}</div>`;
         }
     } catch (error) {
-        document.getElementById(loadingId).remove();
+        // 💡 IN LỖI RA CONSOLE ĐỂ DỄ DÀNG KIỂM TRA NẾU CÓ BUG LẦN SAU
+        console.error("LỖI CHATBOT:", error);
+        if(document.getElementById(loadingId)) document.getElementById(loadingId).remove();
         messagesContainer.innerHTML += `<div style="align-self: flex-start; background-color: #3f1d1d; padding: 12px; border-radius: 0 15px 15px 15px; color: #ff4d4d; font-size: 14px;">❌ Lỗi kết nối. Không thể liên hệ Gemini lúc này.</div>`;
     } finally {
-        // TẮT KHÓA BẢO VỆ
         sendBtn.disabled = false;
+        input.disabled = false;
         isAIGenerating = false;
         input.focus(); 
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }
 }
 
-document.body.insertAdjacentHTML('beforeend', '<div id="toast-container"></div>');
+if (!document.getElementById('toast-container')) {
+    document.body.insertAdjacentHTML('beforeend', '<div id="toast-container"></div>');
+}
 window.showToast = function(message, type = 'success') {
     const container = document.getElementById('toast-container');
     const toast = document.createElement('div');
