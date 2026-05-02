@@ -1587,7 +1587,7 @@ async def confirm_scan_receipt(
 # =============================================================
 # ROUTER OCR - QUÉT HÓA ĐƠN TỪ FILE PDF
 # =============================================================
-@router.post("/api/scan-pdf")
+@router.post("/scan-pdf")
 async def scan_pdf_receipt(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
@@ -1713,7 +1713,7 @@ Trả về CHỈ một JSON object thuần túy (không markdown):
 # =============================================================
 # ROUTER OCR - QUÉT FILE CSV
 # =============================================================
-@router.post("/api/scan-csv")
+@router.post("/scan-csv")
 async def scan_csv_file(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
