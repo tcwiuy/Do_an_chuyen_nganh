@@ -13,9 +13,9 @@ class CategoriesPayload(BaseModel):
 class TransactionBase(BaseModel):
     name: str
     # Dùng Decimal thay cho float để giữ độ chính xác tuyệt đối cho tiền tệ/thuế
-    amount: float
+    amount: Decimal
     category: str
-    date: date
+    date: datetime
     tags: Optional[List[str]] = Field(default_factory=list)
     
     note: Optional[str] = None
@@ -61,11 +61,11 @@ class TransactionResponse(TransactionBase):
 class RecurringTransactionBase(BaseModel):
     name: str
     # Dùng Decimal cho tính toán tài chính
-    amount: float
+    amount: Decimal
     category: str
     tags: Optional[List[str]] = Field(default_factory=list) 
     interval: str
-    startDate: date
+    startDate: datetime
     occurrences: int
 
     # Áp dụng các chốt chặn tương tự cho giao dịch định kỳ
