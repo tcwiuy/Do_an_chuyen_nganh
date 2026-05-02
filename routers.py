@@ -47,7 +47,6 @@ import pandas as pd
 _ai_cache = {}
 _ai_cache_lock = threading.Lock()
 
-
 # 💡 HÀM HELPER MỚI: TỰ ĐỘNG ÉP KIỂU DANH MỤC CŨ (LIST) VÀ MỚI (DICT) CHO AI HIỂU
 def get_flat_categories(user_config):
     if user_config and user_config.categories:
@@ -196,7 +195,7 @@ def _handle_gemini_http_status(response):
 # ROUTER CHO GIAO DỊCH THÔNG THƯỜNG (EXPENSES)
 # ---------------------------------------------------------
 router = APIRouter(prefix="/api/expenses", tags=["Expenses"])
-client = genai.Client()
+# client = genai.Client()
 
 
 @router.get("/export/csv")
@@ -1351,7 +1350,7 @@ def edit_profile(
 # =============================================================
 # ROUTER OCR - QUÉT HÓA ĐƠN
 # =============================================================
-@router.post("/api/scan-receipt")
+@router.post("/scan-receipt")
 async def scan_receipt(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
@@ -1512,9 +1511,9 @@ Quy tắc quan trọng:
         raise HTTPException(status_code=500, detail="Lỗi xử lý hóa đơn.")
 
 
-@router.post("/api/scan-receipt/confirm")
+@router.post("/scan-receipt/confirm")
 async def confirm_scan_receipt(
-    transaction_data: dict,
+    transaction_data: dict = Body(...),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user),
 ):
@@ -1523,7 +1522,7 @@ async def confirm_scan_receipt(
         try:
             parsed_date = datetime.strptime(date_str, "%Y-%m-%d")
         except (ValueError, AttributeError):
-            parsed_date = datetime.now()
+            parsed_date = datetime.now().date()
 
         try:
             amount = float(transaction_data.get("amount", 0))
@@ -1557,6 +1556,11 @@ async def confirm_scan_receipt(
         )
 
         db.add(db_transaction)
+        # Tự động trừ ngân sách hoặc chia hũ sau khi quét hóa đơn xong
+        if amount > 0:
+            distribute_to_jars(db, current_user.id, amount)
+        elif amount < 0:
+            update_budget_spent(db, current_user.id, category, abs(amount))
         db.commit()
         db.refresh(db_transaction)
 
