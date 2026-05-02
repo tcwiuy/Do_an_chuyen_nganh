@@ -421,7 +421,7 @@
                 const formData = new FormData();
                 formData.append('file', this._selectedFile);
 
-                const response = await fetch('/api/expenses/api/scan-receipt', {
+                const response = await fetch('/api/expenses/scan-receipt', {
                     method: 'POST',
                     body: formData
                 });
@@ -498,7 +498,7 @@
             };
 
             try {
-                const response = await fetch('/api/expenses/api/scan-receipt/confirm', {
+                const response = await fetch('/api/expenses/scan-receipt/confirm', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
