@@ -25,5 +25,5 @@ II. Chạy các file test
 ```bash
 pytest 'path cua file' -v
 pytest test\authentication\test_register.py -v
-python -m pytest '.\test\Unit Test\unit_test.py' -v
+python -m pytest '.\test\Unit_test.py' -v
 ```
