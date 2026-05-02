@@ -15,7 +15,7 @@ class TransactionBase(BaseModel):
     # Dùng Decimal thay cho float để giữ độ chính xác tuyệt đối cho tiền tệ/thuế
     amount: float
     category: str
-    date: date
+    date: datetime
     tags: Optional[List[str]] = Field(default_factory=list)
     
     note: Optional[str] = None

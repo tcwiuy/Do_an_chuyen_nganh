@@ -15,23 +15,17 @@ from dotenv import load_dotenv
 from datetime import datetime, timedelta
 from fastapi import HTTPException, status
 from fastapi import APIRouter, HTTPException, Depends, Header
-from pydantic import BaseModel
 import re
-
+from decimal import Decimal
 load_dotenv()
 import random
-
 import models, schemas, auth
 from database import get_db
-
-# OCR quét hóa đơn
 from google import genai
 from google.genai import types
 from PIL import Image
 import io
 import base64
-
-# Simple in-memory TTL cache for AI responses to reduce repeated GPT calls
 import threading
 import csv
 import io
@@ -40,7 +34,6 @@ from datetime import datetime
 from fastapi import UploadFile, File
 from fastapi.responses import StreamingResponse
 
-# OCR cho PDF
 import fitz
 import pandas as pd
 
@@ -90,7 +83,8 @@ def update_budget_spent(db: Session, user_id: int, category: str, spent_amount: 
     )
 
     if budget:
-        budget.spent_amount += spent_amount
+        # Ép kiểu spent_amount sang Decimal trước khi cộng
+        budget.spent_amount += Decimal(str(spent_amount))
 
 
 # 🌟 HÀM TỰ ĐỘNG XOAY VÒNG API KEY
@@ -354,7 +348,7 @@ def create_transaction(
                         detail=f"Quỹ '{jar.name}' không đủ tiền! (Hiện chỉ còn {jar.balance:,.0f})"
                     )
                 
-                jar.balance -= abs(transaction.amount)
+                jar.balance -= Decimal(str(abs(transaction.amount)))
                 db.add(jar)
 
         update_budget_spent(
@@ -639,6 +633,8 @@ def change_password(
     return {"message": "Đổi mật khẩu thành công!"}
 
 
+class EmailSyncUpdate(BaseModel):
+    is_enabled: bool
 # ---------------------------------------------------------
 # ROUTER CHO TRÍ TUỆ NHÂN TẠO (AI INTEGRATION)
 # ---------------------------------------------------------
@@ -1182,34 +1178,40 @@ def get_config(
         .first()
     )
 
-    # NẾU KHÔNG CÓ CONFIG -> TÀI KHOẢN MỚI
+    # 1. NẾU KHÔNG CÓ CONFIG -> TÀI KHOẢN MỚI
     if not user_config:
         return {
-            "is_new_user": True,  # 👈 Báo hiệu cho Frontend biết đây là "Lính mới"
+            "is_new_user": True,
             "currency": "vnd",
             "startDate": 1,
             "expenseCategories": ["Ăn uống", "Đi lại", "Mua sắm", "Hóa đơn", "Giải trí"],
-            "incomeCategories": ["Lương", "Thưởng", "Đầu tư", "Khác"]
+            "incomeCategories": ["Lương", "Thưởng", "Đầu tư", "Khác"],
+            "is_email_sync_enabled": False # <--- TRẠNG THÁI MẶC ĐỊNH LÀ TẮT
         }
 
     cats = user_config.categories
-    # NẾU CÓ CONFIG -> TÀI KHOẢN CŨ
+    # Đọc trạng thái từ Database (Dùng getattr để chống lỗi nếu cột chưa có)
+    is_sync = getattr(user_config, 'is_email_sync_enabled', False)
+
+    # 2. NẾU CÓ CONFIG -> TÀI KHOẢN CŨ (Đã chia 2 mảng)
     if isinstance(cats, dict):
         return {
-            "is_new_user": False, # 👈 Báo hiệu "Lính cũ"
+            "is_new_user": False,
             "currency": user_config.currency,
             "startDate": user_config.startDate,
             "expenseCategories": cats.get("expenseCategories", ["Ăn uống", "Đi lại", "Mua sắm"]),
             "incomeCategories": cats.get("incomeCategories", ["Lương", "Thưởng"]),
+            "is_email_sync_enabled": is_sync # <--- GỬI TRẠNG THÁI XUỐNG WEB
         }
     else:
-        # Tương thích ngược với dữ liệu cũ
+        # 3. TƯƠNG THÍCH NGƯỢC (Tài khoản tạo từ thời phiên bản cũ)
         return {
             "is_new_user": False,
             "currency": user_config.currency,
             "startDate": user_config.startDate,
             "expenseCategories": cats if cats else ["Ăn uống", "Đi lại"],
-            "incomeCategories": ["Lương", "Thưởng", "Đầu tư", "Khác"]
+            "incomeCategories": ["Lương", "Thưởng", "Đầu tư", "Khác"],
+            "is_email_sync_enabled": is_sync # <--- GỬI TRẠNG THÁI XUỐNG WEB
         }
 
 
@@ -1273,6 +1275,22 @@ def edit_start_date(
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
+@config_router.post("/email-sync/toggle")
+def toggle_email_sync(
+    payload: EmailSyncUpdate, # <-- Dùng khuôn mẫu vừa tạo
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    user_config = db.query(models.UserConfig).filter(models.UserConfig.user_id == current_user.id).first()
+    
+    if not user_config:
+        user_config = models.UserConfig(user_id=current_user.id, is_email_sync_enabled=payload.is_enabled)
+        db.add(user_config)
+    else:
+        user_config.is_email_sync_enabled = payload.is_enabled
+        
+    db.commit()
+    return {"message": "Đã cập nhật trạng thái", "status": payload.is_enabled}
 
 # 💡 3. API LƯU DANH MỤC THÔNG MINH (ADAPTER CHẤP NHẬN CẢ LIST LẪN DICT)
 class CategoriesPayload(BaseModel):
@@ -2064,25 +2082,34 @@ def receive_n8n_receipt(
         if not api_key:
             raise HTTPException(status_code=500, detail="Chưa cấu hình GEMINI_API_KEY")
 
-        # 2. Tạo Prompt
+
         prompt = f"""
-        Bạn là trợ lý tài chính. Hãy trích xuất giao dịch từ nội dung email sau:
+        Bạn là Cú Mèo, một chuyên gia phân tích dữ liệu tài chính cá nhân siêu việt. Nhiệm vụ của bạn là đọc nội dung email, biên lai hoặc tin nhắn sau:
         {payload.raw_content}
         
-        NHIỆM VỤ QUAN TRỌNG:
-        Đầu tiên, hãy kiểm tra xem email này CÓ PHẢI là một biên lai/thông báo biến động số dư hay không.
-        Nếu đây là email quảng cáo, bản tin, mã OTP, hoặc không chứa giao dịch tiền tệ, hãy trả về ĐÚNG MỘT khối JSON như sau:
+        NHIỆM VỤ 1 - CHỐT CHẶN (GATEKEEPER):
+        Hãy kiểm tra xem email này CÓ PHẢI là một biên lai/thông báo biến động số dư, thông báo mua hàng hay không.
+        Nếu đây là email quảng cáo, bản tin, mã OTP, nhắc nợ, hoặc hoàn toàn không chứa giao dịch tiền tệ, hãy trả về ĐÚNG MỘT khối JSON như sau (Không giải thích thêm):
         {{
             "is_transaction": false
         }}
 
-        Nếu ĐÚNG là email giao dịch (chuyển tiền, nhận tiền, thanh toán), hãy trả về JSON (TUYỆT ĐỐI KHÔNG DÙNG MARKDOWN ```):
+        NHIỆM VỤ 2 - PHÂN TÍCH CHUYÊN SÂU:
+        Nếu ĐÚNG là email giao dịch, hãy áp dụng các QUY TẮC sau để trích xuất:
+        1. BỎ QUA CỔNG THANH TOÁN: Nếu thấy thanh toán qua "ShopeePay", "VNPay", "ZaloPay", "Momo", tuyệt đối KHÔNG lấy đó làm tên giao dịch. Hãy tìm xem người dùng THỰC SỰ mua cái gì (Tên shop, Tên món hàng).
+        2. XỬ LÝ E-COMMERCE (Shopee, Lazada, Tiktok): Tìm danh sách sản phẩm. Nếu có nhiều món, tóm tắt lại. VD: "Mua Áo thun, Tai nghe trên Shopee". Danh mục: "Mua sắm".
+        3. XỬ LÝ GRAB/BE/GOJEK: Phân biệt rõ là đi xe hay đặt đồ ăn. 
+           - Đi xe: "GrabBike đến Quận 1" -> Danh mục: "Đi lại".
+           - Đặt đồ ăn: "ShopeeFood: Cơm tấm" -> Danh mục: "Ăn uống".
+        4. XỬ LÝ NGÂN HÀNG: Lọc bỏ các mã giao dịch rác (VD: MBVCB.123456.FT). Lấy nội dung cốt lõi: "Chuyển tiền ăn trưa cho Nam".
+
+        Trả về JSON hợp lệ (TUYỆT ĐỐI KHÔNG DÙNG MARKDOWN ```):
         {{
             "is_transaction": true,
-            "name": "Mô tả ngắn (VD: Thanh toán FOODY CORP)",
-            "amount": Số tiền (số nguyên dương, ví dụ: 64000),
-            "type": "income" (tiền vào) hoặc "expense" (tiền ra),
-            "category": "Ăn uống",
+            "name": "Mô tả ngắn gọn, thông minh theo các quy tắc trên",
+            "amount": Số tiền (chỉ lấy số nguyên dương, ví dụ: 64000),
+            "type": "income" (nếu là tiền nhận/hoàn tiền) hoặc "expense" (nếu là tiền chi ra/thanh toán),
+            "category": "Chọn 1 từ phù hợp: Ăn uống, Đi lại, Mua sắm, Hóa đơn, Giải trí, Lương, Thưởng, Đầu tư, Khác",
             "date": "Ngày giờ giao dịch (chuẩn ISO 8601, ví dụ: 2026-04-25T12:31:00)"
         }}
         """
@@ -2132,8 +2159,13 @@ def receive_n8n_receipt(
         target_user = db.query(models.User).filter(models.User.email == extracted_email).first()
 
         if not target_user:
-            print(f"❌ Bỏ qua: Không tìm thấy tài khoản nào có email là {extracted_email}")
             return {"status": "ignored", "message": "Email người nhận không có trong hệ thống!"}
+            
+        # 🛡️ CHỐT CHẶN CẤP 2: KIỂM TRA XEM USER CÓ ĐANG BẬT CÔNG TẮC KHÔNG
+        user_config = db.query(models.UserConfig).filter(models.UserConfig.user_id == target_user.id).first()
+        if not user_config or getattr(user_config, 'is_email_sync_enabled', False) == False:
+            print(f"❌ Từ chối: Tài khoản {target_user.full_name} đang TẮT đồng bộ Email.")
+            return {"status": "ignored", "message": "Người dùng đã tắt tính năng đồng bộ."}
             
         user_id_to_save = target_user.id
         print(f"✅ Đã tìm thấy chủ nhân: ID {user_id_to_save} - {target_user.full_name}")

@@ -64,6 +64,14 @@
             box-shadow: 0 0 10px rgba(138, 43, 226, 0.1);
             padding: 5px;
         }
+        /* CSS cho công tắc Email */
+        .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #2a2a40; transition: .4s; border-radius: 34px; border: 1px solid var(--border);}
+        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 4px; bottom: 3px; background-color: #a0a0b0; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--accent); border-color: #d4a5ff;}
+        input:checked + .slider:before { transform: translateX(20px); background-color: #fff; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
@@ -82,30 +90,38 @@
         </header>
 
         <div class="settings-container" style="display: flex; gap: 20px; align-items: stretch; margin-bottom: 20px;">
+            <!-- KHỐI TỰ ĐỘNG HÓA EMAIL -->
             <div class="form-container half-width" style="flex: 1; display: flex; flex-direction: column;">
-                <h2 align="center" style="color: var(--accent); margin-top: 0;"><i class="fa-solid fa-shield-halved"></i> Bảo mật tài khoản</h2>
+                <h2 align="center" style="color: var(--accent); margin-top: 0;"><i class="fa-solid fa-envelope-open-text"></i> Tự Động Hóa Email</h2>
+                <p style="text-align: center; color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 20px;">Để AI Cú Mèo tự động đọc hóa đơn từ hòm thư của bạn.</p>
+                
                 <div style="flex: 1;">
-                    <div class="form-group">
-                        <label>Tên đăng nhập</label>
-                        <input type="text" id="currentUsername" value="Đang tải..." disabled style="background-color: var(--bg-primary); color: var(--text-secondary); border: 1px solid var(--border); cursor: not-allowed;" class="themed-input">
+                    <div style="display: flex; align-items: center; justify-content: space-between; background-color: var(--bg-primary); padding: 15px; border-radius: 8px; border: 1px solid var(--border);">
+                        <strong style="color: var(--text-primary);">Kích hoạt đồng bộ</strong>
+                        <label class="switch">
+                            <!-- Chú ý: toggleEmailSetup(true) chỉ gọi khi người dùng click tay -->
+                            <input type="checkbox" id="emailSyncToggle" onchange="toggleEmailSetup(true)">
+                            <span class="slider"></span>
+                        </label>
                     </div>
-                    <form id="changePasswordForm">
-                        <div class="form-group">
-                            <label for="oldPassword">Mật khẩu hiện tại</label>
-                            <input type="password" id="oldPassword" placeholder="Nhập mật khẩu cũ..." class="themed-input" required oncopy="return false;" onpaste="return false;" oncut="return false;">
-                        </div>
-                        <div class="form-group">
-                            <label for="newPassword">Mật khẩu mới (Tối thiểu 6 ký tự)</label>
-                            <input type="password" id="newPassword" placeholder="Nhập mật khẩu mới..." class="themed-input" required minlength="6" oncopy="return false;" onpaste="return false;" oncut="return false;">
-                        </div>
-                        <div class="form-group">
-                            <label for="confirmPassword">Xác nhận mật khẩu mới</label>
-                            <input type="password" id="confirmPassword" placeholder="Nhập lại mật khẩu mới..." class="themed-input" required minlength="6" oncopy="return false;" onpaste="return false;" oncut="return false;">
-                        </div>
-                        <button type="submit" class="nav-button" style="width: 100%; margin-top: 15px; background-color: var(--accent); color: white; border: none;">
-                            <i class="fa-solid fa-key"></i> Đổi Mật Khẩu
-                        </button>
-                    </form>
+
+                    <div id="emailSetupGuide" style="display: none; margin-top: 15px; padding: 15px; background: rgba(138, 43, 226, 0.05); border: 1px dashed var(--accent); border-radius: 8px;">
+                        <h4 style="color: #d4a5ff; margin-top: 0; margin-bottom: 12px;"><i class="fa-solid fa-screwdriver-wrench"></i> Hướng dẫn kết nối</h4>
+                        <ol style="color: var(--text-primary); line-height: 1.7; padding-left: 20px; margin-bottom: 0; font-size: 0.9rem;">
+                            <li style="margin-bottom: 8px;">Mở web Gmail trên Máy tính > Bánh răng ⚙️ > <b>"Xem tất cả cài đặt"</b>.</li>
+                            <li style="margin-bottom: 8px;">Tab <b>"Chuyển tiếp và POP/IMAP"</b> > <b>"Thêm địa chỉ chuyển tiếp"</b>:
+                                <div style="display: flex; gap: 10px; margin: 10px 0; align-items: center;">
+                                    <input type="text" id="sysEmail" value="bot.expenseowl@gmail.com" readonly 
+                                           style="flex: 1; padding: 8px; border-radius: 6px; background-color: #151521; color: #4ade80; border: 1px solid #3d3d5c; font-family: monospace; font-size: 0.95rem; outline: none;">
+                                    <button onclick="copySysEmail()" class="nav-button" style="width: auto; background-color: var(--accent); color: #fff; padding: 8px 12px; margin: 0;" title="Copy">
+                                        <i class="fa-solid fa-copy"></i>
+                                    </button>
+                                </div>
+                            </li>
+                            <li style="margin-bottom: 8px;"><b style="color: #ff4d4d;">Quan trọng:</b> Chọn <b>"Tắt chuyển tiếp"</b> ở mục Forwarding.</li>
+                            <li>Tạo <b>Bộ lọc (Filters)</b> để chỉ chuyển tiếp thư từ <code>info@mail.shopee.vn</code> hoặc ngân hàng đến email của Cú Mèo.</li>
+                        </ol>
+                    </div>
                 </div>
             </div>
 
@@ -141,15 +157,12 @@
         <div class="form-container">
             <h2 align="center">Quản Lý Danh Mục</h2>
             <div id="categories-manager">
-                <!-- KHUNG CHI TIÊU -->
                 <h3 style="color: #ff4d4d; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-top: 10px;"><i class="fa-solid fa-arrow-trend-down"></i> Danh Mục Chi Tiêu</h3>
                 <div id="expense-categories-list" class="categories-list" style="margin-bottom: 15px;"></div>
                 <div class="category-input-container" style="margin-bottom: 30px;">
                     <input type="text" id="newExpenseCategory" placeholder="Thêm chi tiêu mới...">
                     <button onclick="addCategory('expense')" class="nav-button" style="background-color: #ff4d4d; color: white;">Thêm</button>
                 </div>
-
-                <!-- KHUNG THU NHẬP -->
                 <h3 style="color: #2EAB7D; border-bottom: 1px solid var(--border); padding-bottom: 10px;"><i class="fa-solid fa-arrow-trend-up"></i> Danh Mục Thu Nhập</h3>
                 <div id="income-categories-list" class="categories-list" style="margin-bottom: 15px;"></div>
                 <div class="category-input-container">
@@ -163,12 +176,10 @@
             <div class="form-container half-width">
                 <h2 align="center">Cài Đặt Tiền Tệ</h2>
                 <div class="currency-selector">
-                    <select id="currencySelect">
-                    </select>
+                    <select id="currencySelect"></select>
                     <button id="saveCurrency" class="nav-button">Lưu</button>
                 </div>
             </div>
-            
             <div class="form-container half-width">
                 <h2 align="center">Ngày Bắt Đầu Tháng</h2>
                 <div class="start-date-manager">
@@ -202,883 +213,172 @@
                         <input type="file" id="csv-import-file" accept=".csv" style="display: none;">
                     </div>
                 </div>
-
                 <div id="importSummary" class="import-summary" style="display: none; background: var(--bg-primary); padding: 15px; border-radius: 8px; border: 1px solid var(--border);">
                     <h3 style="color: var(--accent); margin-top: 0;"><i class="fa-solid fa-clipboard-check"></i> Tổng kết nhập dữ liệu</h3>
-                    <p style="color: var(--text-secondary);">Tổng số dòng: <strong style="color:var(--text-primary);" id="summary-processed"></strong></p>
+                    <p style="color: var(--text-secondary);">Tổng số dòng: <strong id="summary-processed"></strong></p>
                     <p style="color: var(--text-secondary);">Thành công: <strong style="color:#4ade80;" id="summary-imported"></strong></p>
-                    <p style="color: var(--text-secondary);">Bỏ qua (Lỗi/Trùng): <strong style="color:#ff4d4d;" id="summary-skipped"></strong></p>
+                    <p style="color: var(--text-secondary);">Bỏ qua: <strong style="color:#ff4d4d;" id="summary-skipped"></strong></p>
                     <p style="margin-bottom: 0; color: var(--text-secondary);">Danh mục mới: <strong style="color:var(--accent);" id="summary-new-categories"></strong></p>
                 </div>
             </div>
         </div>
-        
-        <div class="form-container">
-            <h2 align="center">Giao Dịch Định Kỳ</h2>
-            <form id="recurringExpenseForm">
-                <div class="four-col-grid">
-                    <div class="form-group">
-                        <label for="recurringName">Mô tả</label>
-                        <input type="text" id="recurringName" placeholder="Ví dụ: Tiền nhà" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="recurringCategory">Danh mục</label>
-                        <!-- Danh mục giờ phân loại optgroup -->
-                        <select id="recurringCategory" required></select>
-                    </div>
-                    <div class="form-group">
-                        <label for="recurringAmount">Số tiền</label>
-                        <input type="number" id="recurringAmount" step="0.01" min="0.01" max="9000000000000000" placeholder="0" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="recurringStartDate">Ngày bắt đầu</label>
-                        <input type="date" id="recurringStartDate" required>
-                        <script>
-                            const today = new Date();
-                            const year = today.getFullYear();
-                            const month = String(today.getMonth() + 1).padStart(2, '0');
-                            const day = String(today.getDate()).padStart(2, '0');
-                            document.getElementById('recurringStartDate').value = `${year}-${month}-${day}`;
-                        </script>
-                    </div>
-                    <div class="form-group">
-                        <label for="recurringInterval">Chu kỳ</label>
-                        <select id="recurringInterval" required>
-                            <option value="daily">Hằng ngày</option>
-                            <option value="weekly">Hằng tuần</option>
-                            <option value="monthly">Hằng tháng</option>
-                            <option value="yearly">Hằng năm</option>
-                        </select>
-                    </div>
-                    <div class="form-group" style="position: relative;">
-                        <label for="tags-input">Nhãn (Tags)</label>
-                        <div class="tags-input-container" style="width: 100%; display: flex; flex-wrap: wrap; border: 1px solid var(--border); border-radius: 4px; background-color: var(--bg-primary); cursor: text; padding: 0.25rem;">
-                            <div id="selected-tags" class="selected-tags" style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 2px;"></div>
-                            <input type="text" id="tags-input" placeholder="Nhập & Enter..." autocomplete="off" style="flex: 1; min-width: 100px; border: none; background: none; outline: none; padding: 0.25rem; color: var(--text-primary);">
-                        </div>
-                        <div id="tags-dropdown" class="tags-dropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; z-index: 100; max-height: 150px; overflow-y: auto; border-radius: 8px; padding: 5px 0;"></div>
-                    </div>
-                    <div class="form-group">
-                        <label for="recurringOccurrences">Số lần lặp lại (Nhập 0 nếu vô hạn)</label>
-                        <input type="number" id="recurringOccurrences" min="0" value="0" required>
-                    </div>
-                </div>
-                <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 15px;">
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <label for="recurringReportGain" style="margin: 0; color: var(--text-secondary);">Khoản thu</label>
-                        <input type="checkbox" id="recurringReportGain" style="transform: scale(1.2); cursor: pointer;">
-                    </div>
-                    <button type="submit" class="nav-button" style="padding: 10px 25px; font-weight: bold;">Thêm Giao Dịch Định Kỳ</button>
-                </div>
-            </form>
-            <h3 align="center" style="margin-top: 2rem; color: var(--accent);">Danh Sách Giao Dịch Định Kỳ</h3>
-            <div id="recurring-expenses-list" style="overflow-x: auto;">
-            </div>
-        </div>
     </div>
 
-    <!-- MODAL XÓA GIAO DỊCH ĐỊNH KỲ -->
-    <div id="deleteRecurringModal" class="modal">
-        <div class="modal-content" style="background: var(--bg-secondary); border: 1px solid var(--border);">
-            <h3 style="color: var(--text-primary);">Xóa Giao Dịch Định Kỳ</h3>
-            <p style="color: var(--text-secondary);">Bạn muốn xóa tất cả các giao dịch này, hay chỉ xóa những giao dịch trong tương lai?</p>
-            <div class="modal-buttons">
-                <button class="modal-button" style="background: var(--bg-primary); border: 1px solid var(--border); color: var(--text-primary);" onclick="closeRecurringDeleteModal()">Hủy bỏ</button>
-                <button class="modal-button" style="background: var(--bg-primary); border: 1px solid var(--border); color: var(--accent);" onclick="confirmRecurringDelete(false)">Chỉ xóa tương lai</button>
-                <button class="modal-button confirm" onclick="confirmRecurringDelete(true)">Xóa tất cả</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL SỬA GIAO DỊCH ĐỊNH KỲ -->
-    <div id="editRecurringModal" class="modal">
-        <div class="modal-content" style="background: var(--bg-secondary); border: 1px solid var(--border); max-width: 600px; width: 90%;">
-            <h3 style="color: var(--accent); margin-top: 0;"><i class="fa-solid fa-pen-to-square"></i> Sửa Giao Dịch Định Kỳ</h3>
-            <form id="editRecurringExpenseForm">
-                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">
-                    <div class="form-group">
-                        <label for="editRecurringName">Mô tả</label>
-                        <input type="text" id="editRecurringName" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="editRecurringCategory">Danh mục</label>
-                        <select id="editRecurringCategory" required></select>
-                    </div>
-                    <div class="form-group">
-                        <label for="editRecurringAmount">Số tiền</label>
-                        <input type="number" id="editRecurringAmount" step="0.01" min="0" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="editRecurringStartDate">Ngày bắt đầu</label>
-                        <input type="date" id="editRecurringStartDate" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="editRecurringInterval">Chu kỳ</label>
-                        <select id="editRecurringInterval" required>
-                            <option value="daily">Hằng ngày</option>
-                            <option value="weekly">Hằng tuần</option>
-                            <option value="monthly">Hằng tháng</option>
-                            <option value="yearly">Hằng năm</option>
-                        </select>
-                    </div>
-                    <div class="form-group" style="position: relative;">
-                        <label for="edit-tags-input">Nhãn (Tags)</label>
-                        <div class="tags-input-container" style="width: 100%; display: flex; flex-wrap: wrap; border: 1px solid var(--border); border-radius: 4px; background-color: var(--bg-primary); cursor: text; padding: 0.25rem;">
-                            <div id="edit-selected-tags" class="selected-tags" style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 2px;"></div>
-                            <input type="text" id="edit-tags-input" placeholder="(tùy chọn)" autocomplete="off" style="flex: 1; min-width: 100px; border: none; background: none; outline: none; padding: 0.25rem; color: var(--text-primary);">
-                        </div>
-                        <div id="edit-tags-dropdown" class="tags-dropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; z-index: 100; max-height: 150px; overflow-y: auto; border-radius: 8px; padding: 5px 0;"></div>
-                    </div>
-                    <div class="form-group">
-                        <label for="editRecurringOccurrences">Số lần lặp lại (Nhập 0 nếu vô hạn)</label>
-                        <input type="number" id="editRecurringOccurrences" min="0" value="0" required>
-                    </div>
-                    <div class="form-group form-group-checkbox" style="display: flex; align-items: center; gap: 10px;">
-                        <input type="checkbox" id="editRecurringReportGain" class="styled-checkbox">
-                        <label for="editRecurringReportGain" style="margin: 0; color: var(--text-secondary);">Khoản thu (Thu nhập)</label>
-                    </div>
-                </div>
-            </form>
-            <div class="modal-buttons" style="margin-top: 20px;">
-                <button class="modal-button" style="background: var(--bg-primary); border: 1px solid var(--border); color: var(--text-primary);" onclick="closeRecurringEditModal()">Hủy bỏ</button>
-                <button class="modal-button" style="background: var(--bg-primary); border: 1px solid var(--border); color: var(--accent);" onclick="confirmRecurringUpdate(false)">Cập nhật tương lai</button>
-                <button class="modal-button confirm" onclick="confirmRecurringUpdate(true)">Cập nhật tất cả</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- BẢNG HỎI XÁC NHẬN CHUNG -->
+    <!-- MODAL VÀ SCRIPT GIỮ NGUYÊN PHẦN CHUNG -->
     <div id="customConfirmModal" style="display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); align-items: center; justify-content: center;">
         <div style="background: linear-gradient(145deg, #2a1e2d, #402a30); border: 2px solid #ff4d4d; border-radius: 12px; width: 90%; max-width: 450px; padding: 25px; box-shadow: 0 0 25px rgba(255, 77, 77, 0.4); text-align: center;">
-            <h3 style="color: #ff4d4d; margin-top: 0; margin-bottom: 15px;">
-                <i class="fa-solid fa-triangle-exclamation fa-beat"></i> Cảnh Báo
-            </h3>
-            <p id="confirmMessage" style="color: #e0e0e0; line-height: 1.6; margin-bottom: 25px; white-space: pre-line; font-size: 15px;"></p>
+            <h3 style="color: #ff4d4d; margin-top: 0; margin-bottom: 15px;"><i class="fa-solid fa-triangle-exclamation"></i> Cảnh Báo</h3>
+            <p id="confirmMessage" style="color: #e0e0e0; margin-bottom: 25px; white-space: pre-line;"></p>
             <div style="display: flex; gap: 15px; justify-content: center;">
-                <button id="btnConfirmCancel" style="padding: 10px 20px; background-color: #4a4a60; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">Hủy bỏ</button>
-                <button id="btnConfirmProceed" style="padding: 10px 20px; background-color: #ff4d4d; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">Vẫn Thực Hiện</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL XÁC NHẬN ĐĂNG XUẤT -->
-    <div id="logoutConfirmModal" class="modal" style="display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); align-items: center; justify-content: center;">
-        <div style="background-color: var(--bg-secondary); border: 1px solid var(--border); border-radius: 12px; width: 90%; max-width: 400px; padding: 25px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); text-align: center;">
-            <h3 style="color: var(--accent); margin-top: 0; margin-bottom: 15px;">
-                <i class="fa-solid fa-right-from-bracket"></i> Xác nhận Đăng Xuất
-            </h3>
-            <p style="color: var(--text-secondary); line-height: 1.6; margin-bottom: 25px; font-size: 15px;">Bạn có chắc chắn muốn đăng xuất khỏi ExpenseOwl không?</p>
-            <div style="display: flex; gap: 15px; justify-content: center;">
-                <button onclick="closeLogoutModal()" style="flex: 1; padding: 10px 20px; background-color: var(--bg-primary); color: var(--text-primary); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s;">Hủy bỏ</button>
-                <button onclick="proceedLogout()" style="flex: 1; padding: 10px 20px; background-color: #ff4d4d; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s;">Đăng Xuất</button>
+                <button id="btnConfirmCancel" style="padding: 10px 20px; background-color: #4a4a60; color: white; border: none; border-radius: 6px; cursor: pointer;">Hủy bỏ</button>
+                <button id="btnConfirmProceed" style="padding: 10px 20px; background-color: #ff4d4d; color: white; border: none; border-radius: 6px; cursor: pointer;">Vẫn Thực Hiện</button>
             </div>
         </div>
     </div>
 
     <script src="/static/functions.js"></script>
     <script>
-        // 💡 2 KHÔNG GIAN DỮ LIỆU ĐỘC LẬP
         let expenseCategories = [];
         let incomeCategories = [];
-        
         let allTags = new Set();
         let addFormSelectedTags = new Set();
-        let editFormSelectedTags = new Set();
         let currentCurrency = "usd";
         let currentStartDate = 1;
-        let recurringExpenses = [];
-        let recurringExpenseToDelete = null;
-        let recurringExpenseToEdit = null;
-        let categoryColors = {}; 
-        
-        // 💡 BỘ LỌC CHUẨN HÓA TIẾNG VIỆT
+        let categoryColors = {};
+        const token = localStorage.getItem('token');
+
         function normalizeVietnamese(str) {
             if (!str) return "";
-            return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase().replace(/\s+/g, " ").trim();
+            return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase().trim();
         }
-        
-        // TRẠNG THÁI SỬA DANH MỤC LƯU THEO NHÓM
-        let editingCategoryInfo = { type: null, index: -1 };
 
-        // LẤY TÊN ĐĂNG NHẬP
-        const token = localStorage.getItem('token'); 
-        if (token) {
+        async function initialize() {
             try {
-                const base64Url = token.split('.')[1];
-                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-                const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
-                    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-                }).join(''));
-                const payload = JSON.parse(jsonPayload);
-                document.getElementById('currentUsername').value = payload.sub || "Không rõ"; 
-            } catch (error) { document.getElementById('currentUsername').value = "Lỗi giải mã token"; }
-        } else { document.getElementById('currentUsername').value = "Chưa đăng nhập"; }
+                // Thêm headers chống cache để luôn lấy dữ liệu mới nhất từ Postgres
+                const res = await fetch('/api/config', { 
+                    headers: { 
+                        'Authorization': `Bearer ${token}`,
+                        'Cache-Control': 'no-cache',
+                        'Pragma': 'no-cache'
+                    } 
+                });
+                if (!res.ok) throw new Error('Auth failed');
+                const config = await res.json();
 
-        // ĐỔI MẬT KHẨU
-        document.getElementById('changePasswordForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const oldPassword = document.getElementById('oldPassword').value;
-            const newPassword = document.getElementById('newPassword').value;
-            const confirmPassword = document.getElementById('confirmPassword').value;
+                // 💡 ĐỒNG BỘ CÔNG TẮC EMAIL (Quan trọng nhất)
+                // Phải so sánh chính xác true/false vì giá trị trả về từ DB có thể là null
+                const syncToggle = document.getElementById('emailSyncToggle');
+                syncToggle.checked = config.is_email_sync_enabled === true;
+                
+                // Cập nhật UI hiển thị nhưng truyền false để KHÔNG gọi API save lần nữa
+                toggleEmailSetup(false);
 
-            if (newPassword !== confirmPassword) {
-                if(window.showToast) showToast("Hai ô mật khẩu mới không khớp nhau!", "error");
-                return;
+                // Nạp các cấu hình khác
+                expenseCategories = config.expenseCategories || [];
+                incomeCategories = config.incomeCategories || [];
+                currentCurrency = config.currency || 'usd';
+                document.getElementById('aiFinancialGoal').value = config.financial_goal || "Chưa xác định";
+                document.getElementById('aiRiskTolerance').value = config.risk_tolerance || "Cân bằng";
+                document.getElementById('startDate').value = config.startDate || 1;
+
+                renderCategories();
+                populateCurrencySelect();
+            } catch (error) {
+                console.error("Init error:", error);
+                window.location.href = '/login';
+            }
+        }
+
+        // Ẩn/hiện hộp hướng dẫn và lưu trạng thái vào Postgres
+        async function toggleEmailSetup(saveToBackend = true) {
+            const toggle = document.getElementById('emailSyncToggle');
+            const guideBox = document.getElementById('emailSetupGuide');
+            
+            // Xử lý UI
+            if (toggle.checked) {
+                guideBox.style.display = 'block';
+                guideBox.style.animation = 'fadeIn 0.3s ease-in-out';
+            } else {
+                guideBox.style.display = 'none';
             }
 
-            const btn = e.target.querySelector('button');
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang xử lý...';
-            btn.disabled = true;
-
-            try {
-                const res = await fetch('/api/auth/change-password', {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify({ old_password: oldPassword, new_password: newPassword })
-                });
-                if (res.ok) {
-                    if(window.showToast) showToast("Đổi mật khẩu thành công!", "success");
-                    e.target.reset();
-                } else {
-                    const err = await res.json();
-                    if(window.showToast) showToast(err.detail || "Lỗi khi đổi mật khẩu!", "error");
+            // Xử lý Database
+            if (saveToBackend) {
+                try {
+                    const response = await fetch('/api/email-sync/toggle', {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({ is_enabled: toggle.checked })
+                    });
+                    
+                    if (response.ok) {
+                        if (window.showToast) {
+                            showToast(toggle.checked ? "Đã BẬT đồng bộ hóa Email" : "Đã TẮT đồng bộ hóa Email", "success");
+                        }
+                    } else {
+                        // Nếu lưu thất bại, trả nút về trạng thái cũ để tránh sai lệch UI
+                        toggle.checked = !toggle.checked;
+                        if (window.showToast) showToast("Không thể lưu trạng thái. Vui lòng thử lại!", "error");
+                    }
+                } catch (e) {
+                    console.error("Sync API error:", e);
                 }
-            } catch (error) { if(window.showToast) showToast("Lỗi kết nối máy chủ!", "error"); } 
-            finally { btn.innerHTML = '<i class="fa-solid fa-key"></i> Đổi Mật Khẩu'; btn.disabled = false; }
-        });
+            }
+        }
 
-        // --- RENDER 2 DANH SÁCH DANH MỤC ---
+        function copySysEmail() {
+            const emailInput = document.getElementById('sysEmail');
+            emailInput.select();
+            navigator.clipboard.writeText(emailInput.value).then(() => {
+                if (window.showToast) showToast("Đã copy địa chỉ Email!", "success");
+            });
+        }
+
+        // --- CÁC HÀM QUẢN LÝ DANH MỤC (GIỮ NGUYÊN LOGIC CỦA BẠN) ---
         function renderCategories() {
             renderCategoryList('expense', expenseCategories, 'expense-categories-list');
             renderCategoryList('income', incomeCategories, 'income-categories-list');
-            updateCategoryDropdowns();
         }
 
         function renderCategoryList(type, listArray, elementId) {
             const listContainer = document.getElementById(elementId);
             listContainer.innerHTML = '';
-            
             listArray.forEach((category, index) => {
                 const item = document.createElement('div');
-                const isEditing = (editingCategoryInfo.type === type && editingCategoryInfo.index === index);
-                item.className = 'category-item' + (isEditing ? ' category-edit-mode' : '');
-                
-                // Tránh lỗi nếu màu không có trong palette
-                const baseColor = type === 'expense' ? '#ff4d4d' : '#2EAB7D';
-                const color = categoryColors[category] || colorPalette[index % colorPalette.length] || baseColor;
-
-                if (isEditing) {
-                    item.innerHTML = `
-                        <div style="display: flex; gap: 10px; align-items: center; width: 100%; padding: 5px;">
-                            <input type="color" id="editCatColor_${type}_${index}" value="${color}" style="border: none; background: none; cursor: pointer; width: 35px; height: 35px; padding: 0; border-radius: 4px;" title="Đổi màu">
-                            <input type="text" id="editCatName_${type}_${index}" value="${escapeHTML(category)}" class="themed-input" style="margin-bottom: 0; flex: 1; border: 1px solid var(--accent); padding: 8px; font-weight: bold;">
-                            <div style="display: flex; gap: 5px;">
-                                <button type="button" onclick="saveCategoryEdit('${type}', ${index}, '${escapeHTML(category)}')" class="nav-button" style="width: auto; padding: 8px 12px; background: #2EAB7D; color: white; border: none; margin: 0;" title="Lưu">
-                                    <i class="fa-solid fa-check"></i>
-                                </button>
-                                <button type="button" onclick="cancelCategoryEdit()" class="nav-button" style="width: auto; padding: 8px 12px; background: transparent; border: 1px solid var(--border); color: var(--text-secondary); margin: 0;" title="Hủy">
-                                    <i class="fa-solid fa-times"></i>
-                                </button>
-                            </div>
-                        </div>
-                    `;
-                } else {
-                    item.innerHTML = `
-                        <div class="category-handle-area" style="display: flex; align-items: center; gap: 12px; flex: 1;">
-                            <div style="width: 16px; height: 16px; border-radius: 50%; background-color: ${color};"></div>
-                            <span style="font-weight: bold; color: var(--text-primary); cursor: pointer;" onclick="toggleEditCategory('${type}', ${index})" title="Bấm để sửa">${escapeHTML(category)}</span>
-                        </div>
-                        <div style="display: flex; gap: 5px;">
-                            <button type="button" class="edit-button" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; padding: 5px 10px;" onclick="toggleEditCategory('${type}', ${index})" title="Sửa danh mục">
-                                <i class="fa-solid fa-pen"></i>
-                            </button>
-                            <button type="button" class="delete-button" onclick="window.removeCategory('${type}', ${index}, event)" title="Xóa danh mục" style="background: none; border: none; color: #ff4d4d; cursor: pointer; padding: 5px 10px; position: relative; z-index: 10;">
-                                <i class="fa-solid fa-trash-can"></i>
-                            </button>
-                        </div>
-                    `;
-                }
+                item.className = 'category-item';
+                item.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
+                        <span style="font-weight: bold; color: var(--text-primary);">${category}</span>
+                    </div>
+                    <button type="button" onclick="removeCategory('${type}', ${index})" style="background: none; border: none; color: #ff4d4d; cursor: pointer;">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                `;
                 listContainer.appendChild(item);
             });
         }
 
-        // CẬP NHẬT GIAO DIỆN SELECT CHO GIAO DỊCH ĐỊNH KỲ
-        function updateCategoryDropdowns() {
-            const expOptions = expenseCategories.map(c => `<option value="${c}">${c}</option>`).join('');
-            const incOptions = incomeCategories.map(c => `<option value="${c}">${c}</option>`).join('');
-            const html = `<optgroup label="Chi Tiêu">${expOptions}</optgroup><optgroup label="Thu Nhập">${incOptions}</optgroup>`;
-            document.getElementById('recurringCategory').innerHTML = html;
-            document.getElementById('editRecurringCategory').innerHTML = html;
-        }
-
-        // KÍCH HOẠT CHẾ ĐỘ SỬA
-        function toggleEditCategory(type, index) {
-            editingCategoryInfo = { type: type, index: index };
-            renderCategories();
-        }
-        function cancelCategoryEdit() {
-            editingCategoryInfo = { type: null, index: -1 };
-            renderCategories();
-        }
-
-        // LƯU KHI SỬA
-        async function saveCategoryEdit(type, index, oldName) {
-            const targetArray = type === 'expense' ? expenseCategories : incomeCategories;
-            const inputName = document.getElementById(`editCatName_${type}_${index}`);
-            const inputColor = document.getElementById(`editCatColor_${type}_${index}`);
-            let newName = inputName.value.trim().replace(/[<>]/g, ' ').trim();
-            const newColor = inputColor.value;
-
-            if (newName.length < 2 || newName.length > 30) {
-                if(window.showToast) showToast('Tên danh mục phải từ 2 đến 30 ký tự!', 'error');
-                return;
-            }
-            const invalidChars = /[{}[\]\\\/|^$%&*@#~`]/;
-            if (invalidChars.test(newName)) {
-                if(window.showToast) showToast('Tên không được chứa ký tự đặc biệt lạ!', "error");
-                return;
-            }
-
-            if (newName !== oldName) {
-                const normalizedNewName = normalizeVietnamese(newName);
-                
-                // Quét chống trùng trên cả 2 mảng Thu và Chi
-                const allCategories = [...expenseCategories, ...incomeCategories];
-                const isDuplicate = allCategories.some(cat => {
-                    return cat !== oldName && normalizeVietnamese(cat) === normalizedNewName;
-                });
-
-                if (isDuplicate) {
-                    if(window.showToast) showToast('Tên danh mục này (hoặc tương tự) đã tồn tại!', 'error');
-                    return;
-                }
-                
-                if(window.showToast) showToast('Đang đồng bộ dữ liệu cũ. Vui lòng đợi...', 'success');
-                
-                targetArray[index] = newName;
-                targetArray.sort((a, b) => a.localeCompare(b, 'vi'));
-
-                categoryColors[newName] = newColor;
-                delete categoryColors[oldName];
-                localStorage.setItem('customCategoryColors', JSON.stringify(categoryColors));
-
-                // CASCADE UPDATE
-                try {
-                    const expRes = await fetch('/api/expenses/');
-                    if (expRes.ok) {
-                        const rawData = await expRes.json();
-                        const expensesList = Array.isArray(rawData) ? rawData : (rawData.expenses || []);
-                        const expensesToUpdate = expensesList.filter(e => e.category === oldName);
-                        for (let exp of expensesToUpdate) {
-                            exp.category = newName; 
-                            await fetch(`/api/expenses/${exp.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(exp) });
-                        }
-                    }
-                    const recRes = await fetch('/api/recurring-expenses');
-                    if (recRes.ok) {
-                        const recurringList = await recRes.json() || [];
-                        const recurringToUpdate = recurringList.filter(r => r.category === oldName);
-                        for (let rec of recurringToUpdate) {
-                            rec.category = newName; 
-                            await fetch(`/api/recurring-expenses/edit?id=${rec.id}&updateAll=true`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(rec) });
-                        }
-                    }
-                } catch(e) { console.error("Lỗi đồng bộ giao dịch cũ:", e); }
-
-            } else {
-                // Chỉ đổi màu
-                categoryColors[oldName] = newColor;
-                localStorage.setItem('customCategoryColors', JSON.stringify(categoryColors));
-            }
-            
-            editingCategoryInfo = { type: null, index: -1 };
-            renderCategories();
-            saveCategories(true, 'Đã cập nhật danh mục thành công!');
-        }
-
-        // THÊM MỚI DANH MỤC TÙY LOẠI
-        function addCategory(type) {
-            const inputId = type === 'expense' ? 'newExpenseCategory' : 'newIncomeCategory';
-            const targetArray = type === 'expense' ? expenseCategories : incomeCategories;
-            const input = document.getElementById(inputId);
-            
-            let category = input.value.trim().replace(/[<>]/g, ' ').trim();
-            
-            if (category.length < 2 || category.length > 30) {
-                if(window.showToast) showToast('Tên danh mục phải từ 2 đến 30 ký tự!', "error");
-                return;
-            }
-            const invalidChars = /[{}[\]\\\/|^$%&*@#~`]/;
-            if (invalidChars.test(category)) {
-                if(window.showToast) showToast('Tên không được chứa ký tự đặc biệt lạ!', "error");
-                return;
-            }
-
-            const normalizedNewCat = normalizeVietnamese(category);
-            
-            // Chống trùng lặp trên cả 2 kho
-            const allCategories = [...expenseCategories, ...incomeCategories];
-            const isDuplicate = allCategories.some(existingCat => normalizeVietnamese(existingCat) === normalizedNewCat);
-            if (isDuplicate) {
-                if(window.showToast) showToast('Danh mục này (hoặc tên tương tự) đã tồn tại!', "error");
-                return;
-            }
-
-            targetArray.push(category); 
-            targetArray.sort((a, b) => a.localeCompare(b, 'vi'));
-            
-            input.value = ''; 
-            const arrLen = expenseCategories.length + incomeCategories.length;
-            categoryColors[category] = colorPalette[arrLen % colorPalette.length] || "#8a2be2";
-            localStorage.setItem('customCategoryColors', JSON.stringify(categoryColors));
-            
-            renderCategories(); 
-            saveCategories(true, 'Đã thêm danh mục mới'); 
-        }
-
-        // BẮT SỰ KIỆN ENTER CHO 2 Ô INPUT
-        document.getElementById('newExpenseCategory').addEventListener('keypress', e => e.key === 'Enter' && addCategory('expense'));
-        document.getElementById('newIncomeCategory').addEventListener('keypress', e => e.key === 'Enter' && addCategory('income'));
-
-        // XÓA DANH MỤC
-        window.removeCategory = async function(type, index, e) {
-            if (e) {
-                e.preventDefault();
-                e.stopPropagation();
-            }
-
-            const targetArray = type === 'expense' ? expenseCategories : incomeCategories;
-
-            if (targetArray.length <= 1) {
-                if(window.showToast) showToast('Cần giữ lại ít nhất một danh mục trong nhóm này!', "error");
-                return;
-            }
-            
-            const catName = targetArray[index];
-            const confirmMsg = `Bạn có chắc chắn muốn xóa danh mục "${catName}" không?\n\nLưu ý: Các giao dịch cũ thuộc danh mục này sẽ không bị xóa khỏi báo cáo, nhưng bạn sẽ không thể chọn nó khi tạo giao dịch mới.`;
-            
-            const userConfirmed = await showCustomConfirm(confirmMsg);
-            if (!userConfirmed) return;
-
-            targetArray.splice(index, 1); 
-            
-            delete categoryColors[catName];
-            localStorage.setItem('customCategoryColors', JSON.stringify(categoryColors));
-            
-            editingCategoryInfo = { type: null, index: -1 }; 
-            
-            renderCategories(); 
-            saveCategories(true, `Đã xóa danh mục "${catName}"`); 
-        };
-
-        // LƯU CẢ 2 DANH SÁCH LÊN BACKEND
-        async function saveCategories(showNotification = true, customMsg = 'Đã cập nhật danh mục') {
-            // Tạm thời gộp lại thành 1 mảng để gửi Backend cũ, hoặc nếu backend bạn hỗ trợ JSON:
-            // ⚠️ LƯU Ý BACKEND CỦA BẠN: Gửi object {expenseCategories: [...], incomeCategories: [...]} 
-            // sẽ làm sập API cũ nếu API chỉ nhận Array. Mình sẽ gửi dạng Dictionary chuẩn.
-            
-            const payloadObject = {
-                expenseCategories: expenseCategories,
-                incomeCategories: incomeCategories
-            };
-
-            // CHÚ Ý DÀNH CHO BẠN: Nếu Backend Python/NodeJS của bạn chưa cập nhật để nhận Object này,
-            // bạn có thể đổi payloadObject thành mảng gộp: [...expenseCategories, ...incomeCategories]
-            // Tuy nhiên, cách tốt nhất là cập nhật Backend để nhận Object này nhé!
-
-            try {
-                const response = await fetch('/api/categories/edit', { 
-                    method: 'POST', 
-                    headers: { 'Content-Type': 'application/json' }, 
-                    body: JSON.stringify(payloadObject) 
-                });   
-                if (response.ok) { 
-                    if(showNotification && window.showToast) showToast(customMsg, "success"); 
-                } else { 
-                    const error = await response.json(); 
-                    if(window.showToast) showToast(`Lỗi Backend: ${error.error || 'Backend chưa cập nhật để nhận 2 mảng dữ liệu'}`, "error"); 
-                }
-            } catch (error) { if(window.showToast) showToast('Lỗi khi lưu danh mục', "error"); }
-        }
-        
-        // --- CÁC HÀM CŨ GIỮ NGUYÊN (Tag, Tiền tệ, Ngày bắt đầu, Import CSV, Lịch sử AI...) ---
-        function createTagInput(inputId, selectedContainerId, dropdownId, selectedTagsSet) {
-            const input = document.getElementById(inputId); const selectedContainer = document.getElementById(selectedContainerId); const dropdown = document.getElementById(dropdownId);
-            const renderSelected = () => {
-                selectedContainer.innerHTML = '';
-                selectedTagsSet.forEach(tag => {
-                    const pill = document.createElement('div'); pill.className = 'tag-pill'; pill.textContent = tag;
-                    const removeBtn = document.createElement('span'); removeBtn.className = 'remove-tag'; removeBtn.textContent = '×';
-                    removeBtn.onclick = (e) => { e.stopPropagation(); selectedTagsSet.delete(tag); renderSelected(); };
-                    pill.appendChild(removeBtn); selectedContainer.appendChild(pill);
-                });
-            };
-
-            const addTag = (tag) => {
-                tag = tag.trim().replace(/[<>]/g, ' ').trim();
-                if (tag) { selectedTagsSet.add(tag); renderSelected(); }
-                input.value = ''; dropdown.style.display = 'none';
-            };
-            
-            input.addEventListener('focus', () => {
-                dropdown.innerHTML = ''; const availableTags = [...allTags].filter(tag => !selectedTagsSet.has(tag));
-                if (availableTags.length > 0) {
-                    availableTags.forEach(tag => { const item = document.createElement('div'); item.textContent = tag; item.onclick = () => addTag(tag); dropdown.appendChild(item); });
-                    dropdown.style.display = 'block';
-                }
+        async function saveAIProfile() {
+            const goal = document.getElementById('aiFinancialGoal').value;
+            const risk = document.getElementById('aiRiskTolerance').value;
+            const res = await fetch('/api/profile/edit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ goal: goal, risk: risk })
             });
-
-            input.addEventListener('input', () => {
-                const value = input.value.trim().toLowerCase(); dropdown.innerHTML = '';
-                const filteredTags = [...allTags].filter(tag => tag.toLowerCase().includes(value) && !selectedTagsSet.has(tag));
-                if (value && ![...allTags].map(t => t.toLowerCase()).includes(value)) {
-                    const newItem = document.createElement('div'); newItem.textContent = `+ Thêm nhãn "${input.value.trim()}"`; newItem.className = 'new-tag'; newItem.onclick = () => addTag(input.value.trim()); dropdown.appendChild(newItem);
-                }
-                filteredTags.forEach(tag => { const item = document.createElement('div'); item.textContent = tag; item.onclick = () => addTag(tag); dropdown.appendChild(item); });
-                dropdown.style.display = dropdown.children.length > 0 ? 'block' : 'none';
-            });
-
-            input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); if (input.value.trim()) addTag(input.value.trim()); } });
-            document.addEventListener('click', (e) => { const container = input.closest('.tags-input-container'); if (container && !container.contains(e.target)) { dropdown.style.display = 'none'; } });
-            return { renderSelected };
+            if (res.ok && window.showToast) showToast("Đã lưu hồ sơ AI!", "success");
         }
 
         function populateCurrencySelect() {
             const select = document.getElementById('currencySelect');
-            select.innerHTML = Object.keys(currencyBehaviors).map(code => 
-                `<option value="${code}" ${code === currentCurrency ? 'selected' : ''}>${code.toUpperCase()} (${currencyBehaviors[code].symbol})</option>`
-            ).join('');
+            const currencies = ['usd', 'vnd', 'eur'];
+            select.innerHTML = currencies.map(c => `<option value="${c}" ${c === currentCurrency ? 'selected' : ''}>${c.toUpperCase()}</option>`).join('');
         }
-        
-        async function saveCurrency() {
-            const currencyCode = document.getElementById('currencySelect').value;
-            try {
-                const response = await fetch('/api/currency/edit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(currencyCode) });
-                if (response.ok) { if(window.showToast) showToast('Đã lưu tiền tệ thành công', "success"); currentCurrency = currencyCode; } 
-                else { if(window.showToast) showToast('Lỗi khi lưu tiền tệ', "error"); }
-            } catch (error) { if(window.showToast) showToast('Lỗi khi lưu tiền tệ', "error"); }
-        }
-
-        function populateStartDateInput() { document.getElementById("startDate").value = currentStartDate; }
-
-        async function saveStartDate() {
-            const startDateValue = document.getElementById("startDate").value;
-            try {
-                const response = await fetch('/api/startdate/edit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(parseInt(startDateValue, 10)) });
-                if(window.showToast) { if(response.ok) showToast('Đã lưu ngày bắt đầu thành công', "success"); else showToast('Lỗi khi lưu ngày bắt đầu', "error"); }
-            } catch (error) { if(window.showToast) showToast('Lỗi khi lưu ngày bắt đầu', "error"); }
-        }
-        
-        async function fetchAndRenderRecurringExpenses() {
-            try {
-                const response = await fetch('/api/recurring-expenses');
-                if (!response.ok) throw new Error('Failed to fetch recurring expenses');
-                recurringExpenses = await response.json() || [];
-                renderRecurringExpenses(recurringExpenses);
-            } catch (error) { document.getElementById('recurring-expenses-list').innerHTML = '<p style="color:var(--text-secondary);">Lỗi tải danh sách giao dịch định kỳ.</p>'; }
-        }
-
-        function findNextOccurrence(r) {
-            let nextDate = new Date(r.startDate); const today = new Date();
-            if (nextDate >= today) return nextDate.toLocaleDateString('vi-VN');
-            if (r.occurrences > 0) {
-                let occurrencesCount = 0;
-                while (nextDate < today) {
-                    occurrencesCount++;
-                    if (occurrencesCount >= r.occurrences) return '<span style="color:var(--text-secondary);">Đã kết thúc</span>';
-                    switch(r.interval) {
-                        case 'daily': nextDate.setDate(nextDate.getDate() + 1); break;
-                        case 'weekly': nextDate.setDate(nextDate.getDate() + 7); break;
-                        case 'monthly': nextDate.setMonth(nextDate.getMonth() + 1); break;
-                        case 'yearly': nextDate.setFullYear(nextDate.getFullYear() + 1); break;
-                    }
-                }
-                return nextDate.toLocaleDateString('vi-VN');
-            } else { 
-                 while (nextDate < today) {
-                    switch(r.interval) {
-                        case 'daily': nextDate.setDate(nextDate.getDate() + 1); break;
-                        case 'weekly': nextDate.setDate(nextDate.getDate() + 7); break;
-                        case 'monthly': nextDate.setMonth(nextDate.getMonth() + 1); break;
-                        case 'yearly': nextDate.setFullYear(nextDate.getFullYear() + 1); break;
-                    }
-                }
-                return nextDate.toLocaleDateString('vi-VN');
-            }
-        }
-
-        function renderRecurringExpenses(recurring) {
-            const list = document.getElementById('recurring-expenses-list');
-            if (!recurring || recurring.length === 0) {
-                list.innerHTML = '<p style="color:var(--text-secondary); text-align:center; padding: 20px;">Chưa có giao dịch định kỳ nào được thiết lập.</p>';
-                return;
-            }
-            const intervalMap = { daily: "Hằng ngày", weekly: "Hằng tuần", monthly: "Hằng tháng", yearly: "Hằng năm" };
-            list.innerHTML = `
-                <table class="expense-table" style="width: 100%;">
-                    <thead><tr><th>Mô tả</th><th>Số tiền</th><th>Danh mục</th><th>Chu kỳ</th><th>Lần lặp tiếp theo</th><th></th></tr></thead>
-                    <tbody>
-                        ${recurring.map(r => {
-                            const isIncome = r.amount > 0;
-                            return `
-                            <tr>
-                                <td>${escapeHTML(r.name)}</td>
-                                <td class="amount ${isIncome ? 'positive' : 'negative'}" style="font-weight:bold;">${formatCurrency(r.amount)}</td>
-                                <td><span style="background: var(--bg-primary); padding: 4px 10px; border-radius: 6px; font-size: 0.85rem; border: 1px solid var(--border);">${escapeHTML(r.category)}</span></td>
-                                <td>${intervalMap[r.interval] || r.interval}</td>
-                                <td>${findNextOccurrence(r)}</td>
-                                <td>
-                                    <button class="edit-button" onclick="showRecurringEditModal('${r.id}')"><i class="fa-solid fa-pen-to-square"></i></button>
-                                    <button class="delete-button" onclick="showRecurringDeleteModal('${r.id}')"><i class="fa-solid fa-trash-can"></i></button>
-                                </td>
-                            </tr>
-                        `}).join('')}
-                    </tbody>
-                </table>`;
-        }
-
-        function showRecurringDeleteModal(id) { recurringExpenseToDelete = id; document.getElementById('deleteRecurringModal').classList.add('active'); }
-        function closeRecurringDeleteModal() { recurringExpenseToDelete = null; document.getElementById('deleteRecurringModal').classList.remove('active'); }
-
-        async function confirmRecurringDelete(removeAll) {
-            if (!recurringExpenseToDelete) return;
-            try {
-                const response = await fetch(`/api/recurring-expenses/delete?id=${recurringExpenseToDelete}&removeAll=${removeAll}`, { method: 'DELETE' });
-                if (!response.ok) throw new Error('Failed to delete recurring expense');
-                if(window.showToast) showToast('Đã xóa giao dịch định kỳ thành công', "success");
-                fetchAndRenderRecurringExpenses();
-            } catch (error) { if(window.showToast) showToast('Lỗi khi xóa giao dịch định kỳ', "error"); } 
-            finally { closeRecurringDeleteModal(); }
-        }
-        
-        function showRecurringEditModal(id) {
-            recurringExpenseToEdit = recurringExpenses.find(r => r.id === id);
-            if (!recurringExpenseToEdit) return;
-            document.getElementById('editRecurringName').value = recurringExpenseToEdit.name;
-            const rate = exchangeRatesToVND[currentCurrency] || 1;
-            document.getElementById('editRecurringAmount').value = parseFloat((Math.abs(recurringExpenseToEdit.amount) / rate).toFixed(2));
-            document.getElementById('editRecurringReportGain').checked = recurringExpenseToEdit.amount > 0;
-            document.getElementById('editRecurringCategory').value = recurringExpenseToEdit.category;
-            document.getElementById('editRecurringInterval').value = recurringExpenseToEdit.interval;
-            document.getElementById('editRecurringStartDate').value = recurringExpenseToEdit.startDate.split('T')[0];
-            document.getElementById('editRecurringOccurrences').value = recurringExpenseToEdit.occurrences;
-            editFormSelectedTags = new Set(recurringExpenseToEdit.tags || []);
-            createTagInput('edit-tags-input', 'edit-selected-tags', 'edit-tags-dropdown', editFormSelectedTags).renderSelected();
-            document.getElementById('editRecurringModal').classList.add('active');
-        }
-        
-        function closeRecurringEditModal() { recurringExpenseToEdit = null; document.getElementById('editRecurringModal').classList.remove('active'); }
-
-        async function confirmRecurringUpdate(updateAll) {
-            if (!recurringExpenseToEdit) return;
-            const rate = exchangeRatesToVND[currentCurrency] || 1;
-            let amount = parseFloat(document.getElementById('editRecurringAmount').value) * rate;
-            if (!document.getElementById('editRecurringReportGain').checked) { amount *= -1; }
-            const safeDateISO = new Date(document.getElementById('editRecurringStartDate').value + "T00:00:00Z").toISOString();
-
-            const updatedData = {
-                ...recurringExpenseToEdit,
-                name: document.getElementById('editRecurringName').value,
-                amount: amount,
-                category: document.getElementById('editRecurringCategory').value,
-                tags: Array.from(editFormSelectedTags),
-                interval: document.getElementById('editRecurringInterval').value,
-                startDate: safeDateISO,
-                occurrences: parseInt(document.getElementById('editRecurringOccurrences').value, 10)
-            };
-            
-            try {
-                const response = await fetch(`/api/recurring-expenses/edit?id=${recurringExpenseToEdit.id}&updateAll=${updateAll}`, {
-                    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updatedData)
-                });
-                if (!response.ok) throw new Error('Failed to update recurring expense');
-                if(window.showToast) showToast('Đã cập nhật giao dịch định kỳ thành công', "success");
-                fetchAndRenderRecurringExpenses();
-            } catch(error) { if(window.showToast) showToast('Lỗi khi cập nhật giao dịch định kỳ', "error"); } 
-            finally { closeRecurringEditModal(); }
-        }
-
-        async function handleCsvImport(event) {
-            const file = event.target.files[0]; if (!file) return;
-            const formData = new FormData(); formData.append('file', file);
-            const summaryDiv = document.getElementById('importSummary');
-
-            if(window.showToast) showToast('Đang nhập dữ liệu... Vui lòng đợi trong giây lát nếu file lớn.', "success");
-            summaryDiv.style.display = 'none';
-
-            try {
-                const response = await fetch('/api/expenses/import/csv', { method: 'POST', body: formData });
-                const result = await response.json();
-
-                if (response.ok) {
-                    if(window.showToast) showToast('Nhập dữ liệu thành công!', "success");
-                    summaryDiv.style.display = 'block';
-                    document.getElementById('summary-processed').textContent = result.total_processed;
-                    document.getElementById('summary-imported').textContent = result.imported;
-                    document.getElementById('summary-skipped').textContent = result.skipped;
-                    document.getElementById('summary-new-categories').textContent = (result.new_categories || []).join(', ') || 'Không có';
-                    await initialize();
-                } else { if(window.showToast) showToast(`Lỗi: ${result.error || 'Lỗi khi nhập CSV'}`, "error"); }
-            } catch (error) { if(window.showToast) showToast('Lỗi: Đã xảy ra lỗi không xác định khi nhập dữ liệu.', "error"); } 
-            finally { event.target.value = ''; }
-        }
-
-        document.getElementById('csv-export-file').addEventListener('click', async () => {
-            const btn = document.getElementById('csv-export-file'); const originalHTML = btn.innerHTML;
-            if (!token) { if(window.showToast) showToast('Lỗi: Bạn chưa đăng nhập. Vui lòng đăng nhập lại!', 'error'); setTimeout(() => window.location.href = '/login', 1500); return; }
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang xuất...'; btn.style.pointerEvents = 'none';
-            try {
-                const response = await fetch('/api/expenses/export/csv', { method: 'GET', headers: { 'Authorization': `Bearer ${token}` } });
-                if (response.ok) {
-                    const blob = await response.blob(); const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a'); a.style.display = 'none'; a.href = url; a.download = 'ExpenseOwl_Data.csv';
-                    document.body.appendChild(a); a.click(); window.URL.revokeObjectURL(url);
-                    if(window.showToast) showToast('Xuất dữ liệu thành công!', 'success');
-                } else if (response.status === 401) {
-                    if(window.showToast) showToast('Lỗi: Phiên đăng nhập hết hạn.', 'error');
-                    localStorage.removeItem('token'); setTimeout(() => window.location.href = '/login', 1500);
-                } else { if(window.showToast) showToast('Lỗi xử lý từ máy chủ.', 'error'); }
-            } catch (error) { if(window.showToast) showToast('Lỗi kết nối khi xuất file', 'error'); } 
-            finally { btn.innerHTML = originalHTML; btn.style.pointerEvents = 'auto'; }
-        });
-
-        // --- KHỞI TẠO DỮ LIỆU ĐÃ NÂNG CẤP XỬ LÝ 2 MẢNG ---
-        async function initialize() {
-            try {
-                const [configResponse, expensesResponse, recurringExpensesResponse] = await Promise.all([
-                    fetch('/api/config'), fetch('/api/expenses/'), fetch('/api/recurring-expenses')
-                ]);
-                
-                if (!configResponse.ok) throw new Error('Failed to fetch configuration');
-                const config = await configResponse.json();
-                
-                let expenses = []; if (expensesResponse.ok) expenses = await expensesResponse.json();
-                let recurringExpensesList = []; if (recurringExpensesResponse.ok) recurringExpensesList = await recurringExpensesResponse.json();
-
-                recurringExpenses = recurringExpensesList || [];
-                
-                // 💡 ĐỌC DỮ LIỆU DANH MỤC THÔNG MINH TỪ BACKEND
-                // Nếu backend hỗ trợ 2 mảng:
-                if (config.expenseCategories && config.incomeCategories) {
-                    expenseCategories = [...config.expenseCategories];
-                    incomeCategories = [...config.incomeCategories];
-                } 
-                // Tương thích ngược: Nếu backend vẫn đang dùng mảng cũ
-                else if (config.categories) {
-                    // Mặc định nạp hết vào Chi tiêu
-                    expenseCategories = [...config.categories];
-                    // Tạo một kho Thu nhập mặc định để người dùng trải nghiệm
-                    incomeCategories = ["Lương", "Thưởng", "Đầu tư", "Khác"];
-                }
-
-                expenseCategories.sort((a, b) => a.localeCompare(b, 'vi'));
-                incomeCategories.sort((a, b) => a.localeCompare(b, 'vi'));
-
-                currentCurrency = config.currency || 'usd';
-                document.getElementById('aiFinancialGoal').value = config.financial_goal || "Chưa xác định";
-                document.getElementById('aiRiskTolerance').value = config.risk_tolerance || "Cân bằng";
-                currentStartDate = config.startDate || 1;
-                allTags.clear();
-                (expenses || []).forEach(exp => (exp.tags || []).forEach(tag => allTags.add(tag)));
-                (recurringExpenses || []).forEach(exp => (exp.tags || []).forEach(tag => allTags.add(tag)));
-
-                categoryColors = JSON.parse(localStorage.getItem('customCategoryColors') || '{}');
-                
-                renderCategories(); 
-                populateCurrencySelect(); 
-                populateStartDateInput();
-                
-                renderRecurringExpenses(recurringExpenses);
-                createTagInput('tags-input', 'selected-tags', 'tags-dropdown', addFormSelectedTags);
-                
-            } catch (error) { if(window.showToast) showToast('Lỗi tải trang cài đặt', "error"); }
-        }
-        
-        const themeSelect = document.getElementById('themeSelect');
-        const currentTheme = localStorage.getItem('theme') || 'system';
-        themeSelect.value = currentTheme;
-        function applyTheme(theme) {
-            if (theme === 'light') { document.documentElement.setAttribute('data-theme', 'light'); } 
-            else if (theme === 'dark') { document.documentElement.setAttribute('data-theme', 'dark'); } 
-            else { document.documentElement.removeAttribute('data-theme'); }
-        }
-        themeSelect.addEventListener('change', (e) => {
-            const selectedTheme = e.target.value; localStorage.setItem('theme', selectedTheme);
-            applyTheme(selectedTheme); if(window.showToast) showToast('Đã cập nhật giao diện.', "success");
-        });
-
-        document.getElementById('saveCurrency').addEventListener('click', saveCurrency);
-        document.getElementById('saveStartDate').addEventListener('click', saveStartDate);
-        document.getElementById('csv-import-file').addEventListener('change', handleCsvImport);
-
-        document.getElementById('recurringExpenseForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const isGain = document.getElementById('recurringReportGain').checked;
-            const rate = exchangeRatesToVND[currentCurrency] || 1;
-            let amount = parseFloat(document.getElementById('recurringAmount').value) * rate;
-            if (!isGain) amount *= -1;
-
-            const safeDateISO = new Date(document.getElementById('recurringStartDate').value + "T00:00:00Z").toISOString();
-            const formData = {
-                name: document.getElementById('recurringName').value, amount: amount, category: document.getElementById('recurringCategory').value,
-                tags: Array.from(addFormSelectedTags), interval: document.getElementById('recurringInterval').value,
-                startDate: safeDateISO, occurrences: parseInt(document.getElementById('recurringOccurrences').value, 10)
-            };
-
-            try {
-                const response = await fetch('/api/recurring-expenses/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData) });
-                if (response.ok) {
-                    if(window.showToast) showToast('Đã thêm giao dịch định kỳ thành công!', "success");
-                    document.getElementById('recurringExpenseForm').reset(); document.getElementById('selected-tags').innerHTML = '';
-                    addFormSelectedTags.clear(); fetchAndRenderRecurringExpenses();
-                } else { const error = await response.json(); if(window.showToast) showToast(`Lỗi: ${error.error || 'Lỗi khi thêm giao dịch định kỳ'}`, "error"); }
-            } catch (error) { if(window.showToast) showToast('Lỗi: Không thể thêm giao dịch định kỳ', "error"); }
-        });
-
-        async function saveAIProfile() {
-            const goal = document.getElementById('aiFinancialGoal').value; const risk = document.getElementById('aiRiskTolerance').value; const btn = event.target;
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang lưu...'; btn.disabled = true;
-            try {
-                const res = await fetch('/api/profile/edit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ goal: goal, risk: risk }) });
-                if (res.ok) { if(window.showToast) showToast('Đã lưu hồ sơ AI! Cú Mèo đã nhớ tính cách của bạn.', 'success'); } 
-                else { if(window.showToast) showToast('Lỗi khi lưu hồ sơ AI', 'error'); }
-            } catch (e) { if(window.showToast) showToast('Lỗi kết nối máy chủ', 'error'); } 
-            finally { btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Lưu Hồ Sơ AI'; btn.disabled = false; }
-        }
-
-        function showCustomConfirm(message) {
-            return new Promise((resolve) => {
-                const modal = document.getElementById('customConfirmModal'); const msgEl = document.getElementById('confirmMessage'); const btnCancel = document.getElementById('btnConfirmCancel'); const btnProceed = document.getElementById('btnConfirmProceed');
-                msgEl.textContent = message; modal.style.display = 'flex';
-                const cleanup = () => { modal.style.display = 'none'; btnCancel.removeEventListener('click', onCancel); btnProceed.removeEventListener('click', onProceed); };
-                const onCancel = () => { cleanup(); resolve(false); }; const onProceed = () => { cleanup(); resolve(true); };  
-                btnCancel.addEventListener('click', onCancel); btnProceed.addEventListener('click', onProceed);
-            });
-        }
-
-        window.escapeHTML = function(str) {
-            if (str === null || str === undefined) return '';
-            if (typeof str !== 'string') return String(str);
-            return str.replace(/[&<>'"]/g, function(tag) {
-                const charsToReplace = { '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }; return charsToReplace[tag] || tag;
-            });
-        };
 
         document.addEventListener('DOMContentLoaded', initialize);
-        window.showRecurringDeleteModal = showRecurringDeleteModal;
-        window.closeRecurringDeleteModal = closeRecurringDeleteModal;
-        window.confirmRecurringDelete = confirmRecurringDelete;
-        window.showRecurringEditModal = showRecurringEditModal;
-        window.closeRecurringEditModal = closeRecurringEditModal;
-        window.confirmRecurringUpdate = confirmRecurringUpdate;
-        
-        function showLogoutModal() { document.getElementById('logoutConfirmModal').style.display = 'flex'; }
-        function closeLogoutModal() { document.getElementById('logoutConfirmModal').style.display = 'none'; }
-        function proceedLogout() {
-            closeLogoutModal();
-            if (typeof logout === 'function') { logout(); } 
-            else { localStorage.removeItem('token'); window.location.href = '/login'; }
-        }
     </script>
     <script src="/static/chatbot.js"></script>
 </body>

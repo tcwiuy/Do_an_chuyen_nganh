@@ -2,6 +2,7 @@ from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, JSO
 from sqlalchemy.orm import relationship
 from database import Base
 import datetime
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, Boolean
 
 # Bảng User (Đã cập nhật thêm thông tin cá nhân)
 class User(Base):
@@ -66,6 +67,7 @@ class UserConfig(Base):
 
     financial_goal = Column(String, nullable=True, default="Chưa xác định")
     risk_tolerance = Column(String, nullable=True, default="Cân bằng")
+    is_email_sync_enabled = Column(Boolean, default=False)
 
 class Budget(Base):
     __tablename__ = "budgets"
