@@ -37,7 +37,6 @@
                     ">📷</div>
                     <div>
                         <div style="font-weight: 600; color: #d4a5ff; font-size: 16px;">Quét Hóa Đơn</div>
-                        <div style="font-size: 12px; color: #7a7a9a;">Powered by Gemini AI Vision</div>
                     </div>
                 </div>
                 <button id="ocrCloseBtn" style="
@@ -69,7 +68,7 @@
                 <!-- STEP 1: Upload -->
                 <div id="ocrStep1">
                     <div style="color: #a0a0c0; font-size: 13px; margin-bottom: 16px; text-align: center;">
-                        Bước 1 / 3 — Chọn ảnh hóa đơn
+                        Chọn ảnh 
                     </div>
 
                     <!-- Drag & Drop Zone -->
@@ -150,7 +149,7 @@
                             Cú Mèo đang đọc hóa đơn...
                         </div>
                         <div id="ocrProcessingStatus" style="font-size: 13px; color: #6a6a8a;">
-                            Đang gửi ảnh đến Gemini AI Vision
+                            Đang phân tích ảnh
                         </div>
                     </div>
 
@@ -165,7 +164,7 @@
                     </div>
                 </div>
 
-                <!-- STEP 3: Result & Edit -->
+                <!-- STEP 3: Kết quả -->
                 <div id="ocrStep3" style="display: none;">
                     <div style="color: #4ade80; font-size: 13px; margin-bottom: 16px; text-align: center; display: flex; align-items: center; justify-content: center; gap: 6px;">
                         <span>✅</span>
@@ -405,8 +404,8 @@
             document.getElementById('ocrProcessingImg').src = document.getElementById('ocrPreviewImg').src;
 
             const statusMessages = [
-                'Đang gửi ảnh đến Gemini AI Vision...',
-                'AI đang nhận diện văn bản...',
+                'Đang phân tích ảnh...',
+                'Đang nhận diện văn bản...',
                 'Đang trích xuất thông tin tài chính...',
                 'Đang phân loại danh mục...'
             ];
@@ -476,7 +475,7 @@
             if (data.notes) {
                 const notesEl = document.getElementById('ocrAiNotes');
                 notesEl.style.display = 'block';
-                notesEl.textContent = `💡 Ghi chú AI: ${data.notes}`;
+                notesEl.textContent = `💡 Ghi chú: ${data.notes}`;
             }
         },
 
