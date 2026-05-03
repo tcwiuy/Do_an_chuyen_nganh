@@ -37,7 +37,6 @@
                     ">📷</div>
                     <div>
                         <div style="font-weight: 600; color: #d4a5ff; font-size: 16px;">Quét Hóa Đơn</div>
-                        <div style="font-size: 12px; color: #7a7a9a;">Powered by Gemini AI Vision</div>
                     </div>
                 </div>
                 <button id="ocrCloseBtn" style="
