@@ -41,7 +41,7 @@
                 formData.append('file', file);
 
                 // Gọi tới Route PDF mới tạo ở Bước 2
-                const response = await fetch('/api/expenses/api/scan-pdf', {
+                const response = await fetch('/api/expenses/scan-pdf', {
                     method: 'POST',
                     body: formData
                 });
@@ -74,7 +74,7 @@
             if(confirm(confirmMsg)) {
                 try {
                     // Tận dụng API confirm cũ vì chung chuẩn dữ liệu
-                    const response = await fetch('/api/expenses/api/scan-receipt/confirm', {
+                    const response = await fetch('/api/expenses/scan-receipt/confirm', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(aiData)
