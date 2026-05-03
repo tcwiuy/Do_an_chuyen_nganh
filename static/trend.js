@@ -203,7 +203,7 @@ function moveAnchor(direction) {
 function getCutoffDate(startDate, today, period) {
     let cutoff = new Date(startDate);
     if (period === 'week') {
-        let daysPassed = today.getDay() === 0 ? 6 : today.getDay() - 1; // Tính từ Thứ 2
+        let daysPassed = today.getDay() === 0 ? 6 : today.getDay() - 1; 
         cutoff.setDate(startDate.getDate() + daysPassed);
     } else if (period === 'month') {
         let targetDate = Math.min(today.getDate(), new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0).getDate());
@@ -217,7 +217,7 @@ function getCutoffDate(startDate, today, period) {
 }
 
 // ==========================================
-// TÍNH TOÁN DATA VÀ CẮT THỜI GIAN (LOGIC THÔNG MINH MỚI)
+// TÍNH TOÁN DATA VÀ CẮT THỜI GIAN (FULL COMPARE)
 // ==========================================
 function processAndRenderTrends(period, anchorDate) {
     currentPeriod = period;
@@ -238,7 +238,6 @@ function processAndRenderTrends(period, anchorDate) {
     let buckets = [];
     let numBuckets = period === 'year' ? 5 : 6;
 
-    // 1. TẠO CÁC MỐC THỜI GIAN TRÊN BIỂU ĐỒ
     for (let i = numBuckets - 1; i >= 0; i--) {
         let bS, bE;
         if (period === 'week') {
@@ -280,24 +279,18 @@ function processAndRenderTrends(period, anchorDate) {
         });
     }
 
-    // 2. TÌM VỊ TRÍ ĐANG XEM (TARGET) VÀ QUYẾT ĐỊNH CÓ CẮT DỮ LIỆU KHÔNG
     let targetIdx = selectedBarIndex !== null ? selectedBarIndex : (buckets.length - 1);
     let targetBucket = buckets[targetIdx];
     let isTargetCurrent = targetBucket.isCurrent;
 
-    // 💡 TÍNH TOÁN CẮT XÉN CHỈ KHI "BẬT COMPARE" VÀ ĐANG XEM "KỲ HIỆN TẠI"
-    if (isCompareEnabled && targetIdx > 0) {
-        let compareBucketIdx = targetIdx - 1;
-        let compareBucket = buckets[compareBucketIdx];
-        
-        if (isTargetCurrent) {
-            let cutoffDate = getCutoffDate(compareBucket.start, today, period);
-            compareBucket.sumCutoff = filterTxnsInRange(allTrendTransactions, compareBucket.start, cutoffDate).reduce((acc, t) => acc + metricContribution(t.amount), 0);
-            compareBucket.cutoffDate = cutoffDate; 
+    if (isCompareEnabled && isTargetCurrent) {
+        for (let j = 0; j < buckets.length - 1; j++) {
+            let cutoffDate = getCutoffDate(buckets[j].start, today, period);
+            buckets[j].sumCutoff = filterTxnsInRange(allTrendTransactions, buckets[j].start, cutoffDate).reduce((acc, t) => acc + metricContribution(t.amount), 0);
+            buckets[j].cutoffDate = cutoffDate;
         }
     }
 
-    // 3. XUẤT DỮ LIỆU CHUẨN XÁC RA BẢNG TỔNG & DANH MỤC
     let curTxns = filterTxnsInRange(allTrendTransactions, targetBucket.start, targetBucket.end);
     let prevTxns = [];
     let useCutoffForStats = false;
@@ -321,28 +314,8 @@ function processAndRenderTrends(period, anchorDate) {
     renderTopCategories(curTxns, prevTxns, period, targetBucket.title, useCutoffForStats);
 }
 
-// PLUGIN TẠO HIỆU ỨNG ĐƯỜNG KẺ DỌC TRÊN CHART
-const verticalLinePlugin = {
-    id: 'verticalLine',
-    afterDraw: chart => {
-        if (chart.tooltip?._active?.length) {
-            let activePoint = chart.tooltip._active[0];
-            let ctx = chart.ctx;
-            ctx.save();
-            ctx.beginPath();
-            ctx.moveTo(activePoint.element.x, activePoint.element.y);
-            ctx.lineTo(activePoint.element.x, chart.scales.y.bottom);
-            ctx.lineWidth = 1.5;
-            ctx.strokeStyle = '#cce3ff';
-            ctx.setLineDash([4, 4]);
-            ctx.stroke();
-            ctx.restore();
-        }
-    }
-};
-
 // ==========================================
-// VẼ BIỂU ĐỒ (LOGIC THÔNG MINH MỚI)
+// VẼ BIỂU ĐỒ (CỐ ĐỊNH TOOLTIP - TẮT HIỆU ỨNG HOVER)
 // ==========================================
 function updateChartFromSeries(buckets, targetIdx, isCompareEnabled, period) {
     const ctx = document.getElementById('trendChart').getContext('2d');
@@ -356,7 +329,6 @@ function updateChartFromSeries(buckets, targetIdx, isCompareEnabled, period) {
     const baseColorCutoff = currentMetric === 'expense' ? '#ef4444' : currentMetric === 'income' ? '#22c55e' : themeAccent;
 
     const fadedColorFull = currentMetric === 'expense' ? 'rgba(252, 165, 165, 0.3)' : currentMetric === 'income' ? 'rgba(134, 239, 172, 0.3)' : hexToRgba(themeAccent, 0.15);
-    const fadedColorCutoff = currentMetric === 'expense' ? 'rgba(239, 68, 68, 0.3)' : currentMetric === 'income' ? 'rgba(34, 197, 94, 0.3)' : hexToRgba(themeAccent, 0.3);
 
     let labels = buckets.map(b => b.label);
     let fullData = buckets.map(b => b.sumFull);
@@ -366,7 +338,6 @@ function updateChartFromSeries(buckets, targetIdx, isCompareEnabled, period) {
         label: 'Cả kỳ',
         data: fullData,
         backgroundColor: function(context) {
-            // Nền luôn nhạt nếu có compare. Trừ khi là tắt compare thì cột chính mới đậm.
             if (!isCompareEnabled) {
                 return context.dataIndex === targetIdx ? baseColorCutoff : fadedColorFull;
             }
@@ -384,13 +355,7 @@ function updateChartFromSeries(buckets, targetIdx, isCompareEnabled, period) {
         datasets.push({
             label: 'Đến thời điểm tương ứng',
             data: cutoffData,
-            backgroundColor: function(context) {
-                let idx = context.dataIndex;
-                // Tô màu đậm cho cột đích và cột liền trước nó (Cột so sánh)
-                if (idx === targetIdx) return baseColorCutoff;
-                if (idx === targetIdx - 1) return baseColorCutoff;
-                return fadedColorFull; 
-            },
+            backgroundColor: baseColorCutoff, 
             grouped: false,
             order: 1, 
             barPercentage: 0.6, 
@@ -403,10 +368,132 @@ function updateChartFromSeries(buckets, targetIdx, isCompareEnabled, period) {
     const maxAbs = Math.max(...fullData, ...(isCompareEnabled ? cutoffData : [0]));
     const scale = getScaleUnit(maxAbs);
 
+    // 💡 PLUGIN CUSTOM TỰ VẼ TOOLTIP CỐ ĐỊNH CHỐNG CHỚP TẮT
+    const customPersistentTooltipPlugin = {
+        id: 'persistentTooltip',
+        afterDraw: chart => {
+            if (targetIdx === null) return;
+            const ctx = chart.ctx;
+            const metaFull = chart.getDatasetMeta(0);
+            const barFull = metaFull.data[targetIdx];
+            if (!barFull) return;
+
+            const b = buckets[targetIdx];
+            
+            // Vẽ đường kẻ dọc đứt nét
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(barFull.x, barFull.y);
+            ctx.lineTo(barFull.x, chart.scales.y.bottom);
+            ctx.lineWidth = 1.5;
+            ctx.strokeStyle = '#cce3ff';
+            ctx.setLineDash([4, 4]);
+            ctx.stroke();
+            ctx.restore();
+
+            // Setup nội dung chữ
+            let lines = [];
+            lines.push({ text: b.title, font: 'bold 13px sans-serif', color: '#555', isTitle: true });
+
+            if (!isCompareEnabled) {
+                lines.push({ text: `Tổng: ${formatCurrencySafe(b.sumFull)}`, font: '13px sans-serif', color: baseColorCutoff, boxColor: baseColorCutoff });
+            } else {
+                let cutoffText = `Tổng: ${formatCurrencySafe(b.sumCutoff)}`;
+                // Thêm "Đến ngày..." nếu đang xem tháng hiện tại
+                if (b.isCurrent && b.cutoffDate) {
+                    const dStr = `${String(b.cutoffDate.getDate()).padStart(2,'0')}/${String(b.cutoffDate.getMonth()+1).padStart(2,'0')}`;
+                    cutoffText = `Đến (${dStr}): ${formatCurrencySafe(b.sumCutoff)}`;
+                }
+                
+                lines.push({ text: cutoffText, font: 'bold 13px sans-serif', color: baseColorCutoff, boxColor: baseColorCutoff });
+                lines.push({ text: `Tổng cả kỳ: ${formatCurrencySafe(b.sumFull)}`, font: '13px sans-serif', color: '#666', boxColor: fadedColorFull });
+            }
+
+            ctx.save();
+            ctx.font = 'bold 13px sans-serif';
+            let maxWidth = ctx.measureText(b.title).width;
+            ctx.font = '13px sans-serif';
+            for (let i=1; i<lines.length; i++) {
+                let w = ctx.measureText(lines[i].text).width + 20; 
+                if (w > maxWidth) maxWidth = w;
+            }
+            
+            const padding = 12;
+            const lineH = 20;
+            const boxWidth = maxWidth + padding * 2;
+            const boxHeight = lines.length * lineH + padding;
+            
+            let boxX = barFull.x - boxWidth / 2;
+            
+            // Tìm Y cao nhất để Tooltip không đè lên cột
+            let highestY = barFull.y;
+            if (isCompareEnabled && chart.getDatasetMeta(1)) {
+                 const barCutoff = chart.getDatasetMeta(1).data[targetIdx];
+                 if (barCutoff && barCutoff.y < highestY) highestY = barCutoff.y;
+            }
+            
+            let boxY = highestY - boxHeight - 12; 
+            let drawCaretDown = true;
+            
+            if (boxX < 0) boxX = 5;
+            if (boxX + boxWidth > chart.width) boxX = chart.width - boxWidth - 5;
+            if (boxY < 0) {
+                boxY = highestY + 15; // Lật xuống dưới nếu hết chỗ bên trên
+                drawCaretDown = false;
+            }
+
+            // Vẽ khối nền (Bong bóng)
+            ctx.fillStyle = '#ffffff';
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.15)';
+            ctx.shadowBlur = 10;
+            ctx.shadowOffsetY = 4;
+            
+            ctx.beginPath();
+            if (ctx.roundRect) {
+                ctx.roundRect(boxX, boxY, boxWidth, boxHeight, 8);
+            } else {
+                let r = 8; let x = boxX; let y = boxY; let w = boxWidth; let h = boxHeight;
+                ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y); ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+                ctx.lineTo(x + w, y + h - r); ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+                ctx.lineTo(x + r, y + h); ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+                ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y); ctx.closePath();
+            }
+            ctx.fill();
+            ctx.shadowColor = 'transparent'; // Tắt đổ bóng cho chữ
+            
+            // Vẽ đuôi bong bóng (Caret)
+            if (drawCaretDown && barFull.x > boxX && barFull.x < boxX + boxWidth) {
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.moveTo(barFull.x - 7, boxY + boxHeight - 1);
+                ctx.lineTo(barFull.x + 7, boxY + boxHeight - 1);
+                ctx.lineTo(barFull.x, boxY + boxHeight + 6);
+                ctx.fill();
+            }
+
+            // In chữ vào trong bong bóng
+            let currentY = boxY + padding + 12;
+            lines.forEach((l) => {
+                ctx.font = l.font;
+                ctx.fillStyle = l.color;
+                if (l.isTitle) {
+                    ctx.fillText(l.text, boxX + padding, currentY);
+                } else {
+                    ctx.fillStyle = l.boxColor;
+                    ctx.fillRect(boxX + padding, currentY - 10, 12, 12); // Vẽ ô vuông màu
+                    ctx.fillStyle = l.color;
+                    ctx.fillText(l.text, boxX + padding + 20, currentY); // Vẽ giá trị
+                }
+                currentY += lineH;
+            });
+            ctx.restore();
+        }
+    };
+
     trendChartInstance = new Chart(ctx, {
         type: 'bar',
         data: { labels: labels, datasets: datasets },
-        plugins: [verticalLinePlugin],
+        plugins: [customPersistentTooltipPlugin],
         options: {
             onClick: (evt, elements) => {
                 if (!elements || elements.length === 0) {
@@ -419,9 +506,9 @@ function updateChartFromSeries(buckets, targetIdx, isCompareEnabled, period) {
                 const idx = elements[0].index;
                 
                 if (selectedBarIndex === idx) {
-                    selectedBarIndex = null; // Bấm lại thì bỏ chọn
+                    selectedBarIndex = null; 
                 } else {
-                    selectedBarIndex = idx; // Chọn cột mới
+                    selectedBarIndex = idx; 
                 }
                 processAndRenderTrends(currentPeriod, currentAnchor); 
             },
@@ -440,28 +527,8 @@ function updateChartFromSeries(buckets, targetIdx, isCompareEnabled, period) {
             },
             plugins: {
                 legend: { display: false },
-                tooltip: {
-                    backgroundColor: 'white', titleColor: '#888', bodyColor: baseColorCutoff, borderColor: themeBorder, borderWidth: 1, padding: 10,
-                    callbacks: {
-                        title: (items) => buckets[items[0].dataIndex].title,
-                        label: (ctx) => {
-                            const idx = ctx.dataIndex;
-                            const b = buckets[idx];
-                            const isForeground = ctx.datasetIndex === (datasets.length - 1);
-                            
-                            if (!isCompareEnabled) return `Tổng: ${formatCurrencySafe(ctx.parsed.y)}`;
-                            if (!isForeground) return `Tổng cả kỳ: ${formatCurrencySafe(ctx.parsed.y)}`;
-
-                            // Chỉ hiện Tooltip "Tính đến" cho cột liền trước cột Hiện tại
-                            if (idx === targetIdx - 1 && buckets[targetIdx].isCurrent) {
-                                const dStr = `${String(b.cutoffDate.getDate()).padStart(2,'0')}/${String(b.cutoffDate.getMonth()+1).padStart(2,'0')}`;
-                                return `Tính đến (${dStr}): ${formatCurrencySafe(ctx.parsed.y)}`;
-                            }
-
-                            return `Tổng: ${formatCurrencySafe(ctx.parsed.y)}`;
-                        }
-                    }
-                }
+                // 💡 ĐÃ TẮT TOOLTIP MẶC ĐỊNH
+                tooltip: { enabled: false }
             }
         }
     });

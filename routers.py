@@ -837,18 +837,27 @@ def chat_with_data(
         models.Transaction.user_id == current_user.id
     ).all()
 
-    total_income = sum(t.amount for t in all_txns if t.amount > 0)
-    total_expense = sum(abs(t.amount) for t in all_txns if t.amount < 0)
-    current_balance_vnd = total_income - total_expense
+    # 💡 1. TÍNH TOÁN TOÀN THỜI GIAN (ALL-TIME)
+    total_income_all = sum(t.amount for t in all_txns if t.amount > 0)
+    total_expense_all = sum(abs(t.amount) for t in all_txns if t.amount < 0)
+    balance_all = total_income_all - total_expense_all
     
+    # 💡 2. TÍNH TOÁN RIÊNG CHO THÁNG HIỆN TẠI (THIS MONTH)
+    current_month = datetime.now().month
+    current_year = datetime.now().year
+    txns_this_month = [t for t in all_txns if getattr(t.date, 'month', -1) == current_month and getattr(t.date, 'year', -1) == current_year]
+    
+    total_income_month = sum(t.amount for t in txns_this_month if t.amount > 0)
+    total_expense_month = sum(abs(t.amount) for t in txns_this_month if t.amount < 0)
+    balance_month = total_income_month - total_expense_month
+
     recent_txns = sorted(all_txns, key=lambda x: x.date, reverse=True)[:5]
 
-    # 💡 CẢI TIẾN LỚN: Ghép câu chat HIỆN TẠI với câu chat TRƯỚC ĐÓ để lấy từ khóa (Bảo toàn chữ "xăng")
+    # Ghép câu chat HIỆN TẠI với câu chat TRƯỚC ĐÓ để lấy từ khóa (Bảo toàn chữ "xăng")
     text_to_search = req.message
     if req.history and len(req.history) > 0:
         text_to_search += " " + req.history[-1].get("user", "")
         
-    # Loại bỏ các từ vô nghĩa để AI tìm kiếm chuẩn hơn
     stop_words = {"bạn", "hãy", "ghi", "rõ", "lại", "là", "tháng", "ngày", "thứ", "cho", "tôi", "nhé", "vào", "của", "đã", "sửa", "thành", "nhầm"}
     keywords = [word for word in text_to_search.split() if len(word) > 2 and word.lower() not in stop_words]
     
@@ -881,17 +890,15 @@ def chat_with_data(
 
     # BƯỚC 4: PROMPT TỐI ƯU HÓA
     today_str = datetime.now().strftime("%Y-%m-%d")
-    current_year = datetime.now().year
-    t_income = float(total_income) / req.rate
-    t_expense = float(total_expense) / req.rate
-    t_balance = float(current_balance_vnd) / req.rate
     
-    # BƯỚC 4: PROMPT TỐI ƯU HÓA (Dạy AI cách Cập nhật & Nhận diện Đính chính)
-    today_str = datetime.now().strftime("%Y-%m-%d")
-    current_year = datetime.now().year
-    t_income = float(total_income) / req.rate
-    t_expense = float(total_expense) / req.rate
-    t_balance = float(current_balance_vnd) / req.rate
+    # Ép tỷ giá
+    t_inc_all = float(total_income_all) / req.rate
+    t_exp_all = float(total_expense_all) / req.rate
+    t_bal_all = float(balance_all) / req.rate
+    
+    t_inc_month = float(total_income_month) / req.rate
+    t_exp_month = float(total_expense_month) / req.rate
+    t_bal_month = float(balance_month) / req.rate
     
     prompt = f"""
     Bạn là "Cú Mèo" - Cố vấn tài chính cá nhân của ExpenseOwl. Hôm nay: {today_str}.
@@ -900,9 +907,11 @@ def chat_with_data(
     HỒ SƠ KHÁCH HÀNG: Mục tiêu: {current_goal} | Khẩu vị rủi ro: {current_risk}.
     
     🚨 BÁO CÁO TÀI CHÍNH TỪ MÁY CHỦ (BẮT BUỘC ĐỌC ĐÚNG CON SỐ NÀY):
-    - Tổng thu: {t_income:,.0f} {req.currency.upper()}
-    - Tổng chi: {t_expense:,.0f} {req.currency.upper()}
-    => SỐ DƯ CHÍNH XÁC: {t_balance:,.0f} {req.currency.upper()}
+    [TOÀN THỜI GIAN - TỪ TRƯỚC ĐẾN NAY]
+    - Tổng thu: {t_inc_all:,.0f} | Tổng chi: {t_exp_all:,.0f} | SỐ DƯ TỔNG: {t_bal_all:,.0f}
+    
+    [CHỈ TÍNH RIÊNG THÁNG {current_month}/{current_year}]
+    - Tổng thu: {t_inc_month:,.0f} | Tổng chi: {t_exp_month:,.0f} | CHÊNH LỆCH THÁNG NÀY: {t_bal_month:,.0f}
 
     {data_context}
     {history_text}
@@ -912,35 +921,35 @@ def chat_with_data(
     NHIỆM VỤ: Trả về DUY NHẤT 1 KHỐI JSON TỰ THUẦN (Không kèm markdown ```).
     
     🚨 QUY TẮC TỐI THƯỢNG (KIỂM TRA ĐẦU TIÊN):
-    1. CẢNH BÁO ÁM ẢNH QUÁ KHỨ: Lịch sử chat bên trên CÓ THỂ ĐANG LƯU CON SỐ SỐ DƯ BỊ SAI do lỗi hệ thống trước đó. Bạn BẮT BUỘC PHẢI BỎ QUA hoàn toàn các con số tính toán trong lịch sử chat.
-    2. KHI KHÁCH HỎI VỀ SỐ DƯ HOẶC TỔNG THU/CHI: Bạn CHỈ ĐƯỢC PHÉP báo cáo con số: {t_balance:,.0f} {req.currency.upper()}. TUYỆT ĐỐI KHÔNG được tự làm toán. 
-    3. Nếu câu nói của khách CÓ SỐ TIỀN nhưng KHÔNG CÓ TÊN MÓN HÀNG/MỤC ĐÍCH: Trả về action "chat" và hỏi: "Khoản [Số tiền] đó bạn dùng vào việc gì vậy?".
+    1. CẢNH BÁO ÁM ẢNH QUÁ KHỨ: BỎ QUA hoàn toàn các con số tính toán trong Lịch sử chat.
+    2. KHI KHÁCH HỎI VỀ SỐ DƯ: Bạn hãy báo cáo thông minh CẢ 2 CON SỐ: Số dư tháng này ({t_bal_month:,.0f}) VÀ Số dư tích lũy toàn thời gian ({t_bal_all:,.0f}). TUYỆT ĐỐI KHÔNG tự làm toán. 
+    3. Nếu câu nói của khách CÓ SỐ TIỀN nhưng KHÔNG CÓ TÊN MÓN HÀNG: Trả về action "chat" và hỏi khách chi vào việc gì.
 
     QUY TẮC "ACTION" (CHỌN 1 TRONG 4 HÀNH ĐỘNG):
     1. "save": TẠO MỚI. CHỈ DÙNG khi khách kể 1 giao dịch MỚI HOÀN TOÀN. KHÔNG DÙNG "save" NẾU ĐANG CHAT ĐÍNH CHÍNH.
        => Bắt buộc nhân 'amount' với {req.rate}. Nếu khách chỉ nói "tháng X", mặc định lấy ngày 1 (VD: {current_year}-X-01).
 
     2. "update": SỬA/CẬP NHẬT/BỔ SUNG GIAO DỊCH CŨ. 
-       => 🚨 LUẬT THÉP: Bất cứ khi nào khách nói một câu CHỈ CHỨA SỰ ĐIỀU CHỈNH (Ví dụ: "ghi rõ lại là ngày 9", "sửa thành...", "đổi sang...", "giá là 300k mới đúng"), BẮT BUỘC PHẢI TRẢ VỀ "action": "update". TUYỆT ĐỐI KHÔNG ĐƯỢC TẠO MỚI.
+       => 🚨 LUẬT THÉP: Nếu khách nói câu CHỈ CHỨA SỰ ĐIỀU CHỈNH (Ví dụ: "ghi rõ lại là ngày 9", "sửa thành...", "đổi sang..."), BẮT BUỘC trả về "action": "update". TUYỆT ĐỐI KHÔNG TẠO MỚI.
        => Tìm "ID" trong GIAO DỊCH LIÊN QUAN và điền vào "transaction_id".
 
     3. "update_profile": Cập nhật Mục tiêu/Rủi ro của hồ sơ.
     
     4. "chat": Trò chuyện, giải đáp thắc mắc.
 
-    DANH MỤC CHO PHÉP: TUYỆT ĐỐI COPY ĐÚNG 1 TỪ TRONG MẢNG SAU: {categories_str}. Nếu không khớp, chọn "Khác".
+    DANH MỤC CHO PHÉP: {categories_str}. Nếu không khớp, chọn "Khác".
 
     CẤU TRÚC JSON:
     {{
         "reply": "Câu trả lời của Cú Mèo",
         "action": "chat" | "save" | "update" | "update_profile",
-        "transaction_id": "Mã ID của giao dịch (BẮT BUỘC có nếu action là update)" | null,
+        "transaction_id": "Mã ID của giao dịch" | null,
         "data": {{ 
             "name": "...", 
             "amount": ±VNĐ, 
             "category": "...", 
             "date": "YYYY-MM-DD" 
-        }} (Dạng List [{{..}}, {{..}}] nếu nhiều giao dịch) | null,
+        }} | null,
         "profile_update": {{ "financial_goal": "...", "risk_tolerance": "..." }} | null
     }}
     """

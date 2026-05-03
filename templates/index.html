@@ -106,8 +106,8 @@
       <div class="form-container" style="background-color: var(--bg-secondary); padding: 15px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 20px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
             <select id="periodSelect" style="padding: 8px 15px; border-radius: 8px; background-color: var(--bg-primary); color: var(--text-primary); border: 1px solid var(--border); outline: none; cursor: pointer; font-family: inherit; font-weight: bold;">
-                <option value="week" selected>Theo Tuần</option>
-                <option value="month">Theo Tháng</option>
+                <option value="week">Theo Tuần</option>
+                <option value="month" selected>Theo Tháng</option>
                 <option value="year">Theo Năm</option>
                 <option value="all">Tất cả thời gian</option>
             </select>
@@ -127,7 +127,7 @@
             </div>
             <div style="text-align: center; margin-top: 10px; border-top: 1px dashed var(--border); padding-top: 10px;">
                 <button id="calToggleBtn" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.2rem; transition: transform 0.2s;">
-                    <i class="fa-solid fa-chevron-down"></i>
+                    <i class="fa-solid fa-chevron-up"></i>
                 </button>
             </div>
         </div>
@@ -256,10 +256,11 @@
           <div class="cashflow-value" id="cashflow-expenses">0</div>
         </div>
         <div class="cashflow-item balance">
-          <div class="cashflow-label">Số Dư Hiện Tại</div>
+          <div class="cashflow-label">Tổng Số Dư</div>
           <div class="cashflow-value" id="cashflow-balance">0</div>
         </div>
       </div>
+
       <!-- BẢNG BÁO CÁO NGÂN SÁCH TRÊN DASHBOARD -->
       <div id="budgetAlertsContainer" class="form-container" style="background-color: var(--bg-secondary); border: 1px solid var(--border); margin-top: 20px; display: none;">
           <h3 style="color: var(--text-primary); margin-top: 0; margin-bottom: 15px;"><i class="fa-solid fa-bell" style="color: #fbbf24;"></i> Báo Cáo Ngân Sách Nhanh</h3>
@@ -392,11 +393,11 @@
       let allTags = new Set();
       let selectedTags = new Set();
       
-      let currentPeriodType = "week"; // Mặc định hiển thị lịch theo tuần
-      let isCalendarExpanded = false; 
+      let currentPeriodType = "month"; // Mặc định hiển thị lịch theo tháng
+      let isCalendarExpanded = true;  // Mặc định hiển thị đầy đủ lịch
       let selectedDayFilter = null;   
 
-      // 💡 ĐÃ SỬA LẠI: Gom nhóm danh mục bằng optgroup
+      // 💡 Gom nhóm danh mục bằng optgroup
       function updateExpenseFormCategoryOptions() {
           const categorySelect = document.getElementById("category");
           const isIncome = document.getElementById("reportGain").checked;
@@ -467,7 +468,7 @@
       }
 
       // =========================================
-      // WIZARD LOGIC (ĐÃ NÂNG CẤP ĐA DANH MỤC)
+      // WIZARD LOGIC
       // =========================================
       let wStep = 1;
       let wCurrentCatType = 'expense';
@@ -914,37 +915,46 @@
         const periodExpenses = getFilteredExpensesOverride(allExpenses);
         const chartWrapper = document.getElementById("chartLeftWrapper");
         const legendBox = document.getElementById("customLegend");
-        const cashflowSection = document.getElementById("cashflow-section");
         const noDataMessage = document.getElementById("noDataMessage");
         const hasExpenses = periodExpenses.some((e) => e.amount < 0);
 
         loadDashboardBudgets(periodExpenses);
+        updateCashflow(periodExpenses);
 
         if (!hasExpenses) {
           if (pieChart) { pieChart.destroy(); pieChart = null; }
           chartWrapper.style.display = "none"; legendBox.style.display = "none"; 
-          document.getElementById("cashflow-income").textContent = formatCurrency(calculateIncome(periodExpenses));
-          document.getElementById("cashflow-expenses").textContent = formatCurrency(0);
-          document.getElementById("cashflow-balance").textContent = formatCurrency(calculateIncome(periodExpenses));
           noDataMessage.style.display = "block";
         } else {
           chartWrapper.style.display = "flex"; legendBox.style.display = "flex"; noDataMessage.style.display = "none";
           const categoryData = calculateCategoryBreakdown(periodExpenses);
-          updateCashflow(periodExpenses); createPieChart(categoryData); updateLegend(categoryData);
-          loadDashboardBudgets(periodExpenses);
+          createPieChart(categoryData); updateLegend(categoryData);
         }
         
         renderCalendar();
       }
 
-      function updateCashflow(expenses) {
-        const income = calculateIncome(expenses); const expenseTotal = calculateExpenses(expenses); const balance = income - expenseTotal;
-        document.getElementById("cashflow-income").textContent = formatCurrency(income);
-        document.getElementById("cashflow-expenses").textContent = formatCurrency(expenseTotal);
-        document.getElementById("cashflow-balance").textContent = formatCurrency(balance);
+      function updateCashflow(periodExpenses) {
+        // 1. Tính toán cho kỳ hiện tại (bộ lọc động)
+        const incomePeriod = calculateIncome(periodExpenses);
+        const expensePeriod = calculateExpenses(periodExpenses);
+
+        // 2. Tính toán cho toàn bộ thời gian (tài sản thực tế bất di bất dịch)
+        const totalIncomeAll = calculateIncome(allExpenses);
+        const totalExpenseAll = calculateExpenses(allExpenses);
+        const totalBalanceAll = totalIncomeAll - totalExpenseAll;
+
+        // 3. Cập nhật UI
+        document.getElementById("cashflow-income").textContent = formatCurrency(incomePeriod);
+        document.getElementById("cashflow-expenses").textContent = formatCurrency(expensePeriod);
+        document.getElementById("cashflow-balance").textContent = formatCurrency(totalBalanceAll);
+
         const balanceElement = document.getElementById("cashflow-balance");
-        if (balance >= 0) { balanceElement.classList.add("positive"); balanceElement.classList.remove("negative"); } 
-        else { balanceElement.classList.add("negative"); balanceElement.classList.remove("positive"); }
+        if (totalBalanceAll >= 0) { 
+            balanceElement.classList.add("positive"); balanceElement.classList.remove("negative"); 
+        } else { 
+            balanceElement.classList.add("negative"); balanceElement.classList.remove("positive"); 
+        }
       }
 
       // HÀM TẢI CẢNH BÁO NGÂN SÁCH CHO DASHBOARD
