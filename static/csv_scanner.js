@@ -53,7 +53,7 @@ const CSVScanner = {
             const token = localStorage.getItem('token'); 
             
             // Gọi route scan-csv từ backend pandas
-            const response = await fetch('/api/expenses/api/scan-csv', {
+            const response = await fetch('/api/expenses/scan-csv', {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`
