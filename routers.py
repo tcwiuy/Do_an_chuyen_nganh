@@ -1848,22 +1848,24 @@ async def scan_pdf_receipt(
 
         # 4. Viết Prompt riêng cho dữ liệu Text (không dùng inline_data hình ảnh)
         prompt = f"""Hôm nay là {today_str}.
-Dưới đây là nội dung văn bản được trích xuất từ một file PDF hóa đơn/sao kê. 
-Hãy phân tích và trích xuất thông tin tài chính.
+Dưới đây là nội dung văn bản được trích xuất từ một file PDF (có thể chứa nhiều hóa đơn/sao kê). 
+Hãy phân tích và trích xuất tất cả các thông tin giao dịch tài chính.
 Danh mục hợp lệ của người dùng: {categories_str}
 
 NỘI DUNG PDF:
-{extracted_text[:3000]} # Giới hạn 3000 ký tự đầu để tránh tràn token nếu file quá dài
+{extracted_text[:4000]} 
 
-Trả về CHỈ một JSON object thuần túy (không markdown):
-{{
-    "name": "Tên cửa hàng/dịch vụ (tối đa 60 ký tự)",
-    "category": "Chọn ĐÚNG MỘT danh mục từ danh sách: {categories_str}",
-    "amount": số_âm_đại_diện_chi_tiêu (ví dụ -54000),
-    "date": "YYYY-MM-DD",
-    "tags": ["PDF Scan"],
-    "notes": "ghi chú ngắn"
-}}
+Trả về CHỈ một MẢNG JSON (Array of Objects), không dùng markdown hay backtick:
+[
+    {{
+        "name": "Tên cửa hàng/dịch vụ (tối đa 60 ký tự)",
+        "category": "Chọn ĐÚNG MỘT danh mục từ danh sách: {categories_str}",
+        "amount": số_âm_nếu_chi_tiêu_hoặc_dương_nếu_thu_nhập (ví dụ -54000),
+        "date": "YYYY-MM-DD",
+        "tags": ["PDF Scan"],
+        "notes": "ghi chú ngắn"
+    }}
+]
 """
         # 5. Gọi AI bằng hàm backoff có sẵn của bạn
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key={api_key}"
@@ -1896,20 +1898,27 @@ Trả về CHỈ một JSON object thuần túy (không markdown):
         clean_text = clean_text.replace("```json", "").replace("```", "").strip()
 
         extracted_data = json.loads(clean_text)
+        
+        # Đảm bảo dữ liệu trả về luôn là 1 mảng (dù chỉ có 1 hóa đơn)
+        if not isinstance(extracted_data, list):
+            extracted_data = [extracted_data]
+            
+        # Làm sạch và validate từng item trong mảng
+        processed_data = []
+        for item in extracted_data:
+             processed_data.append({
+                "name": str(item.get("name", "Hóa đơn PDF"))[:100],
+                "amount": float(item.get("amount", 0)),
+                "date": str(item.get("date", today_str)),
+                "category": str(item.get("category", categories_str.split(",")[0])),
+                "tags": item.get("tags", ["PDF Scan"]),
+                "notes": str(item.get("notes", ""))
+             })
 
         return {
             "status": "success",
-            "data": {
-                "name": str(extracted_data.get("name", "Hóa đơn PDF"))[:100],
-                "amount": float(extracted_data.get("amount", -1)),
-                "date": str(extracted_data.get("date", today_str)),
-                "category": str(
-                    extracted_data.get("category", categories_str.split(",")[0])
-                ),
-                "tags": extracted_data.get("tags", ["PDF Scan"]),
-                "notes": str(extracted_data.get("notes", "")),
-            },
-            "message": "Đọc PDF thành công! Vui lòng xác nhận.",
+            "data": processed_data, # Trả về mảng đã được làm sạch
+            "message": f"Đọc PDF thành công {len(processed_data)} giao dịch! Vui lòng xác nhận.",
         }
 
     except HTTPException:
