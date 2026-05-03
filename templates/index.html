@@ -260,6 +260,12 @@
           <div class="cashflow-value" id="cashflow-balance">0</div>
         </div>
       </div>
+      <!-- BẢNG BÁO CÁO NGÂN SÁCH TRÊN DASHBOARD -->
+      <div id="budgetAlertsContainer" class="form-container" style="background-color: var(--bg-secondary); border: 1px solid var(--border); margin-top: 20px; display: none;">
+          <h3 style="color: var(--text-primary); margin-top: 0; margin-bottom: 15px;"><i class="fa-solid fa-bell" style="color: #fbbf24;"></i> Báo Cáo Ngân Sách Nhanh</h3>
+          <div id="budgetAlertsContent" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
+          </div>
+      </div>
     </div>
 
     <!-- WIZARD OVERLAY -->
@@ -912,6 +918,8 @@
         const noDataMessage = document.getElementById("noDataMessage");
         const hasExpenses = periodExpenses.some((e) => e.amount < 0);
 
+        loadDashboardBudgets(periodExpenses);
+
         if (!hasExpenses) {
           if (pieChart) { pieChart.destroy(); pieChart = null; }
           chartWrapper.style.display = "none"; legendBox.style.display = "none"; 
@@ -923,6 +931,7 @@
           chartWrapper.style.display = "flex"; legendBox.style.display = "flex"; noDataMessage.style.display = "none";
           const categoryData = calculateCategoryBreakdown(periodExpenses);
           updateCashflow(periodExpenses); createPieChart(categoryData); updateLegend(categoryData);
+          loadDashboardBudgets(periodExpenses);
         }
         
         renderCalendar();
@@ -936,6 +945,99 @@
         const balanceElement = document.getElementById("cashflow-balance");
         if (balance >= 0) { balanceElement.classList.add("positive"); balanceElement.classList.remove("negative"); } 
         else { balanceElement.classList.add("negative"); balanceElement.classList.remove("positive"); }
+      }
+
+      // HÀM TẢI CẢNH BÁO NGÂN SÁCH CHO DASHBOARD
+      async function loadDashboardBudgets(periodExpenses) {
+          const token = localStorage.getItem('token');
+          if (!token) return;
+
+          // 1. SỬA LỖI TỶ GIÁ: Lấy tỷ giá chuẩn
+          const rate = (typeof exchangeRatesToVND !== 'undefined') ? (exchangeRatesToVND[currentCurrency] || 1) : 1;
+          
+          // Lấy khoảng thời gian dựa trên biến TOÀN CỤC currentPeriodType đang chọn trên giao diện
+          const { start, end } = getPeriodBoundsOverride(currentDate, currentPeriodType);
+          const getISODate = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          
+          try {
+              // 2. CẬP NHẬT THEO CHU KỲ: Gửi đúng chu kỳ người dùng đang chọn (Tuần/Tháng/Năm)
+              const res = await fetch(`/api/planning/budgets?start_date=${getISODate(start)}&end_date=${getISODate(end)}&period_type=${currentPeriodType}`, {
+                  headers: { 'Authorization': `Bearer ${token}` }
+              });
+              
+              if (!res.ok) return;
+              const budgets = await res.json();
+              const alertContainer = document.getElementById('budgetAlertsContainer');
+              const alertContent = document.getElementById('budgetAlertsContent');
+              
+              const activeBudgets = budgets.filter(b => b.limit_amount > 0);
+              
+              // Nếu là "Tất cả thời gian" hoặc không có ngân sách -> Ẩn bảng
+              if (currentPeriodType === 'all' || activeBudgets.length === 0) {
+                  alertContainer.style.display = 'none';
+                  return;
+              }
+              
+              alertContainer.style.display = 'block';
+              
+              let totalLimit = 0;
+              let totalSpentInBudgets = 0;
+              let warningsHTML = '';
+              
+              activeBudgets.forEach(b => {
+                  totalLimit += b.limit_amount;
+                  totalSpentInBudgets += b.spent_amount;
+                  
+                  const percent = (b.spent_amount / b.limit_amount) * 100;
+                  // SỬA HIỂN THỊ: Dùng formatCurrency chuẩn của hệ thống
+                  if (percent >= 80) {
+                      let color = percent >= 100 ? '#ff4d4d' : '#fbbf24';
+                      let icon = percent >= 100 ? 'fa-triangle-exclamation fa-fade' : 'fa-circle-exclamation';
+                      warningsHTML += `
+                          <div style="background: var(--bg-primary); padding: 10px; border-radius: 8px; border-left: 4px solid ${color}; margin-bottom: 10px;">
+                              <div style="font-weight: bold; color: ${color};"><i class="fa-solid ${icon}"></i> ${b.category}</div>
+                              <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 5px;">
+                                  Đã chi: ${formatCurrency(b.spent_amount)} / ${formatCurrency(b.limit_amount)} (${percent.toFixed(1)}%)
+                              </div>
+                          </div>`;
+                  }
+              });
+              
+              const expenseMap = {};
+              periodExpenses.forEach(exp => {
+                  if (exp.amount < 0) {
+                      expenseMap[exp.category] = (expenseMap[exp.category] || 0) + Math.abs(exp.amount);
+                  }
+              });
+              
+              let topCategory = "Chưa có chi tiêu";
+              let topAmount = 0;
+              for (const [cat, amt] of Object.entries(expenseMap)) {
+                  if (amt > topAmount) { topAmount = amt; topCategory = cat; }
+              }
+              
+              const totalPercent = totalLimit > 0 ? Math.min((totalSpentInBudgets / totalLimit) * 100, 100) : 0;
+              const progressColor = totalPercent >= 90 ? '#ff4d4d' : (totalPercent >= 75 ? '#fbbf24' : '#4ade80');
+              
+              alertContent.innerHTML = `
+                  <div style="background: var(--bg-primary); padding: 15px; border-radius: 8px; border: 1px solid var(--border);">
+                      <div style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 5px;">Tổng Ngân Sách (${currentPeriodType === 'week' ? 'Tuần' : currentPeriodType === 'month' ? 'Tháng' : 'Năm'})</div>
+                      <div style="font-size: 1.1rem; font-weight: bold; color: var(--text-primary);">
+                          ${formatCurrency(totalSpentInBudgets)} / ${formatCurrency(totalLimit)}
+                      </div>
+                      <div style="background: var(--bg-secondary); height: 8px; border-radius: 4px; overflow: hidden; margin-top: 10px;">
+                          <div style="width: ${totalPercent}%; background: ${progressColor}; height: 100%;"></div>
+                      </div>
+                  </div>
+                  <div style="background: var(--bg-primary); padding: 15px; border-radius: 8px; border: 1px solid var(--border);">
+                      <div style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 5px;">Chi Tiêu Nhiều Nhất</div>
+                      <div style="font-size: 1.1rem; font-weight: bold; color: #d4a5ff;"><i class="fa-solid fa-fire"></i> ${topCategory}</div>
+                      <div style="font-size: 0.9rem; color: var(--text-primary); margin-top: 5px;">${formatCurrency(topAmount)}</div>
+                  </div>
+                  <div style="grid-column: 1 / -1; margin-top: 10px;">
+                      ${warningsHTML ? '<div style="color: var(--text-primary); font-weight: bold; margin-bottom: 10px;">Cảnh báo chi tiêu:</div>' + warningsHTML : '<div style="color: #4ade80; font-style: italic; background: var(--bg-primary); padding: 10px; border-radius: 8px;"><i class="fa-solid fa-shield-cat"></i> Ngân sách kỳ này đang rất an toàn!</div>'}
+                  </div>`;
+          } catch (e) { console.error("Lỗi Dashboard Budget:", e); }
       }
 
       function createPieChart(categoryData) {

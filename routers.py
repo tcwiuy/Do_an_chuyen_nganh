@@ -35,6 +35,7 @@ from fastapi.responses import StreamingResponse
 from typing import Union
 import fitz
 import pandas as pd
+from sqlalchemy import func
 
 _ai_cache = {}
 _ai_cache_lock = threading.Lock()
@@ -55,39 +56,23 @@ def get_flat_categories(user_config):
 
 # 1. Hàm tự động chia tiền vào 6 hũ khi có THU NHẬP (Số Dương)
 def distribute_to_jars(db: Session, user_id: int, income_amount: float):
-    # Lấy các hũ mà bạn ĐÃ TẠO trong DB
-    user_jars = db.query(models.Jar).filter(models.Jar.user_id == user_id).all()
-
+    user_jars = db.query(models.Jar).filter(models.Jar.user_id == user_id).order_by(models.Jar.id).all()
     if not user_jars:
-        print("Chưa có hũ nào được thiết lập, không thể chia tiền!")
         return
 
     for jar in user_jars:
-        # Chia tiền dựa trên cột percent bạn vừa thêm vào DB
-        allocated_money = income_amount * (jar.percent / 100)
-        jar.balance += allocated_money
-
+        # Nếu jar.percent = 5, nó sẽ trích 5% thu nhập bỏ vào hũ này
+        if jar.percent > 0:
+            allocated_money = Decimal(str(income_amount)) * (jar.percent / Decimal('100'))
+            jar.balance += allocated_money
     db.commit()
 
 
 # 2. Hàm tự động trừ Ngân sách khi có CHI TIÊU (Số Âm)
-def update_budget_spent(db: Session, user_id: int, category: str, spent_amount: float):
-    now = datetime.now()
-    # Tìm ngân sách của danh mục này trong tháng hiện tại
-    budget = (
-        db.query(models.Budget)
-        .filter(
-            models.Budget.user_id == user_id,
-            models.Budget.category == category,
-            models.Budget.month == now.month,
-            models.Budget.year == now.year,
-        )
-        .first()
-    )
 
-    if budget:
-        # Ép kiểu spent_amount sang Decimal trước khi cộng
-        budget.spent_amount += Decimal(str(spent_amount))
+def update_budget_spent(db: Session, user_id: int, category: str, spent_amount: float):
+    # ĐÃ VÔ HIỆU HÓA: Không cần cộng/trừ thủ công nữa vì hệ thống đã tính toán động (Dynamic Calculation)
+    pass
 
 
 # 🌟 HÀM TỰ ĐỘNG XOAY VÒNG API KEY
@@ -310,14 +295,18 @@ async def import_csv(
 
 
 @router.get("/", response_model=List[schemas.TransactionResponse])
+@router.get("/", response_model=List[schemas.TransactionResponse])
 def get_transactions(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user),
 ):
-    # CHỈ LẤY giao dịch của user đang đăng nhập
+    
     return (
         db.query(models.Transaction)
-        .filter(models.Transaction.user_id == current_user.id)
+        .filter(
+            models.Transaction.user_id == current_user.id,
+            models.Transaction.amount != 0 
+        )
         .all()
     )
 
@@ -2054,25 +2043,247 @@ def get_jars(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user),
 ):
-    return db.query(models.Jar).filter(models.Jar.user_id == current_user.id).all()
+    return db.query(models.Jar).filter(models.Jar.user_id == current_user.id).order_by(models.Jar.id).all()
 
-
-@planning_router.get("/budgets")
-def get_current_month_budgets(
+@planning_router.get("/jars/{jar_id}/history")
+def get_jar_history(
+    jar_id: str,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user),
 ):
-    now = datetime.now()
-    budgets = (
-        db.query(models.Budget)
+    # Lấy lịch sử nạp rút trực tiếp từ DB mà không qua schemas.py khắt khe
+    txs = (
+        db.query(models.Transaction)
         .filter(
-            models.Budget.user_id == current_user.id,
-            models.Budget.month == now.month,
-            models.Budget.year == now.year,
+            models.Transaction.user_id == current_user.id,
+            models.Transaction.amount == 0,
+            models.Transaction.category == "Chuyển Quỹ"
         )
+        .order_by(models.Transaction.date.desc())
         .all()
     )
-    return budgets
+    
+    # Lọc danh sách an toàn bằng Python
+    history = []
+    for t in txs:
+        if t.tags and str(jar_id) in t.tags:
+            history.append({
+                "id": t.id,
+                "name": t.name,
+                "date": t.date.isoformat()
+            })
+    return history
+
+@planning_router.get("/jars/history/all")
+def get_all_jar_history(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    # Lấy 20 giao dịch nạp/rút gần nhất của tất cả các hũ
+    txs = (
+        db.query(models.Transaction)
+        .filter(
+            models.Transaction.user_id == current_user.id,
+            models.Transaction.category == "Chuyển Quỹ"
+        )
+        .order_by(models.Transaction.date.desc())
+        .limit(20)
+        .all()
+    )
+    
+    history = []
+    for t in txs:
+        history.append({
+            "id": t.id,
+            "name": t.name,
+            "date": t.date.isoformat()
+        })
+    return history
+
+@planning_router.post("/jars/bulk")
+def setup_jars_bulk(jars_data: list = Body(...), db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
+    # 1. Lấy danh sách hũ hiện có trong DB
+    existing_jars = db.query(models.Jar).filter(models.Jar.user_id == current_user.id).all()
+    existing_map = {j.id: j for j in existing_jars}
+    
+    new_jar_ids = []
+    for j in jars_data:
+        j_id = j.get("id")
+        name = j.get("name", "Hũ mới")
+        percent = Decimal(str(j.get("percent", 0)))
+        goal = Decimal(str(j.get("goal_amount", 0)))
+        color = j.get("color", "#8a2be2")
+        icon = j.get("icon", "fa-piggy-bank")
+
+        if j_id and j_id in existing_map:
+            # CẬP NHẬT: Nếu hũ đã tồn tại, chỉ đổi thông tin, GIỮ NGUYÊN balance
+            jar = existing_map[j_id]
+            jar.name = name
+            jar.percent = percent
+            jar.goal_amount = goal
+            jar.color = color
+            jar.icon = icon
+            new_jar_ids.append(jar.id)
+        else:
+            # TẠO MỚI: Nếu chưa có thì mới tạo hũ mới
+            new_jar = models.Jar(
+                name=name, percent=percent, goal_amount=goal,
+                color=color, icon=icon, balance=0.0, user_id=current_user.id
+            )
+            db.add(new_jar)
+            db.flush() # Để lấy ID mới
+            new_jar_ids.append(new_jar.id)
+
+    # XÓA: Những hũ không còn nằm trong danh sách gửi lên
+    for old_id, old_jar in existing_map.items():
+        if old_id not in new_jar_ids:
+            if old_jar.balance > 0:
+                raise HTTPException(status_code=400, detail=f"Hũ '{old_jar.name}' còn tiền, không thể xóa!")
+            db.delete(old_jar)
+
+    db.commit()
+    return {"message": "Cấu hình hũ đã được cập nhật an toàn!"}
+
+# API NẠP / RÚT / CHUYỂN TIỀN CHỦ ĐỘNG
+@planning_router.post("/jars/transfer")
+def transfer_jar_funds(payload: dict = Body(...), db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
+    t_type = payload.get("type") # "deposit", "withdraw", "internal"
+    amount = Decimal(str(payload.get("amount", 0)))
+    
+    if amount <= 0: raise HTTPException(status_code=400, detail="Số tiền phải lớn hơn 0")
+
+    # Hai biến để ghi lịch sử
+    history_name = ""
+    tags = ["Quỹ", t_type]
+
+    if t_type == "deposit":
+        jar = db.query(models.Jar).filter(models.Jar.id == payload.get("to_id"), models.Jar.user_id == current_user.id).first()
+        if jar: 
+            jar.balance += amount
+            history_name = f"Nạp {amount:,.0f}đ vào hũ {jar.name}"
+            tags.append(str(jar.id))
+    elif t_type == "withdraw":
+        jar = db.query(models.Jar).filter(models.Jar.id == payload.get("from_id"), models.Jar.user_id == current_user.id).first()
+        if not jar or jar.balance < amount: raise HTTPException(status_code=400, detail="Hũ không đủ số dư")
+        jar.balance -= amount
+        history_name = f"Rút {amount:,.0f}đ từ hũ {jar.name}"
+        tags.append(str(jar.id))
+    elif t_type == "internal":
+        f_jar = db.query(models.Jar).filter(models.Jar.id == payload.get("from_id"), models.Jar.user_id == current_user.id).first()
+        t_jar = db.query(models.Jar).filter(models.Jar.id == payload.get("to_id"), models.Jar.user_id == current_user.id).first()
+        if f_jar and t_jar and f_jar.balance >= amount:
+            f_jar.balance -= amount
+            t_jar.balance += amount
+            history_name = f"Chuyển {amount:,.0f}đ từ hũ {f_jar.name} sang hũ {t_jar.name}"
+            tags.extend([str(f_jar.id), str(t_jar.id)])
+        else: raise HTTPException(status_code=400, detail="Giao dịch không hợp lệ")
+
+    # 💡 BÍ KÍP: Ghi log lịch sử vào bảng Transaction với amount = 0 để không phá hỏng Thống kê Thu/Chi
+    new_tx = models.Transaction(
+        id=str(uuid.uuid4()),
+        name=history_name,
+        amount=0.0,
+        category="Chuyển Quỹ",
+        date=datetime.now().date(),
+        tags=tags,
+        user_id=current_user.id
+    )
+    db.add(new_tx)
+    
+    db.commit()
+    return {"message": "Giao dịch thành công!"}
+
+@planning_router.delete("/jars/{jar_id}")
+def delete_jar(
+    jar_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    # 1. Tìm hũ trong Database
+    jar = db.query(models.Jar).filter(
+        models.Jar.id == jar_id, 
+        models.Jar.user_id == current_user.id
+    ).first()
+    
+    if not jar:
+        raise HTTPException(status_code=404, detail="Không tìm thấy hũ trong hệ thống")
+    
+    # 2. Chốt chặn an toàn: Không cho xóa nếu hũ còn tiền
+    if jar.balance > 0:
+        raise HTTPException(status_code=400, detail="Hũ còn tiền! Vui lòng chuyển hoặc rút hết tiền ra trước khi xóa.")
+        
+    # 3. Tiến hành xóa
+    db.delete(jar)
+    db.commit()
+    return {"message": "Đã xóa hũ thành công"}
+
+@planning_router.get("/budgets")
+def get_budgets(
+    start_date: str,
+    end_date: str,
+    period_type: str,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    start = datetime.strptime(start_date[:10], "%Y-%m-%d").date()
+    end = datetime.strptime(end_date[:10], "%Y-%m-%d").date()
+
+    # 1. Tìm ngân sách ĐÚNG khoảng thời gian này
+    budgets = db.query(models.Budget).filter(
+        models.Budget.user_id == current_user.id,
+        models.Budget.start_date == start,
+        models.Budget.end_date == end,
+        models.Budget.period_type == period_type
+    ).all()
+
+    # 2. AUTO-COPY (KẾ THỪA): Nếu tuần/tháng này trống, copy cấu hình gần nhất sang
+    if not budgets:
+        last_budgets = db.query(models.Budget).filter(
+            models.Budget.user_id == current_user.id,
+            models.Budget.period_type == period_type
+        ).order_by(models.Budget.id.desc()).limit(20).all()
+        
+        if last_budgets:
+            last_start = last_budgets[0].start_date
+            valid_lasts = [b for b in last_budgets if b.start_date == last_start]
+            
+            for pb in valid_lasts:
+                new_b = models.Budget(
+                    category=pb.category,
+                    limit_amount=pb.limit_amount,
+                    period_type=period_type,
+                    start_date=start,
+                    end_date=end,
+                    user_id=current_user.id
+                )
+                db.add(new_b)
+                budgets.append(new_b)
+            db.commit()
+
+    # 3. TÍNH TOÁN ĐỘNG TỪ BẢNG GIAO DỊCH
+    result = []
+    for b in budgets:
+        # Tự động quét bảng Transaction, lọc đúng khoảng ngày và cộng tiền
+        spent = db.query(func.sum(models.Transaction.amount)).filter(
+            models.Transaction.user_id == current_user.id,
+            models.Transaction.category == b.category,
+            models.Transaction.amount < 0,
+            func.date(models.Transaction.date) >= start,
+            func.date(models.Transaction.date) <= end
+        ).scalar() or 0.0
+        
+        result.append({
+            "id": b.id,
+            "category": b.category,
+            "limit_amount": float(b.limit_amount),
+            "spent_amount": abs(float(spent)), # Ép thành số dương cho UI dễ vẽ
+            "period_type": b.period_type,
+            "start_date": b.start_date.isoformat(),
+            "end_date": b.end_date.isoformat()
+        })
+    
+    return result
+
 
 
 @planning_router.post("/budgets")
@@ -2121,7 +2332,7 @@ def sync_old_data(
     now = datetime.now()
 
     # 1. KHÔNG XÓA HŨ (Không dùng .delete()), chỉ reset số dư tiền về 0 để tính lại
-    user_jars = db.query(models.Jar).filter(models.Jar.user_id == current_user.id).all()
+    user_jars = db.query(models.Jar).filter(models.Jar.user_id == current_user.id).order_by(models.Jar.id).all()
     for jar in user_jars:
         jar.balance = 0.0
 
@@ -2164,21 +2375,22 @@ def sync_old_data(
 @planning_router.delete("/budgets/{category}")
 def delete_budget(
     category: str,
+    start_date: str,
+    end_date: str,
+    period_type: str,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user),
 ):
-    now = datetime.now()
-    # Tìm ngân sách của tháng hiện tại theo danh mục
-    budget = (
-        db.query(models.Budget)
-        .filter(
-            models.Budget.user_id == current_user.id,
-            models.Budget.category == category,
-            models.Budget.month == now.month,
-            models.Budget.year == now.year,
-        )
-        .first()
-    )
+    start = datetime.strptime(start_date[:10], "%Y-%m-%d").date()
+    end = datetime.strptime(end_date[:10], "%Y-%m-%d").date()
+    
+    budget = db.query(models.Budget).filter(
+        models.Budget.user_id == current_user.id,
+        models.Budget.category == category,
+        models.Budget.start_date == start,
+        models.Budget.end_date == end,
+        models.Budget.period_type == period_type
+    ).first()
 
     if budget:
         db.delete(budget)
@@ -2187,79 +2399,55 @@ def delete_budget(
     return {"message": "Không tìm thấy ngân sách"}
 
 
-@planning_router.post("/jars")
-def create_jar(
-    jar_data: dict,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.get_current_user),
-):
-    new_jar = models.Jar(
-        name=jar_data["name"],
-        percent=jar_data["percent"],
-        user_id=current_user.id,
-        balance=0.0,
-    )
-    db.add(new_jar)
-    db.commit()
-    return {"message": "Success"}
+
 
 
 from fastapi import Body
 
 
-@planning_router.post("/jars/bulk")
-def setup_jars_bulk(
-    jars_data: list = Body(...),
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.get_current_user),
-):
-    # 1. Kiểm tra tổng phần trăm
-    total_percent = sum(float(j.get("percent", 0)) for j in jars_data)
-    if total_percent != 100:
-        raise HTTPException(
-            status_code=400, detail="Tổng phần trăm phải đúng bằng 100%"
-        )
 
-    # 2. Xóa các hũ cũ của user này
-    db.query(models.Jar).filter(models.Jar.user_id == current_user.id).delete()
-
-    # 3. Thêm danh sách hũ mới (Số dư ban đầu là 0)
-    for j in jars_data:
-        new_jar = models.Jar(
-            name=j["name"],
-            percent=float(j["percent"]),
-            balance=0.0,
-            user_id=current_user.id,
-        )
-        db.add(new_jar)
-
-    db.commit()
-    return {"message": "Đã lưu cấu hình hũ thành công!"}
 
 
 @planning_router.post("/budgets/bulk")
 def setup_budgets_bulk(
-    budgets_data: list = Body(...),
+    payload: dict = Body(...),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user),
 ):
-    now = datetime.now()
+    start = datetime.strptime(payload["start_date"][:10], "%Y-%m-%d").date()
+    end = datetime.strptime(payload["end_date"][:10], "%Y-%m-%d").date()
+    period_type = payload["period_type"]
+    budgets_data = payload["budgets"]
+
+    user_config = db.query(models.UserConfig).filter(models.UserConfig.user_id == current_user.id).first()
+    valid_categories = []
+    if user_config and user_config.categories:
+        if isinstance(user_config.categories, dict):
+            valid_categories = user_config.categories.get("expenseCategories", [])
+        elif isinstance(user_config.categories, list):
+            valid_categories = user_config.categories
 
     for item in budgets_data:
-        category = item.get("category")
+        category = str(item.get("category", "")).strip()
         limit = float(item.get("limit_amount", 0))
 
-        # Tìm xem tháng này đã có ngân sách cho mục này chưa
-        existing = (
-            db.query(models.Budget)
-            .filter(
-                models.Budget.user_id == current_user.id,
-                models.Budget.category == category,
-                models.Budget.month == now.month,
-                models.Budget.year == now.year,
-            )
-            .first()
-        )
+        if not category: continue
+        if valid_categories and category not in valid_categories:
+            raise HTTPException(status_code=400, detail=f"Danh mục '{category}' không hợp lệ!")
+        if limit < 0 or limit > 100000000000:
+            raise HTTPException(status_code=400, detail=f"Hạn mức cho mục {category} không hợp lệ!")
+
+        existing = db.query(models.Budget).filter(
+            models.Budget.user_id == current_user.id,
+            models.Budget.category == category,
+            models.Budget.start_date == start,
+            models.Budget.end_date == end,
+            models.Budget.period_type == period_type
+        ).first()
+
+        if limit == 0:
+            if existing: db.delete(existing)
+            continue
 
         if existing:
             existing.limit_amount = limit
@@ -2267,15 +2455,16 @@ def setup_budgets_bulk(
             new_budget = models.Budget(
                 category=category,
                 limit_amount=limit,
-                spent_amount=0.0,
-                month=now.month,
-                year=now.year,
+                period_type=period_type,
+                start_date=start,
+                end_date=end,
                 user_id=current_user.id,
             )
             db.add(new_budget)
 
     db.commit()
-    return {"message": "Đã cập nhật ngân sách hàng loạt thành công!"}
+    return {"message": "Đã cập nhật ngân sách thành công!"}
+
 
 class N8nWebhookPayload(BaseModel):
     source: str

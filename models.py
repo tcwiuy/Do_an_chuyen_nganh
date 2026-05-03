@@ -73,11 +73,14 @@ class Budget(Base):
     __tablename__ = "budgets"
     id = Column(Integer, primary_key=True, index=True)
     category = Column(String, index=True)
-    # ĐÃ SỬA: Dùng Numeric(15, 2)
+    
+    # Hạn mức tối đa được phép chi
     limit_amount = Column(Numeric(15, 2)) 
-    spent_amount = Column(Numeric(15, 2), default=0.0) 
-    month = Column(Integer)
-    year = Column(Integer)
+    
+    period_type = Column(String, default="month") # Lưu loại: "week", "month", "year", "custom"
+    start_date = Column(Date) # Ngày bắt đầu ngân sách
+    end_date = Column(Date)   # Ngày kết thúc ngân sách
+    
     user_id = Column(Integer, ForeignKey("users.id"))
 
 class Jar(Base):
@@ -87,4 +90,9 @@ class Jar(Base):
     # ĐÃ SỬA: Dùng Numeric(15, 2)
     balance = Column(Numeric(15, 2), default=0.0)
     percent = Column(Numeric(15, 2), default=0.0) 
+
+    goal_amount = Column(Numeric(15, 2), default=0.0) # Mục tiêu hũ (VD: 20tr)
+    color = Column(String, default="#8a2be2")         # Màu đại diện
+    icon = Column(String, default="fa-piggy-bank")   # Icon định danh
+    
     user_id = Column(Integer, ForeignKey("users.id"))
