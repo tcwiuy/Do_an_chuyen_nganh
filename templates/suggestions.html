@@ -16,6 +16,95 @@
         })();
     </script>
     <title>Kế Hoạch Tiết Kiệm</title>
+    <style>
+        /* =========================================================
+           💡 ÉP KHUÔN GIAO DIỆN BẤT CHẤP DỮ LIỆU TỪ JAVASCRIPT
+           ========================================================= */
+
+        /* 1. Xóa sạch mọi màu nền bị JS gán cứng */
+        #suggestionsSummary [style*="background"], 
+        #suggestionsList [style*="background"] {
+            background: transparent !important;
+            background-color: transparent !important;
+        }
+
+        /* 2. Ép màu chuẩn cho KHUNG TO (Card chính) giống hệt khung Lập Kế Hoạch */
+        #suggestionsSummary, 
+        #suggestionsList > div,
+        .suggestion-card {
+            background-color: var(--bg-secondary) !important;
+            border: 1px solid var(--border) !important;
+            border-radius: 12px !important;
+            padding: 20px !important;
+            margin-bottom: 20px !important;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05) !important;
+            box-sizing: border-box !important;
+            overflow: hidden !important; /* Chống tràn khung */
+        }
+
+        /* 3. Ép màu chuẩn cho CÁC HỘP NHỎ (Mức tiêu hiện tại, Khả thi...) */
+        #suggestionsSummary div[style*="padding"], 
+        #suggestionsList div[style*="padding"] {
+            background-color: var(--bg-primary) !important;
+            border: 1px solid var(--border) !important;
+            border-radius: 8px !important;
+            white-space: normal !important; /* Chống tràn chữ */
+        }
+
+        /* Đảm bảo các hàng (flex) có thể xuống dòng, KHÔNG BỊ CHÈN RA NGOÀI MÀN HÌNH */
+        #suggestionsSummary div[style*="display: flex"], 
+        #suggestionsList div[style*="display: flex"],
+        #suggestionsList div[style*="display:flex"] {
+            background-color: transparent !important;
+            border: none !important;
+            padding: 0 !important;
+            flex-wrap: wrap !important; /* Quan trọng: Cho phép rớt dòng */
+            gap: 10px !important; 
+        }
+
+        /* 4. Đặc trị hộp "Cách thực hiện" (ĐÃ BỎ MÀU TÍM, DÙNG MÀU CHUẨN) */
+        #suggestionsList div[style*="border-left"] {
+            background-color: var(--bg-primary) !important; /* Màu nền hoàn toàn khớp với hệ thống */
+            border-left: 4px solid var(--accent) !important;
+            padding: 15px !important;
+            margin-top: 15px !important;
+        }
+
+        /* 5. Ép màu CHỮ và CÂN BẰNG CHỮ để chống tràn lề */
+        #suggestionsSummary div, #suggestionsList div,
+        #suggestionsSummary p, #suggestionsList p {
+            color: var(--text-secondary) !important;
+            text-shadow: none !important;
+            line-height: 1.6 !important;
+            white-space: normal !important; /* Cho phép chữ xuống dòng tự nhiên */
+            word-break: break-word !important; /* Bẻ từ nếu đoạn text quá dài */
+            overflow-wrap: break-word !important;
+        }
+        
+        #suggestionsSummary b, #suggestionsSummary strong, 
+        #suggestionsList b, #suggestionsList strong {
+            color: var(--text-primary) !important;
+        }
+
+        #suggestionsSummary h3, #suggestionsSummary h4, 
+        #suggestionsList h3, #suggestionsList h4 {
+            color: var(--accent) !important;
+            margin-top: 0 !important;
+            border-bottom: 1px dashed var(--border) !important;
+            padding-bottom: 10px !important;
+            white-space: normal !important;
+        }
+
+        /* 6. Nút "Giảm X tiền" ở góc thẻ */
+        #suggestionsList span[style*="border"] {
+            background-color: var(--bg-primary) !important;
+            border: 1px solid #4ade80 !important;
+            color: #4ade80 !important;
+            border-radius: 6px !important;
+            padding: 5px 10px !important;
+            display: inline-block !important; /* Tránh bị méo form */
+        }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -44,14 +133,13 @@
             </p>
 
             <div style="background-color: var(--bg-primary); padding: 15px; border-radius: 10px; margin-bottom: 20px; border: 1px solid var(--border);">
-                <h4 style="color: #4ade80; margin-top: 0; margin-bottom: 15px;"><i class="fa-solid fa-flag-checkered"></i> Mục tiêu của bạn</h4>
+                <h4 style="color: #4ade80; margin-top: 0; margin-bottom: 15px; border-bottom: none !important; padding-bottom: 0 !important;"><i class="fa-solid fa-flag-checkered"></i> Mục tiêu của bạn</h4>
                 
                 <div style="display: flex; gap: 15px; flex-wrap: wrap;">
                     <div style="flex: 1; min-width: 200px;">
                         <input type="text" id="goalName" placeholder="VD: Mua xe máy mới..." style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border); background-color: var(--bg-secondary); color: var(--text-primary); outline: none; box-sizing: border-box; font-family: inherit;">
                     </div>
                     <div style="flex: 1; min-width: 150px;">
-                        <!-- ĐÃ SỬA: Đổi sang type="text" và thêm hàm formatCurrencyInput -->
                         <input type="text" id="goalAmount" placeholder="Số tiền mục tiêu..." oninput="formatCurrencyInput(this)" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border); background-color: var(--bg-secondary); color: var(--text-primary); outline: none; box-sizing: border-box; font-family: inherit;">
                     </div>
                     <div style="flex: 1; min-width: 150px;">
@@ -78,8 +166,8 @@
             <p style="margin: 0; font-weight: bold;">Cú Mèo đang phân tích và tính toán đường đi nước bước...</p>
         </div>
 
-        <div id="suggestionsSummary" class="form-container" style="display: none; background-color: var(--bg-secondary); border: 1px solid var(--border);"></div>
-        <div id="suggestionsList" style="display: grid; gap: 12px;"></div>
+        <div id="suggestionsSummary" style="display: none;"></div>
+        <div id="suggestionsList"></div>
     </div>
 
     <!-- MODAL XÁC NHẬN ĐĂNG XUẤT -->
@@ -100,7 +188,6 @@
     <script src="/static/suggestions.js"></script>
     <script src="/static/chatbot.js"></script>
     <script>
-        // HÀM FORMAT TIỀN TỆ TRỰC TIẾP TRÊN Ô INPUT
         function formatCurrencyInput(input) {
             let value = input.value;
             value = value.replace(/[^\d.]/g, '');

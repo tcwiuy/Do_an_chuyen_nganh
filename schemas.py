@@ -137,3 +137,9 @@ class UserOut(BaseModel):
 
     class Config:
         from_attributes = True # Cho phép Pydantic đọc dữ liệu từ đối tượng SQLAlchemy
+
+# Cấu trúc để cập nhật hồ sơ cá nhân
+class UserUpdateProfile(BaseModel):
+    full_name: str
+    dob: str | None = None
+    gender: str | None = None

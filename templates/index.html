@@ -45,14 +45,44 @@
       .wiz-cat-item input[type="color"] { background: transparent; border: none; cursor: pointer; height: 35px; width: 45px; padding: 0; border-radius: 4px; }
       @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
       
-      @media (max-width: 768px) {
-          .four-col-grid {
-              grid-template-columns: 1fr !important;
-          }
-          .four-col-grid .form-group {
-              grid-column: span 1 !important;
-          }
+      .four-col-grid {
+          display: grid; 
+          grid-template-columns: repeat(4, 1fr); 
+          gap: 15px; 
+          align-items: end; /* Căn lề dưới cho thẳng hàng */
+          margin-bottom: 20px;
       }
+      .form-group {
+          display: flex;
+          flex-direction: column;
+          width: 100%;
+      }
+      @media (max-width: 768px) {
+          .four-col-grid { grid-template-columns: 1fr !important; }
+          .four-col-grid .form-group { grid-column: span 1 !important; }
+      }
+
+      /* TÙY CHỈNH GIAO DIỆN KHUNG NHẬP LIỆU ĐỒNG BỘ */
+      .themed-input {
+          width: 100% !important; 
+          box-sizing: border-box;
+          padding: 10px 15px;
+          border-radius: 8px;
+          border: 1px solid var(--border);
+          background-color: var(--bg-primary);
+          color: var(--text-primary);
+          font-family: inherit;
+          font-size: 14px;
+          outline: none;
+          min-height: 42px; 
+      }
+      .themed-input:focus { border-color: var(--accent); }
+
+      .tags-dropdown { background-color: var(--bg-secondary) !important; border: 1px solid var(--border) !important; box-shadow: 0 4px 15px rgba(0,0,0,0.15) !important; }
+      .tags-dropdown div { padding: 8px 12px; color: var(--text-primary); cursor: pointer; transition: background 0.2s ease; }
+      .tags-dropdown div:hover { background-color: var(--bg-primary); }
+      .tags-dropdown .new-tag { color: var(--accent); font-style: italic; font-weight: bold; }
+      .tag-pill { background: var(--bg-primary) !important; color: var(--text-secondary) !important; border: 1px solid var(--border) !important; }
     </style>
   </head>
   <body>
@@ -120,7 +150,7 @@
           <h3 align="center" style="color: var(--accent); margin-top: 0;"><i class="fa-solid fa-wand-magic-sparkles"></i> Trợ lý AI Cú Mèo</h3>
           <p style="text-align: center; color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 15px;">Hãy nhập chi tiêu hoặc hỏi Cú Mèo một câu về tài chính!</p>
 
-          <div class="form-group" style="display: flex; gap: 10px; align-items: center; margin-bottom: 0;">
+          <div class="form-group" style="display: flex; flex-direction: row; gap: 10px; align-items: center; margin-bottom: 0;">
             <input type="text" id="aiInput" placeholder="VD: Tối qua đổ 50k tiền xăng và uống ly cafe 30k..." style="flex: 1; padding: 12px; border-radius: 8px; background-color: var(--bg-primary); border: 1px solid var(--border); color: var(--text-primary); outline: none;" />
             <button onclick="sendToAI()" id="aiBtn" class="nav-button" style="background-color: var(--accent); color: #fff; width: auto; padding: 0 20px; border: none;"><i class="fa-solid fa-paper-plane"></i> Gửi</button>
           </div>
@@ -128,34 +158,33 @@
 
         <div class="form-container">
           <form id="expenseForm"> 
-            <div class="four-col-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; align-items: start; margin-bottom: 20px;">
+            <div class="four-col-grid">
+                <!-- HÀNG 1 -->
                 <div class="form-group">
-                    <label>Mô tả</label>
-                    <input type="text" id="name" placeholder="Ví dụ: Trà sữa" required>
+                    <label style="margin-bottom: 5px;">Mô tả</label>
+                    <input type="text" id="name" class="themed-input" placeholder="Ví dụ: Trà sữa" required>
                 </div>
-                
                 <div class="form-group">
-                    <label>Danh mục</label>
-                    <select id="category" required></select>
+                    <label style="margin-bottom: 5px;">Danh mục</label>
+                    <select id="category" class="themed-input" required></select>
                 </div>
-                
                 <div class="form-group">
-                    <label>Số tiền</label>
-                    <input type="text" id="amount" placeholder="0" required oninput="formatCurrencyInput(this)">
+                    <label style="margin-bottom: 5px;">Số tiền</label>
+                    <input type="text" id="amount" class="themed-input" placeholder="0" required oninput="formatCurrencyInput(this)">
                 </div>
-                
                 <div class="form-group">
-                    <label>Ngày</label>
-                    <input type="date" id="date" required>
+                    <label style="margin-bottom: 5px;">Ngày</label>
+                    <input type="date" id="date" class="themed-input" required>
                     <script>
                         const todayDate = new Date();
                         document.getElementById("date").value = `${todayDate.getFullYear()}-${String(todayDate.getMonth() + 1).padStart(2, "0")}-${String(todayDate.getDate()).padStart(2, "0")}`;
                     </script>
                 </div>
 
+                <!-- HÀNG 2 -->
                 <div class="form-group">
-                    <label>Tần suất lặp lại</label>
-                    <select id="recurring_interval">
+                    <label style="margin-bottom: 5px;">Tần suất lặp lại</label>
+                    <select id="recurring_interval" class="themed-input">
                         <option value="">Không lặp lại</option>
                         <option value="daily">Hàng ngày</option>
                         <option value="weekly">Hàng tuần</option>
@@ -164,23 +193,23 @@
                     </select>
                 </div>
                 
-                <div class="form-group" id="jarSourceGroup">
-                    <label>Rút từ Quỹ (Hũ)</label>
-                    <select id="jar_id" style="background-color: var(--bg-primary);"></select>
+                <div class="form-group" id="jarSourceGroup" style="display: flex; flex-direction: column;">
+                    <label style="margin-bottom: 5px;">Rút từ Quỹ (Hũ)</label>
+                    <select id="jar_id" class="themed-input"></select>
                 </div>
 
                 <div class="form-group" style="position: relative;">
-                    <label>Nhãn</label>
-                    <div id="tags-input-container" style="width: 100%; display: flex; flex-wrap: wrap; border: 1px solid var(--border); border-radius: 4px; background-color: var(--bg-primary); cursor: text; padding: 0.25rem;">
-                        <div id="selected-tags" style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 2px;"></div>
-                        <input type="text" id="tags-input" placeholder="Nhập & Enter..." autocomplete="off" style="flex: 1; min-width: 100px; border: none; background: none; outline: none; padding: 0.25rem; color: var(--text-primary);">
+                    <label style="margin-bottom: 5px;">Nhãn</label>
+                    <div id="tags-input-container" class="themed-input" style="display: flex; flex-wrap: wrap; gap: 5px; align-items: center; cursor: text;">
+                        <div id="selected-tags" style="display: flex; flex-wrap: wrap; gap: 5px;"></div>
+                        <input type="text" id="tags-input" placeholder="Nhập & Enter..." autocomplete="off" style="flex: 1; min-width: 80px; border: none; background: none; outline: none; padding: 0; margin: 0; color: var(--text-primary); font-size: inherit;">
                     </div>
                     <div id="tags-dropdown" class="tags-dropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: #2a2a40; border: 1px solid #3d3d5c; border-radius: 8px; z-index: 100; max-height: 150px; overflow-y: auto; box-shadow: 0 4px 12px rgba(0,0,0,0.5);"></div>
                 </div>
                 
-                <div class="form-group" style="grid-column: span 2;">
-                    <label>Ghi chú chi tiết</label>
-                    <input type="text" id="note" placeholder="Ghi chú thêm (không bắt buộc)...">
+                <div class="form-group">
+                    <label style="margin-bottom: 5px;">Ghi chú chi tiết</label>
+                    <input type="text" id="note" class="themed-input" placeholder="Ghi chú thêm (không bắt buộc)...">
                 </div>
             </div>
 
@@ -281,14 +310,15 @@
                   <option value="Tiết kiệm phòng thân">Tiết kiệm phòng thân</option>
                   <option value="Đầu tư sinh lời">Đầu tư sinh lời</option>
                   <option value="Trả dứt điểm nợ">Trả dứt điểm nợ</option>
-                  <option value="Mua sắm tài sản lớn (Xe, Nhà)">Mua sắm tài sản lớn (Xe, Nhà)</option>
+                  <option value="Mua sắm tài sản lớn">Mua sắm tài sản lớn</option>
+                  <option value="Cải thiện dòng tiền">Cải thiện dòng tiền</option>
               </select>
 
               <label style="color: #d4a5ff; font-weight: bold; margin-bottom: 5px; display: block;">Khẩu vị rủi ro:</label>
               <select id="wRiskTolerance" class="wizard-input" style="cursor: pointer;">
-                  <option value="An toàn (Không muốn mất tiền)">An toàn (Thích gửi tiết kiệm)</option>
+                  <option value="An toàn">An toàn (Thích gửi tiết kiệm)</option>
                   <option value="Cân bằng">Cân bằng</option>
-                  <option value="Mạo hiểm (Chấp nhận rủi ro cao)">Mạo hiểm (Thích Crypto, Cổ phiếu)</option>
+                  <option value="Mạo hiểm">Mạo hiểm (Thích Crypto, Cổ phiếu)</option>
               </select>
           </div>
 
@@ -360,27 +390,50 @@
       let isCalendarExpanded = false; 
       let selectedDayFilter = null;   
 
-      // Tự động đổi danh mục dựa vào ô "Khoản thu"
+      // 💡 ĐÃ SỬA LẠI: Gom nhóm danh mục bằng optgroup
       function updateExpenseFormCategoryOptions() {
           const categorySelect = document.getElementById("category");
           const isIncome = document.getElementById("reportGain").checked;
-          const targetList = isIncome ? incomeCategories : expenseCategories;
           
           if(categorySelect) {
-              categorySelect.innerHTML = targetList.map((cat) => `<option value="${cat}">${cat}</option>`).join("");
+              const currentValue = categorySelect.value;
+              const expOptions = expenseCategories.map(c => `<option value="${c}">${c}</option>`).join('');
+              const incOptions = incomeCategories.map(c => `<option value="${c}">${c}</option>`).join('');
+              categorySelect.innerHTML = `<optgroup label="Chi Tiêu">${expOptions}</optgroup><optgroup label="Thu Nhập">${incOptions}</optgroup>`;
+              
+              if (currentValue && (expenseCategories.includes(currentValue) || incomeCategories.includes(currentValue))) {
+                  categorySelect.value = currentValue;
+              } else {
+                  categorySelect.value = isIncome ? incomeCategories[0] : expenseCategories[0];
+              }
           }
 
-          // Ẩn ô chọn "Rút từ Hũ" nếu đang là Khoản Thu
           const jarGroup = document.getElementById("jarSourceGroup");
           if(jarGroup) {
-              jarGroup.style.display = isIncome ? 'none' : 'block';
+              jarGroup.style.display = isIncome ? 'none' : 'flex';
           }
       }
 
       document.addEventListener("DOMContentLoaded", () => {
           const reportGainCheckbox = document.getElementById("reportGain");
+          const categorySelect = document.getElementById("category");
+
           if(reportGainCheckbox) {
-              reportGainCheckbox.addEventListener("change", updateExpenseFormCategoryOptions);
+              reportGainCheckbox.addEventListener("change", () => {
+                  updateExpenseFormCategoryOptions();
+                  if (categorySelect) categorySelect.value = reportGainCheckbox.checked ? incomeCategories[0] : expenseCategories[0];
+              });
+          }
+
+          if(categorySelect) {
+              categorySelect.addEventListener("change", (e) => {
+                  const isIncomeCat = incomeCategories.includes(e.target.value);
+                  if (reportGainCheckbox && reportGainCheckbox.checked !== isIncomeCat) {
+                      reportGainCheckbox.checked = isIncomeCat;
+                      updateExpenseFormCategoryOptions();
+                      categorySelect.value = e.target.value; 
+                  }
+              });
           }
       });
 
@@ -396,7 +449,6 @@
               if (select) {
                   select.innerHTML = '<option value="">-- Chọn Quỹ để rút --</option>';
                   jars.forEach(j => {
-                    //   let rate = (typeof exchangeRatesToVND !== "undefined") ? (exchangeRatesToVND[currentCurrency] || 1) : 1;
                       select.innerHTML += `<option value="${j.id}">${j.name} (${formatCurrency(j.balance)})</option>`;
                   });
               }
@@ -937,7 +989,7 @@
 
       document.getElementById("toggleExpenseFormBtn").addEventListener("click", function () {
         const formContainer = document.getElementById("addExpenseContainer"); const isHidden = formContainer.style.display === "none" || formContainer.style.display === "";
-        if (isHidden) { formContainer.style.display = "block"; this.innerHTML = '<i class="fa-solid fa-times"></i> Đóng'; } else { formContainer.style.display = "none"; this.innerHTML = '<i class="fa-solid fa-plus"></i> Thêm Chi Tiêu'; }
+        if (isHidden) { formContainer.style.display = "block"; this.innerHTML = '<i class="fa-solid fa-times"></i> Đóng'; } else { formContainer.style.display = "none"; this.innerHTML = '<i class="fa-solid fa-plus"></i> Thêm Giao Dịch'; }
       });
 
       function showCustomConfirm(message) {
@@ -990,7 +1042,6 @@
         // --- BẮT ĐẦU LOGIC KIỂM TRA NGÂN SÁCH (CHỈ KIỂM TRA KHOẢN CHI) ---
         if (!isGain && selectedCategory) {
           try {
-             // 1. Kéo ngân sách tháng hiện tại về
              const token = localStorage.getItem('token');
              const resBudgets = await fetch('/api/planning/budgets', {
                  headers: { 'Authorization': `Bearer ${token}` }
@@ -999,14 +1050,11 @@
              if (resBudgets.ok) {
                  const currentBudgets = await resBudgets.json();
                  
-                 // 2. Tìm ngân sách của danh mục đang chọn
                  const categoryBudget = currentBudgets.find(b => b.category === selectedCategory);
                  
-                 // 3. Nếu danh mục này có đặt ngân sách (limit_amount > 0)
                  if (categoryBudget && categoryBudget.limit_amount > 0) {
                      const totalAfterExpense = categoryBudget.spent_amount + amountInVND;
                      
-                     // 4. Nếu tổng tiền (đã tiêu + chuẩn bị tiêu) vượt quá hạn mức
                      if (totalAfterExpense > categoryBudget.limit_amount) {
                          const limitDisplay = formatCurrency(categoryBudget.limit_amount);
                          const newTotalDisplay = formatCurrency(totalAfterExpense);
@@ -1014,7 +1062,7 @@
                          const confirmMsg = `CẢNH BÁO VƯỢT NGÂN SÁCH!\n\nKhoản chi này sẽ làm bạn vượt hạn mức ngân sách của mục "${selectedCategory}".\n- Hạn mức: ${limitDisplay}\n- Tổng nếu lưu: ${newTotalDisplay}\n\nBạn có chắc chắn muốn tiếp tục lưu không?`;
                          
                          const userConfirmed = await showCustomConfirm(confirmMsg); 
-                         if (!userConfirmed) return; // Nếu user chọn "Hủy bỏ", dừng việc lưu lại
+                         if (!userConfirmed) return; 
                      }
                  }
              }
@@ -1122,7 +1170,6 @@
         </div>
       </div>
     </div>
-
 
     <div id="customAlertModal" style="display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.8); align-items: center; justify-content: center;">
       <div style="background: linear-gradient(145deg, #2a1e2d, #402a30); border: 2px solid #ff4d4d; border-radius: 12px; width: 90%; max-width: 450px; padding: 25px; box-shadow: 0 0 25px rgba(255, 77, 77, 0.4); text-align: center;">

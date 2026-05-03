@@ -19,8 +19,14 @@
             display: grid; 
             grid-template-columns: repeat(4, 1fr); 
             gap: 15px; 
-            align-items: start; 
+            /* 💡 ĐÃ SỬA: Căn lề dưới để các ô input luôn thẳng hàng tuyệt đối */
+            align-items: end; 
             margin-bottom: 20px;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
         }
         @media (max-width: 768px) {
             .four-col-grid { grid-template-columns: 1fr !important; }
@@ -28,6 +34,23 @@
         }
 
         /* TÙY CHỈNH GIAO DIỆN KHUNG NHÃN ĐỒNG BỘ THEME */
+        .themed-input {
+            width: 100% !important; 
+            box-sizing: border-box;
+            padding: 10px 15px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 14px;
+            outline: none;
+            min-height: 42px; 
+        }
+        .themed-input:focus {
+            border-color: var(--accent);
+        }
+
         .tags-dropdown {
             background-color: var(--bg-secondary) !important;
             border: 1px solid var(--border) !important;
@@ -132,25 +155,28 @@
         <div class="form-container">
             <form id="expenseForm">
                 <div class="four-col-grid">
+                    <!-- HÀNG 1 -->
                     <div class="form-group">
-                        <label>Mô tả</label>
-                        <input type="text" id="name" placeholder="Ví dụ: Trà sữa" required>
+                        <label style="margin-bottom: 5px;">Mô tả</label>
+                        <input type="text" id="name" class="themed-input" placeholder="Ví dụ: Trà sữa" required>
                     </div>
                     <div class="form-group">
-                        <label>Danh mục</label>
-                        <select id="category" required></select>
+                        <label style="margin-bottom: 5px;">Danh mục</label>
+                        <select id="category" class="themed-input" required></select>
                     </div>
                     <div class="form-group">
-                        <label>Số tiền</label>
-                        <input type="text" id="amount" placeholder="0" required oninput="formatCurrencyInput(this)">
+                        <label style="margin-bottom: 5px;">Số tiền</label>
+                        <input type="text" id="amount" class="themed-input" placeholder="0" required oninput="formatCurrencyInput(this)">
                     </div>
                     <div class="form-group">
-                        <label>Ngày</label>
-                        <input type="date" id="date" required>
+                        <label style="margin-bottom: 5px;">Ngày</label>
+                        <input type="date" id="date" class="themed-input" required>
                     </div>
+
+                    <!-- HÀNG 2 -->
                     <div class="form-group">
-                        <label>Tần suất lặp lại</label>
-                        <select id="recurring_interval">
+                        <label style="margin-bottom: 5px;">Tần suất lặp lại</label>
+                        <select id="recurring_interval" class="themed-input">
                             <option value="">Không lặp lại</option>
                             <option value="daily">Hàng ngày</option>
                             <option value="weekly">Hàng tuần</option>
@@ -159,22 +185,24 @@
                         </select>
                     </div>
 
-                    <div class="form-group" id="jarSourceGroup">
-                        <label>Rút từ Quỹ (Hũ)</label>
-                        <select id="jar_id" style="background-color: var(--bg-primary);"></select>
+                    <!-- 💡 ĐÃ SỬA LẠI: Thêm style mặc định là flex để cấu trúc không bị gãy -->
+                    <div class="form-group" id="jarSourceGroup" style="display: flex; flex-direction: column;">
+                        <label style="margin-bottom: 5px;">Rút từ Quỹ (Hũ)</label>
+                        <select id="jar_id" class="themed-input"></select>
                     </div>
                     
                     <div class="form-group" style="position: relative;">
-                        <label>Nhãn</label>
-                        <div id="tags-input-container" style="width: 100%; display: flex; flex-wrap: wrap; border: 1px solid var(--border); border-radius: 4px; background-color: var(--bg-primary); cursor: text; padding: 0.25rem;">
-                            <div id="selected-tags" style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 2px;"></div>
-                            <input type="text" id="tags-input" placeholder="Nhập & Enter..." autocomplete="off" style="flex: 1; min-width: 100px; border: none; background: none; outline: none; padding: 0.25rem; color: var(--text-primary);">
+                        <label style="margin-bottom: 5px;">Nhãn</label>
+                        <div id="tags-input-container" class="themed-input" style="display: flex; flex-wrap: wrap; gap: 5px; align-items: center; cursor: text;">
+                            <div id="selected-tags" style="display: flex; flex-wrap: wrap; gap: 5px;"></div>
+                            <input type="text" id="tags-input" placeholder="Nhập & Enter..." autocomplete="off" style="flex: 1; min-width: 80px; border: none; background: none; outline: none; padding: 0; margin: 0; color: var(--text-primary); font-size: inherit;">
                         </div>
                         <div id="tags-dropdown" class="tags-dropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; z-index: 100; max-height: 150px; overflow-y: auto; border-radius: 8px; padding: 5px 0;"></div>
                     </div>
-                    <div class="form-group" style="grid-column: span 2;">
-                        <label>Ghi chú chi tiết</label>
-                        <input type="text" id="note" placeholder="Ghi chú thêm (không bắt buộc)...">
+                    
+                    <div class="form-group">
+                        <label style="margin-bottom: 5px;">Ghi chú chi tiết</label>
+                        <input type="text" id="note" class="themed-input" placeholder="Ghi chú thêm...">
                     </div>
                 </div>
 
@@ -282,25 +310,60 @@
             }
         }
 
-        // 💡 TỰ ĐỘNG ĐỔI DANH MỤC Ở FORM
+// 💡 HIỂN THỊ CẢ 2 NHÓM TẠI KHUNG DANH MỤC (CÓ OPTGROUP RÕ RÀNG)
         function updateExpenseFormCategoryOptions() {
             const categorySelect = document.getElementById("category");
             const isIncome = document.getElementById("reportGain").checked;
-            const targetList = isIncome ? incomeCategories : expenseCategories;
             
             if(categorySelect) {
-                categorySelect.innerHTML = targetList.map((cat) => `<option value="${cat}">${cat}</option>`).join("");
+                // Lưu lại giá trị đang chọn để không bị reset khi render
+                const currentValue = categorySelect.value;
+                
+                // Gom nhóm HTML
+                const expOptions = expenseCategories.map(c => `<option value="${c}">${c}</option>`).join('');
+                const incOptions = incomeCategories.map(c => `<option value="${c}">${c}</option>`).join('');
+                
+                categorySelect.innerHTML = `<optgroup label="Chi Tiêu">${expOptions}</optgroup><optgroup label="Thu Nhập">${incOptions}</optgroup>`;
+                
+                // Phục hồi lại giá trị cũ nếu có
+                if (currentValue && (expenseCategories.includes(currentValue) || incomeCategories.includes(currentValue))) {
+                    categorySelect.value = currentValue;
+                }
             }
+            
             const jarGroup = document.getElementById("jarSourceGroup");
             if(jarGroup) {
-                jarGroup.style.display = isIncome ? 'none' : 'block';
+                jarGroup.style.display = isIncome ? 'none' : 'flex';
+                jarGroup.style.flexDirection = 'column'; 
             }
         }
 
         document.addEventListener("DOMContentLoaded", () => {
             const reportGainCheckbox = document.getElementById("reportGain");
+            const categorySelect = document.getElementById("category");
+
+            // 1. Khi bấm ô Checkbox Thu/Chi
             if(reportGainCheckbox) {
-                reportGainCheckbox.addEventListener("change", updateExpenseFormCategoryOptions);
+                reportGainCheckbox.addEventListener("change", () => {
+                    updateExpenseFormCategoryOptions();
+                    // Tự động nhảy danh mục đầu tiên tương ứng
+                    if (categorySelect) {
+                        categorySelect.value = reportGainCheckbox.checked ? incomeCategories[0] : expenseCategories[0];
+                    }
+                });
+            }
+
+            // 2. UX Thông minh: Khi người dùng tự chọn Danh mục, hệ thống sẽ tự nhảy Checkbox
+            if(categorySelect) {
+                categorySelect.addEventListener("change", (e) => {
+                    const isIncomeCat = incomeCategories.includes(e.target.value);
+                    // Nếu danh mục thuộc nhóm Thu Nhập -> Tự động tick ô "Khoản thu" và ngược lại
+                    if (reportGainCheckbox && reportGainCheckbox.checked !== isIncomeCat) {
+                        reportGainCheckbox.checked = isIncomeCat;
+                        updateExpenseFormCategoryOptions();
+                        categorySelect.value = e.target.value; // Giữ lại đúng giá trị vừa chọn
+                    }
+                });
             }
         });
 

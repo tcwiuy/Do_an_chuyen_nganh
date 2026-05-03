@@ -1234,7 +1234,8 @@ def get_spending_suggestions(
     income_rows = []
     for t in transactions:
         # QUY TRÌNH MỚI: Đổi tiền VND trong DB sang tiền hiển thị ngay tại Backend
-        converted_amount = t.amount / rate
+        # 💡 ÉP KIỂU SANG FLOAT ĐỂ PYTHON CHỊU LÀM TOÁN
+        converted_amount = float(t.amount) / float(rate) 
         row = f"{t.date.strftime('%Y-%m-%d')} | {t.name} | {converted_amount:.2f} | {t.category}"
         if t.amount < 0:
             expense_rows.append(row)
@@ -2436,3 +2437,21 @@ def get_user_profile(
         "financial_goal": getattr(user_config, 'financial_goal', "Chưa xác định"),
         "risk_tolerance": getattr(user_config, 'risk_tolerance', "Cân bằng")
     }
+
+# API Cập nhật thông tin cá nhân cơ bản
+@auth_router.put("/me/update")
+def update_profile_info(
+    req: schemas.UserUpdateProfile,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    current_user.full_name = req.full_name
+    current_user.gender = req.gender
+    if req.dob:
+        try:
+            current_user.dob = datetime.strptime(req.dob, "%Y-%m-%d").date()
+        except ValueError:
+            pass
+    
+    db.commit()
+    return {"message": "Cập nhật thông tin cá nhân thành công!"}

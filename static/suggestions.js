@@ -145,7 +145,7 @@ async function loadSuggestions() {
             data = await response.json();
         } else {
             const errorText = await response.text();
-            throw new Error("Lỗi máy chủ nội bộ (500). Vui lòng làm BƯỚC 2 bên dưới!");
+            throw new Error("Lỗi máy chủ nội bộ (500). Vui lòng thử lại sau.");
         }
 
         if (!response.ok) {
