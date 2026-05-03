@@ -810,7 +810,6 @@ def chat_with_data(
         .filter(models.UserConfig.user_id == current_user.id)
         .first()
     )
-    
 
     cats = user_config.categories if user_config and user_config.categories else None
     allowed_categories = [] # 🛡️ Lính gác cổng
@@ -827,64 +826,83 @@ def chat_with_data(
         categories_str = "Chi tiêu: Ăn uống, Đi lại, Mua sắm | Thu nhập: Lương, Thưởng"
         allowed_categories = ["Ăn uống", "Đi lại", "Mua sắm", "Lương", "Thưởng", "Khác"]
 
-    # Đảm bảo luôn có tùy chọn "Khác" để dự phòng
     if "Khác" not in allowed_categories: 
         allowed_categories.append("Khác")
 
-    current_goal = (
-        user_config.financial_goal
-        if user_config and user_config.financial_goal
-        else "Chưa xác định"
-    )
-    current_risk = (
-        user_config.risk_tolerance
-        if user_config and user_config.risk_tolerance
-        else "Cân bằng"
-    )
+    current_goal = user_config.financial_goal if user_config and user_config.financial_goal else "Chưa xác định"
+    current_risk = user_config.risk_tolerance if user_config and user_config.risk_tolerance else "Cân bằng"
 
-    # BƯỚC 2: Rút trích dữ liệu của riêng người dùng (RAG)
-    transactions = (
-        db.query(models.Transaction)
-        .filter(models.Transaction.user_id == current_user.id)
-        .all()
-    )
+    # BƯỚC 2: Rút trích dữ liệu thông minh (RAG) CHỐNG MẤT DẤU
+    all_txns = db.query(models.Transaction).filter(
+        models.Transaction.user_id == current_user.id
+    ).all()
 
-    # CODE PYTHON TỰ TÍNH TOÁN SỐ DƯ
-    total_income = sum(t.amount for t in transactions if t.amount > 0)
-    total_expense = sum(abs(t.amount) for t in transactions if t.amount < 0)
+    total_income = sum(t.amount for t in all_txns if t.amount > 0)
+    total_expense = sum(abs(t.amount) for t in all_txns if t.amount < 0)
     current_balance_vnd = total_income - total_expense
-    current_balance_display = current_balance_vnd / Decimal(str(req.rate))
     
-    # 💡 CẤP QUYỀN SỬA: THÊM ID VÀO DỮ LIỆU GỬI CHO AI
-    data_context = "GIAO DỊCH GẦN ĐÂY CỦA USER:\n"
-    if not transactions:
+    recent_txns = sorted(all_txns, key=lambda x: x.date, reverse=True)[:5]
+
+    # 💡 CẢI TIẾN LỚN: Ghép câu chat HIỆN TẠI với câu chat TRƯỚC ĐÓ để lấy từ khóa (Bảo toàn chữ "xăng")
+    text_to_search = req.message
+    if req.history and len(req.history) > 0:
+        text_to_search += " " + req.history[-1].get("user", "")
+        
+    # Loại bỏ các từ vô nghĩa để AI tìm kiếm chuẩn hơn
+    stop_words = {"bạn", "hãy", "ghi", "rõ", "lại", "là", "tháng", "ngày", "thứ", "cho", "tôi", "nhé", "vào", "của", "đã", "sửa", "thành", "nhầm"}
+    keywords = [word for word in text_to_search.split() if len(word) > 2 and word.lower() not in stop_words]
+    
+    related_txns = []
+    if keywords:
+        search_filter = models.Transaction.name.ilike(f"%{keywords[0]}%")
+        for kw in keywords[1:]:
+            search_filter |= models.Transaction.name.ilike(f"%{kw}%")
+        
+        related_txns = db.query(models.Transaction).filter(
+            models.Transaction.user_id == current_user.id,
+            search_filter
+        ).order_by(models.Transaction.date.desc()).limit(10).all()
+
+    all_context_txns = list({t.id: t for t in (recent_txns + related_txns)}.values())
+
+    data_context = "GIAO DỊCH LIÊN QUAN ĐỂ SỬA (ID là quan trọng nhất):\n"
+    if not all_context_txns:
         data_context += "Trống.\n"
     else:
-        for t in sorted(transactions, key=lambda x: x.date, reverse=True)[:10]:
+        for t in sorted(all_context_txns, key=lambda x: x.date, reverse=True):
             data_context += f"ID: {t.id} | Ngày: {t.date.strftime('%Y-%m-%d')} | Tên: {t.name} | Tiền: {t.amount} | Nhóm: {t.category}\n"
 
     # BƯỚC 3: Xử lý lịch sử Chat
     history_text = ""
     if req.history:
-        history_text = "LỊCH SỬ CHAT:\n"
+        history_text = "LỊCH SỬ CHAT CẦN ĐỌC KỸ ĐỂ NHẬN DIỆN CÂU ĐÍNH CHÍNH:\n"
         for turn in req.history[-3:]:  
             history_text += f"User: {turn.get('user', '')}\nAI: {turn.get('ai', '')}\n"
 
-    # BƯỚC 4: PROMPT TỐI ƯU HÓA (Dạy AI cách cập nhật)
+    # BƯỚC 4: PROMPT TỐI ƯU HÓA
     today_str = datetime.now().strftime("%Y-%m-%d")
+    current_year = datetime.now().year
     t_income = float(total_income) / req.rate
     t_expense = float(total_expense) / req.rate
     t_balance = float(current_balance_vnd) / req.rate
+    
+    # BƯỚC 4: PROMPT TỐI ƯU HÓA (Dạy AI cách Cập nhật & Nhận diện Đính chính)
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    current_year = datetime.now().year
+    t_income = float(total_income) / req.rate
+    t_expense = float(total_expense) / req.rate
+    t_balance = float(current_balance_vnd) / req.rate
+    
     prompt = f"""
     Bạn là "Cú Mèo" - Cố vấn tài chính cá nhân của ExpenseOwl. Hôm nay: {today_str}.
     TIỀN TỆ HIỆN TẠI: {req.currency.upper()} (Tỷ giá 1 {req.currency.upper()} = {req.rate} VNĐ).
 
     HỒ SƠ KHÁCH HÀNG: Mục tiêu: {current_goal} | Khẩu vị rủi ro: {current_risk}.
     
-    📊 THỐNG KÊ CHÍNH XÁC TỪ MÁY CHỦ (TUYỆT ĐỐI TIN TƯỞNG SỐ NÀY, KHÔNG TỰ CỘNG LẠI):
+    🚨 BÁO CÁO TÀI CHÍNH TỪ MÁY CHỦ (BẮT BUỘC ĐỌC ĐÚNG CON SỐ NÀY):
     - Tổng thu: {t_income:,.0f} {req.currency.upper()}
     - Tổng chi: {t_expense:,.0f} {req.currency.upper()}
-    - Số dư hiện tại: {t_balance:,.0f} {req.currency.upper()}
+    => SỐ DƯ CHÍNH XÁC: {t_balance:,.0f} {req.currency.upper()}
 
     {data_context}
     {history_text}
@@ -894,39 +912,39 @@ def chat_with_data(
     NHIỆM VỤ: Trả về DUY NHẤT 1 KHỐI JSON TỰ THUẦN (Không kèm markdown ```).
     
     🚨 QUY TẮC TỐI THƯỢNG (KIỂM TRA ĐẦU TIÊN):
-    Nếu câu nói của khách CÓ SỐ TIỀN nhưng KHÔNG CÓ TÊN MÓN HÀNG/MỤC ĐÍCH (VD: "Hôm qua tiêu mất 500k", "Mới rớt 100k"):
-    => BẠN BẮT BUỘC PHẢI DỪNG MỌI TƯ VẤN KHÁC. Trả về action "chat" và đặt câu hỏi ép khách khai báo: "Cú Mèo rất tiếc/chúc mừng bạn! Nhưng khoản [Số tiền] đó bạn dùng vào việc gì vậy? Khai báo để Cú Mèo lưu sổ nhé!". TUYỆT ĐỐI KHÔNG báo cáo số dư hay khuyên bảo dài dòng trong trường hợp này.
+    1. CẢNH BÁO ÁM ẢNH QUÁ KHỨ: Lịch sử chat bên trên CÓ THỂ ĐANG LƯU CON SỐ SỐ DƯ BỊ SAI do lỗi hệ thống trước đó. Bạn BẮT BUỘC PHẢI BỎ QUA hoàn toàn các con số tính toán trong lịch sử chat.
+    2. KHI KHÁCH HỎI VỀ SỐ DƯ HOẶC TỔNG THU/CHI: Bạn CHỈ ĐƯỢC PHÉP báo cáo con số: {t_balance:,.0f} {req.currency.upper()}. TUYỆT ĐỐI KHÔNG được tự làm toán. 
+    3. Nếu câu nói của khách CÓ SỐ TIỀN nhưng KHÔNG CÓ TÊN MÓN HÀNG/MỤC ĐÍCH: Trả về action "chat" và hỏi: "Khoản [Số tiền] đó bạn dùng vào việc gì vậy?".
 
-    QUY TẮC XỬ LÝ (Nếu đã qua được trạm kiểm duyệt trên):
-    1. "reply": Tư vấn thân thiện, ngắn gọn. Báo cáo số dư bằng {req.currency.upper()} nếu cần thiết (Tự chia dữ liệu lịch sử cho {req.rate}).
-    2. DANH MỤC: TUYỆT ĐỐI KHÔNG TỰ BỊA DANH MỤC MỚI. Nếu không có danh mục phù hợp, ép vào "Khác" VÀ dặn khách: "Cú Mèo tạm xếp vào [Khác]. Bạn hãy vào Cài đặt thêm danh mục mới nhé!".
-    3. "action": Quyết định 1 trong 4 hành động:
-       - "save": TẠO MỚI (Có ĐỦ Tên khoản VÀ Số tiền). Giá trị lưu 'amount' PHẢI nhân với {req.rate} để ra VNĐ.
-       - "update": SỬA giao dịch. ⚠️ LUẬT THÉP: Nhìn vào danh sách GIAO DỊCH GẦN ĐÂY. Nếu từ khóa khách dùng khớp TỪ 2 GIAO DỊCH TRỞ LÊN, TUYỆT ĐỐI KHÔNG ĐƯỢC ĐOÁN. Phải dùng "chat" hỏi: "Bạn muốn sửa khoản nào?". CHỈ dùng "update" khi khớp DUY NHẤT 1 kết quả.
-       - "update_profile": CHỈ KHI khách đổi mục tiêu DÀI HẠN. ⚠️ BẠN PHẢI GOM NHÓM YÊU CẦU CỦA KHÁCH. 
-         BẮT BUỘC điền vào "data": [{{ 
-             "name": "COPY ĐÚNG 1 CỤM TỪ GẦN NGHĨA NHẤT TRONG: [Tiết kiệm phòng thân, Đầu tư sinh lời, Trả dứt điểm nợ, Mua sắm tài sản lớn, Cải thiện dòng tiền]", 
-             "category": "COPY ĐÚNG 1 TỪ TRONG: [An toàn, Cân bằng, Mạo hiểm]" 
-         }}]
-       - "chat": Trò chuyện bình thường, giải đáp thắc mắc.
+    QUY TẮC "ACTION" (CHỌN 1 TRONG 4 HÀNH ĐỘNG):
+    1. "save": TẠO MỚI. CHỈ DÙNG khi khách kể 1 giao dịch MỚI HOÀN TOÀN. KHÔNG DÙNG "save" NẾU ĐANG CHAT ĐÍNH CHÍNH.
+       => Bắt buộc nhân 'amount' với {req.rate}. Nếu khách chỉ nói "tháng X", mặc định lấy ngày 1 (VD: {current_year}-X-01).
 
-       
+    2. "update": SỬA/CẬP NHẬT/BỔ SUNG GIAO DỊCH CŨ. 
+       => 🚨 LUẬT THÉP: Bất cứ khi nào khách nói một câu CHỈ CHỨA SỰ ĐIỀU CHỈNH (Ví dụ: "ghi rõ lại là ngày 9", "sửa thành...", "đổi sang...", "giá là 300k mới đúng"), BẮT BUỘC PHẢI TRẢ VỀ "action": "update". TUYỆT ĐỐI KHÔNG ĐƯỢC TẠO MỚI.
+       => Tìm "ID" trong GIAO DỊCH LIÊN QUAN và điền vào "transaction_id".
+
+    3. "update_profile": Cập nhật Mục tiêu/Rủi ro của hồ sơ.
+    
+    4. "chat": Trò chuyện, giải đáp thắc mắc.
+
+    DANH MỤC CHO PHÉP: TUYỆT ĐỐI COPY ĐÚNG 1 TỪ TRONG MẢNG SAU: {categories_str}. Nếu không khớp, chọn "Khác".
+
     CẤU TRÚC JSON:
     {{
         "reply": "Câu trả lời của Cú Mèo",
         "action": "chat" | "save" | "update" | "update_profile",
-        "transaction_id": "Mã ID của giao dịch cần sửa (CHỈ CÓ KHI action là update)" | null,
+        "transaction_id": "Mã ID của giao dịch (BẮT BUỘC có nếu action là update)" | null,
         "data": {{ 
             "name": "...", 
             "amount": ±VNĐ, 
-            "category": "BẮT BUỘC COPY ĐÚNG 1 TỪ: {categories_str}", 
+            "category": "...", 
             "date": "YYYY-MM-DD" 
-        }} (LƯU Ý: Nếu khách kể nhiều giao dịch, hãy trả về MẢNG [{{...}}, {{...}}] chứa nhiều object) | null,
-        "profile_update": {{ "financial_goal": "Mục tiêu mới", "risk_tolerance": "Rủi ro mới" }} | null
+        }} (Dạng List [{{..}}, {{..}}] nếu nhiều giao dịch) | null,
+        "profile_update": {{ "financial_goal": "...", "risk_tolerance": "..." }} | null
     }}
     """
 
-    # BƯỚC 5: Gọi Gemini
     # BƯỚC 5: Gọi Gemini
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key={api_key}"
     payload = {
@@ -955,17 +973,15 @@ def chat_with_data(
         transaction_data = None
         final_action = result_json.get("action", "chat")
 
-        # 6.1. TẠO MỚI GIAO DỊCH (HỖ TRỢ NHẬP NHIỀU MÓN CÙNG LÚC)
+        # 6.1. TẠO MỚI GIAO DỊCH
         if final_action == "save" and result_json.get("data"):
             raw_data = result_json["data"]
-            
-            # 💡 TIẾN HÓA: Nếu AI trả về 1 list thì giữ nguyên, nếu trả 1 món (dict) thì bọc nó vào list
             data_list = raw_data if isinstance(raw_data, list) else [raw_data]
             saved_txns = []
 
             for data in data_list:
                 if not isinstance(data, dict): 
-                    continue # Bỏ qua nếu dữ liệu rác
+                    continue 
                     
                 try:
                     parsed_date = datetime.strptime(data.get("date", today_str), "%Y-%m-%d").date()
@@ -984,7 +1000,7 @@ def chat_with_data(
                 )
                 db.add(new_transaction)
 
-                # Cập nhật Hũ / Ngân sách cho từng món
+                # Cập nhật Hũ / Ngân sách
                 amount = new_transaction.amount
                 if amount > 0:
                     distribute_to_jars(db, current_user.id, amount)
@@ -994,7 +1010,6 @@ def chat_with_data(
                 db.commit()
                 db.refresh(new_transaction)
 
-                # Ghi nhận lại những món đã lưu thành công
                 saved_txns.append({
                     "id": new_tx_id, 
                     "name": new_transaction.name, 
@@ -1004,70 +1019,72 @@ def chat_with_data(
                     "tags": new_transaction.tags,
                 })
 
-            # Lấy giao dịch ĐẦU TIÊN gửi về Frontend để Frontend hiển thị cảnh báo (nếu có)
             transaction_data = saved_txns[0] if saved_txns else None
 
-        # 6.2. 💡 SỬA GIAO DỊCH HIỆN CÓ
+        # 6.2. SỬA GIAO DỊCH HIỆN CÓ
         elif final_action == "update" and result_json.get("transaction_id") and result_json.get("data"):
             target_id = result_json["transaction_id"]
-            data = result_json["data"]
+            raw_data = result_json["data"]
             
-            # Tìm giao dịch cũ
-            tx_to_update = db.query(models.Transaction).filter(
-                models.Transaction.id == target_id, 
-                models.Transaction.user_id == current_user.id
-            ).first()
+            # Xử lý trường hợp AI trả về mảng thay vì dict khi update
+            data = raw_data[0] if isinstance(raw_data, list) and len(raw_data) > 0 else raw_data
             
-            if tx_to_update:
-                old_amount = tx_to_update.amount
-                old_category = tx_to_update.category
-                new_amount = float(data.get("amount", old_amount))
-                raw_category = str(data.get("category", old_category))
-                new_category = raw_category if raw_category in allowed_categories else "Khác"
-
-                # Hoàn tác Ngân sách / Hũ cũ
-                if old_amount > 0:
-                    distribute_to_jars(db, current_user.id, -old_amount)
-                elif old_amount < 0:
-                    update_budget_spent(db, current_user.id, old_category, -abs(old_amount))
+            if isinstance(data, dict):
+                tx_to_update = db.query(models.Transaction).filter(
+                    models.Transaction.id == target_id, 
+                    models.Transaction.user_id == current_user.id
+                ).first()
                 
-                # Cập nhật thông tin mới
-                if data.get("name"): tx_to_update.name = str(data.get("name"))[:255]
-                tx_to_update.category = new_category
-                tx_to_update.amount = new_amount
-                try:
-                    tx_to_update.date = datetime.strptime(data.get("date", today_str), "%Y-%m-%d").date()
-                except:
-                    pass
+                if tx_to_update:
+                    old_amount = tx_to_update.amount
+                    old_category = tx_to_update.category
+                    
+                    # Giữ nguyên giá trị cũ nếu AI không trả về trường đó
+                    new_amount = float(data.get("amount", old_amount))
+                    raw_category = str(data.get("category", old_category))
+                    new_category = raw_category if raw_category in allowed_categories else "Khác"
 
-                # Trừ / Cộng Ngân sách mới
-                if new_amount > 0:
-                    distribute_to_jars(db, current_user.id, new_amount)
-                elif new_amount < 0:
-                    update_budget_spent(db, current_user.id, new_category, abs(new_amount))
+                    # Hoàn tác Ngân sách / Hũ cũ
+                    if old_amount > 0:
+                        distribute_to_jars(db, current_user.id, -old_amount)
+                    elif old_amount < 0:
+                        update_budget_spent(db, current_user.id, old_category, -abs(old_amount))
+                    
+                    # Cập nhật thông tin mới
+                    if data.get("name"): tx_to_update.name = str(data.get("name"))[:255]
+                    tx_to_update.category = new_category
+                    tx_to_update.amount = new_amount
+                    try:
+                        tx_to_update.date = datetime.strptime(data.get("date", str(tx_to_update.date)), "%Y-%m-%d").date()
+                    except:
+                        pass
 
-                db.commit()
-                db.refresh(tx_to_update)
+                    # Trừ / Cộng Ngân sách mới
+                    if new_amount > 0:
+                        distribute_to_jars(db, current_user.id, new_amount)
+                    elif new_amount < 0:
+                        update_budget_spent(db, current_user.id, new_category, abs(new_amount))
 
-                transaction_data = {
-                    "id": tx_to_update.id, "name": tx_to_update.name, "amount": tx_to_update.amount,
-                    "category": tx_to_update.category, "date": tx_to_update.date.isoformat(), "tags": tx_to_update.tags,
-                }
-            else:
-                final_action = "chat" # Nếu truyền ID tào lao không có trong DB thì hủy lệnh
+                    db.commit()
+                    db.refresh(tx_to_update)
+
+                    transaction_data = {
+                        "id": tx_to_update.id, "name": tx_to_update.name, "amount": tx_to_update.amount,
+                        "category": tx_to_update.category, "date": tx_to_update.date.isoformat(), "tags": tx_to_update.tags,
+                    }
+                else:
+                    final_action = "chat" 
 
         # 6.3. ĐỔI HỒ SƠ TÀI CHÍNH
         elif final_action == "update_profile":
             new_goal = None
             new_risk = None
 
-            # 1. Giăng lưới số 1: Bắt trường hợp AI ngoan ngoãn ghi vào "profile_update"
             if result_json.get("profile_update") and isinstance(result_json["profile_update"], dict):
                 p_update = result_json["profile_update"]
                 new_goal = p_update.get("financial_goal")
                 new_risk = p_update.get("risk_tolerance")
 
-            # 2. Giăng lưới số 2: Bắt trường hợp AI bướng bỉnh ghi vào "data"
             if not new_goal and not new_risk and result_json.get("data"):
                 p_data = result_json["data"]
                 if isinstance(p_data, list) and len(p_data) > 0:
@@ -1076,7 +1093,6 @@ def chat_with_data(
                     new_goal = p_data.get("name")
                     new_risk = p_data.get("category")
 
-            # 3. Tiến hành lưu Database nếu tóm được dữ liệu
             if new_goal or new_risk:
                 if user_config:
                     if new_goal and new_goal != "Khác": 
@@ -1092,6 +1108,7 @@ def chat_with_data(
                     db.add(user_config)
                 
                 db.commit()
+
         return {
             "reply": result_json.get("reply", "Cú Mèo đã ghi nhận yêu cầu của bạn!"),
             "action": final_action,
@@ -1102,7 +1119,6 @@ def chat_with_data(
         raise HTTPException(status_code=400, detail="AI trả về dữ liệu không hợp lệ.")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Lỗi xử lý: {str(e)}")
-
 
 # ---------------------------------------------------------
 # 3. API PHÂN TÍCH XU HƯỚNG VÀ PHÁT HIỆN BẤT THƯỜNG

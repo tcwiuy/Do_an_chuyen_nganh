@@ -43,6 +43,13 @@
             border-radius: 16px;
             background: var(--bg-primary);
             margin-bottom: 10px;
+            cursor: pointer; /* Đã thêm cursor pointer */
+            transition: transform 0.15s ease, border-color 0.15s ease; /* Thêm hiệu ứng hover */
+        }
+        
+        .trend-category-item:hover {
+            border-color: var(--accent);
+            transform: translateY(-1px);
         }
 
         .trend-category-item:last-child {
@@ -214,6 +221,90 @@
             font-weight: 700;
         }
 
+        /* -------------------------------------
+           CSS CHO MODAL DANH SÁCH GIAO DỊCH 
+           ------------------------------------- */
+        #categoryDetailsModal {
+            display: none; 
+            position: fixed; 
+            z-index: 2000; 
+            left: 0; 
+            top: 0; 
+            width: 100%; 
+            height: 100%; 
+            background-color: rgba(0,0,0,0.7); 
+            align-items: center; 
+            justify-content: center;
+        }
+
+        .category-details-content {
+            background-color: var(--bg-secondary); 
+            border: 1px solid var(--border); 
+            border-radius: 16px; 
+            width: 90%; 
+            max-width: 500px; 
+            max-height: 80vh; 
+            display: flex; 
+            flex-direction: column; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .category-details-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: var(--bg-primary);
+        }
+
+        .category-details-header h3 {
+            margin: 0;
+            color: var(--accent);
+        }
+
+        .category-details-body {
+            padding: 20px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .tx-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            border-bottom: 1px dashed var(--border);
+        }
+        
+        .tx-item:last-child {
+            border-bottom: none;
+        }
+
+        .tx-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .tx-name {
+            font-weight: bold;
+            color: var(--text-primary);
+        }
+
+        .tx-date {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .tx-amount {
+            font-weight: bold;
+        }
+
+        .tx-amount.positive { color: #4ade80; }
+        .tx-amount.negative { color: var(--text-primary); }
+
         @media (max-width: 768px) {
             .container {
                 padding-inline: 12px;
@@ -265,7 +356,6 @@
                 </a>
                 <a href="/settings" class="view-button" data-tooltip="Cài Đặt"><i class="fa-solid fa-gear"></i></a>
                 
-                <!-- ĐÃ SỬA ONCLICK Ở DÒNG DƯỚI ĐÂY -->
                 <a href="javascript:void(0)" class="view-button" onclick="showLogoutModal()" data-tooltip="Đăng Xuất" style="margin-left: auto; color: #ff4d4d;"><i class="fa-solid fa-right-from-bracket"></i></a>
             </div>
         </header>
@@ -319,6 +409,20 @@
         </div>
 
     </div>
+
+    <!-- MODAL CHI TIẾT DANH MỤC -->
+    <div id="categoryDetailsModal">
+        <div class="category-details-content">
+            <div class="category-details-header">
+                <h3 id="modalCategoryTitle">Chi tiết danh mục</h3>
+                <button onclick="closeCategoryModal()" style="background: none; border: none; color: var(--text-secondary); font-size: 1.5rem; cursor: pointer; padding: 0;"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="category-details-body" id="modalCategoryBody">
+                <!-- Nội dung giao dịch sẽ được tiêm vào đây bằng JS -->
+            </div>
+        </div>
+    </div>
+
     <!-- MODAL XÁC NHẬN ĐĂNG XUẤT ĐẸP -->
     <div id="logoutConfirmModal" class="modal" style="display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); align-items: center; justify-content: center;">
         <div style="background-color: var(--bg-secondary); border: 1px solid var(--border); border-radius: 12px; width: 90%; max-width: 400px; padding: 25px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); text-align: center;">
@@ -332,6 +436,7 @@
             </div>
         </div>
     </div>
+    
     <script src="/static/functions.js"></script>
     <script src="/static/trend.js?v=999"></script>
     <script src="/static/chatbot.js"></script>
@@ -345,6 +450,18 @@
         function closeLogoutModal() {
             document.getElementById('logoutConfirmModal').style.display = 'none';
         }
+
+        // HÀM ẨN MODAL CHI TIẾT DANH MỤC
+        function closeCategoryModal() {
+            document.getElementById('categoryDetailsModal').style.display = 'none';
+        }
+
+        // Đóng modal khi click ra ngoài
+        document.getElementById('categoryDetailsModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeCategoryModal();
+            }
+        });
 
         // HÀM THỰC THI ĐĂNG XUẤT
         function proceedLogout() {
