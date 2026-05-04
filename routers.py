@@ -804,15 +804,10 @@ def chat_with_data(
     if not api_key:
         raise HTTPException(status_code=500, detail="Chưa cấu hình GEMINI_API_KEY")
 
-    # BƯỚC 1: Lấy Cấu hình, Danh mục và HỒ SƠ TÍNH CÁCH hiện tại
-    user_config = (
-        db.query(models.UserConfig)
-        .filter(models.UserConfig.user_id == current_user.id)
-        .first()
-    )
-
+    # BƯỚC 1: Lấy Cấu hình, Danh mục và HỒ SƠ TÍNH CÁCH
+    user_config = db.query(models.UserConfig).filter(models.UserConfig.user_id == current_user.id).first()
     cats = user_config.categories if user_config and user_config.categories else None
-    allowed_categories = [] # 🛡️ Lính gác cổng
+    allowed_categories = [] 
     
     if isinstance(cats, dict):
         exp_cats = cats.get("expenseCategories", ["Ăn uống", "Đi lại", "Mua sắm", "Hóa đơn", "Giải trí"])
@@ -832,28 +827,20 @@ def chat_with_data(
     current_goal = user_config.financial_goal if user_config and user_config.financial_goal else "Chưa xác định"
     current_risk = user_config.risk_tolerance if user_config and user_config.risk_tolerance else "Cân bằng"
 
-    # BƯỚC 2: Rút trích dữ liệu thông minh (RAG) CHỐNG MẤT DẤU
-    all_txns = db.query(models.Transaction).filter(
-        models.Transaction.user_id == current_user.id
-    ).all()
-
-    # 💡 1. TÍNH TOÁN TOÀN THỜI GIAN (ALL-TIME)
+    # BƯỚC 2: Rút trích dữ liệu (RAG)
+    all_txns = db.query(models.Transaction).filter(models.Transaction.user_id == current_user.id).all()
     total_income_all = sum(t.amount for t in all_txns if t.amount > 0)
     total_expense_all = sum(abs(t.amount) for t in all_txns if t.amount < 0)
     balance_all = total_income_all - total_expense_all
     
-    # 💡 2. TÍNH TOÁN RIÊNG CHO THÁNG HIỆN TẠI (THIS MONTH)
     current_month = datetime.now().month
     current_year = datetime.now().year
     txns_this_month = [t for t in all_txns if getattr(t.date, 'month', -1) == current_month and getattr(t.date, 'year', -1) == current_year]
-    
     total_income_month = sum(t.amount for t in txns_this_month if t.amount > 0)
     total_expense_month = sum(abs(t.amount) for t in txns_this_month if t.amount < 0)
     balance_month = total_income_month - total_expense_month
 
     recent_txns = sorted(all_txns, key=lambda x: x.date, reverse=True)[:5]
-
-    # Ghép câu chat HIỆN TẠI với câu chat TRƯỚC ĐÓ để lấy từ khóa (Bảo toàn chữ "xăng")
     text_to_search = req.message
     if req.history and len(req.history) > 0:
         text_to_search += " " + req.history[-1].get("user", "")
@@ -873,7 +860,6 @@ def chat_with_data(
         ).order_by(models.Transaction.date.desc()).limit(10).all()
 
     all_context_txns = list({t.id: t for t in (recent_txns + related_txns)}.values())
-
     data_context = "GIAO DỊCH LIÊN QUAN ĐỂ SỬA (ID là quan trọng nhất):\n"
     if not all_context_txns:
         data_context += "Trống.\n"
@@ -884,73 +870,105 @@ def chat_with_data(
     # BƯỚC 3: Xử lý lịch sử Chat
     history_text = ""
     if req.history:
-        history_text = "LỊCH SỬ CHAT CẦN ĐỌC KỸ ĐỂ NHẬN DIỆN CÂU ĐÍNH CHÍNH:\n"
+        history_text = "LỊCH SỬ CHAT:\n"
         for turn in req.history[-3:]:  
             history_text += f"User: {turn.get('user', '')}\nAI: {turn.get('ai', '')}\n"
 
     # BƯỚC 4: PROMPT TỐI ƯU HÓA
     today_str = datetime.now().strftime("%Y-%m-%d")
+    today_date = datetime.now().date()
     
-    # Ép tỷ giá
     t_inc_all = float(total_income_all) / req.rate
     t_exp_all = float(total_expense_all) / req.rate
     t_bal_all = float(balance_all) / req.rate
-    
     t_inc_month = float(total_income_month) / req.rate
     t_exp_month = float(total_expense_month) / req.rate
     t_bal_month = float(balance_month) / req.rate
     
+    user_jars = db.query(models.Jar).filter(models.Jar.user_id == current_user.id).all()
+    total_in_jars = sum(j.balance for j in user_jars)
+    free_bal_all = float(balance_all - total_in_jars) / req.rate
+    
+    jars_context = "TRẠNG THÁI CÁC QUỸ (HŨ) HIỆN TẠI:\n"
+    if not user_jars:
+        jars_context += "- Chưa có hũ nào.\n"
+    else:
+        for j in user_jars:
+            jars_context += f"- Quỹ '{j.name}': Đang có {(float(j.balance) / req.rate):,.0f} (Mục tiêu: {(float(j.goal_amount) / req.rate):,.0f})\n"
+
+    active_budgets = db.query(models.Budget).filter(
+        models.Budget.user_id == current_user.id,
+        models.Budget.start_date <= today_date,
+        models.Budget.end_date >= today_date
+    ).all()
+    
+    budgets_context = "TRẠNG THÁI NGÂN SÁCH HIỆN TẠI (TRONG KỲ NÀY):\n"
+    if not active_budgets:
+        budgets_context += "- Chưa thiết lập ngân sách.\n"
+    else:
+        from sqlalchemy import func
+        for b in active_budgets:
+            spent = db.query(func.sum(models.Transaction.amount)).filter(
+                models.Transaction.user_id == current_user.id,
+                models.Transaction.category == b.category,
+                models.Transaction.amount < 0,
+                func.date(models.Transaction.date) >= b.start_date,
+                func.date(models.Transaction.date) <= b.end_date
+            ).scalar() or 0.0
+            budgets_context += f"- Mục '{b.category}': Đã tiêu {(abs(float(spent)) / req.rate):,.0f} / Hạn mức {(float(b.limit_amount) / req.rate):,.0f}\n"
+
     prompt = f"""
-    Bạn là "Cú Mèo" - Cố vấn tài chính cá nhân của ExpenseOwl. Hôm nay: {today_str}.
-    TIỀN TỆ HIỆN TẠI: {req.currency.upper()} (Tỷ giá 1 {req.currency.upper()} = {req.rate} VNĐ).
-
-    HỒ SƠ KHÁCH HÀNG: Mục tiêu: {current_goal} | Khẩu vị rủi ro: {current_risk}.
+    Bạn là "Cú Mèo" - Cố vấn tài chính cá nhân. Hôm nay: {today_str}.
+    TIỀN TỆ: {req.currency.upper()} (Tỷ giá 1 {req.currency.upper()} = {req.rate} VNĐ).
+    HỒ SƠ KHÁCH HÀNG: Mục tiêu: {current_goal} | Rủi ro: {current_risk}.
     
-    🚨 BÁO CÁO TÀI CHÍNH TỪ MÁY CHỦ (BẮT BUỘC ĐỌC ĐÚNG CON SỐ NÀY):
-    [TOÀN THỜI GIAN - TỪ TRƯỚC ĐẾN NAY]
-    - Tổng thu: {t_inc_all:,.0f} | Tổng chi: {t_exp_all:,.0f} | SỐ DƯ TỔNG: {t_bal_all:,.0f}
+    🚨 CẤU TRÚC TÀI SẢN (QUAN TRỌNG NHẤT):
+    - 🏦 TỔNG TÀI SẢN (Gồm tất cả tiền): {t_bal_all:,.0f}
+    - 💰 SỐ DƯ KHẢ DỤNG (Tiền rảnh rỗi chưa cất vào hũ): {free_bal_all:,.0f}
     
-    [CHỈ TÍNH RIÊNG THÁNG {current_month}/{current_year}]
-    - Tổng thu: {t_inc_month:,.0f} | Tổng chi: {t_exp_month:,.0f} | CHÊNH LỆCH THÁNG NÀY: {t_bal_month:,.0f}
-
+    [THÁNG {current_month}/{current_year}] Tổng thu: {t_inc_month:,.0f} | Tổng chi: {t_exp_month:,.0f}
+    
+    {jars_context}
+    {budgets_context}
     {data_context}
     {history_text}
     
-    CÂU HỎI TỪ KHÁCH HÀNG: "{req.message}"
+    CÂU HỎI: "{req.message}"
     
-    NHIỆM VỤ: Trả về DUY NHẤT 1 KHỐI JSON TỰ THUẦN (Không kèm markdown ```).
-    
-    🚨 QUY TẮC TỐI THƯỢNG (KIỂM TRA ĐẦU TIÊN):
-    1. CẢNH BÁO ÁM ẢNH QUÁ KHỨ: BỎ QUA hoàn toàn các con số tính toán trong Lịch sử chat.
-    2. KHI KHÁCH HỎI VỀ SỐ DƯ: Bạn hãy báo cáo thông minh CẢ 2 CON SỐ: Số dư tháng này ({t_bal_month:,.0f}) VÀ Số dư tích lũy toàn thời gian ({t_bal_all:,.0f}). TUYỆT ĐỐI KHÔNG tự làm toán. 
-    3. Nếu câu nói của khách CÓ SỐ TIỀN nhưng KHÔNG CÓ TÊN MÓN HÀNG: Trả về action "chat" và hỏi khách chi vào việc gì.
+    🚨 LUẬT THÉP CẦN TUÂN THỦ:
+    1. LUẬT NẠP HŨ: Nạp hũ là LẤY TIỀN TỪ "SỐ DƯ KHẢ DỤNG" đưa vào hũ. Phải kiểm tra "SỐ DƯ KHẢ DỤNG" xem có đủ tiền nạp không.
+    2. LUẬT CHI TIÊU HŨ: Khách hàng chi tiêu bình thường sẽ bị trừ ở "SỐ DƯ KHẢ DỤNG". Nếu khách nói rõ "tiêu từ hũ X", hãy đưa tên hũ X vào trường "jar_name".
+    3. LUẬT CẢNH BÁO NGÂN SÁCH THEO MỨC ĐỘ: Khi ghi nhận khoản chi tiêu mới, bạn PHẢI tự nhẩm tính: Tỷ lệ % = (Đã tiêu + Khoản chi mới) / Hạn mức. Hãy phản hồi theo đúng 4 mức độ sau:
+       - Mức Xanh (<75%): Khen ngợi.
+       - Mức Vàng (75-89%): Nhắc nhở.
+       - Mức Đỏ (90-100%): Cảnh báo sắp lố.
+       - Lố ngân sách (>100%): Cảnh báo vượt giới hạn.
 
-    QUY TẮC "ACTION" (CHỌN 1 TRONG 4 HÀNH ĐỘNG):
-    1. "save": TẠO MỚI. CHỈ DÙNG khi khách kể 1 giao dịch MỚI HOÀN TOÀN. KHÔNG DÙNG "save" NẾU ĐANG CHAT ĐÍNH CHÍNH.
-       => Bắt buộc nhân 'amount' với {req.rate}. Nếu khách chỉ nói "tháng X", mặc định lấy ngày 1 (VD: {current_year}-X-01).
+    QUY TẮC "ACTION":
+    1. "save": Tạo mới giao dịch.
+    2. "update": Sửa giao dịch.
+    3. "update_profile": Đổi mục tiêu.
+    4. "create_jar" / "delete_jar": Tạo / Xóa hũ.
+    5. "jar_transfer": NẠP/RÚT/CHUYỂN tiền giữa các hũ.
+    6. "chat": Trò chuyện bình thường.
 
-    2. "update": SỬA/CẬP NHẬT/BỔ SUNG GIAO DỊCH CŨ. 
-       => 🚨 LUẬT THÉP: Nếu khách nói câu CHỈ CHỨA SỰ ĐIỀU CHỈNH (Ví dụ: "ghi rõ lại là ngày 9", "sửa thành...", "đổi sang..."), BẮT BUỘC trả về "action": "update". TUYỆT ĐỐI KHÔNG TẠO MỚI.
-       => Tìm "ID" trong GIAO DỊCH LIÊN QUAN và điền vào "transaction_id".
-
-    3. "update_profile": Cập nhật Mục tiêu/Rủi ro của hồ sơ.
-    
-    4. "chat": Trò chuyện, giải đáp thắc mắc.
-
-    DANH MỤC CHO PHÉP: {categories_str}. Nếu không khớp, chọn "Khác".
-
-    CẤU TRÚC JSON:
+    CẤU TRÚC JSON PHẢI TRẢ VỀ:
     {{
-        "reply": "Câu trả lời của Cú Mèo",
-        "action": "chat" | "save" | "update" | "update_profile",
-        "transaction_id": "Mã ID của giao dịch" | null,
+        "reply": "Câu trả lời của bạn",
+        "action": "chat" | "save" | "update" | "update_profile" | "create_jar" | "delete_jar" | "jar_transfer",
+        "transaction_id": "Mã ID" | null,
         "data": {{ 
             "name": "...", 
-            "amount": ±VNĐ, 
+            "amount": Số tiền (ÂM nếu chi, DƯƠNG nếu thu. LUÔN NHÂN TỶ GIÁ), 
             "category": "...", 
-            "date": "YYYY-MM-DD" 
+            "date": "YYYY-MM-DD",
+            "jar_name": "Tên hũ (GHI ĐÚNG TÊN LÕI, KHÔNG KÈM CHỮ HŨ QUỸ)"
         }} | null,
-        "profile_update": {{ "financial_goal": "...", "risk_tolerance": "..." }} | null
+        "profile_update": {{ "financial_goal": "...", "risk_tolerance": "..." }} | null,
+        "jar_data": {{ 
+            "name": "Tên hũ (ĐÚNG TÊN LÕI)", "target_name": "Tên hũ nhận (ĐÚNG TÊN LÕI)", "goal_amount": Số,
+            "type": "deposit" | "withdraw" | "internal" | null, "amount": Số (GIỮ NGUYÊN SỐ KHÁCH NHẬP) 
+        }} | null
     }}
     """
 
@@ -962,15 +980,10 @@ def chat_with_data(
     }
 
     try:
-        response = call_gemini_with_backoff(
-            url, payload, headers={"Content-Type": "application/json"}, timeout=30, retries=3
-        )
+        response = call_gemini_with_backoff(url, payload, timeout=30, retries=3)
         _handle_gemini_http_status(response)
-
         result_data = response.json()
         ai_text = result_data["candidates"][0]["content"]["parts"][0]["text"]
-    except HTTPException:
-        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Lỗi AI: {str(e)}")
 
@@ -982,49 +995,59 @@ def chat_with_data(
         transaction_data = None
         final_action = result_json.get("action", "chat")
 
-        # 6.1. TẠO MỚI GIAO DỊCH
+        # 6.1. TẠO MỚI GIAO DỊCH (HỖ TRỢ CHI TIÊU TỪ HŨ)
         if final_action == "save" and result_json.get("data"):
             raw_data = result_json["data"]
             data_list = raw_data if isinstance(raw_data, list) else [raw_data]
             saved_txns = []
 
             for data in data_list:
-                if not isinstance(data, dict): 
-                    continue 
+                if not isinstance(data, dict): continue 
+                try: parsed_date = datetime.strptime(data.get("date", today_str), "%Y-%m-%d").date()
+                except: parsed_date = datetime.now().date()
+                
+                new_amount = float(data.get("amount", 0))
+                
+                # 💡 VÁ LỖI TÌM TÊN HŨ KHI CHI TIÊU
+                jar_name_to_spend = str(data.get("jar_name", "")).strip().lower().replace("hũ ", "").replace("quỹ ", "").strip()
+                target_jar = None
+                
+                if new_amount < 0 and jar_name_to_spend:
+                    target_jar = db.query(models.Jar).filter(
+                        models.Jar.user_id == current_user.id, 
+                        models.Jar.name.ilike(f"%{jar_name_to_spend}%")
+                    ).first()
                     
-                try:
-                    parsed_date = datetime.strptime(data.get("date", today_str), "%Y-%m-%d").date()
-                except Exception:
-                    parsed_date = datetime.now().date()
+                    if target_jar:
+                        if target_jar.balance < abs(new_amount):
+                            final_action = "chat"
+                            result_json["reply"] = f"Hũ '{target_jar.name}' chỉ còn {(float(target_jar.balance)/req.rate):,.0f}, không đủ tiền để chi trả khoản này đâu!"
+                            return {"reply": result_json["reply"], "action": final_action, "transaction_data": None}
                     
                 new_tx_id = str(uuid.uuid4())
                 new_transaction = models.Transaction(
-                    id=new_tx_id,
-                    name=str(data.get("name", "Giao dịch AI"))[:255],
-                    amount=float(data.get("amount", 0)),
+                    id=new_tx_id, name=str(data.get("name", "Giao dịch AI"))[:255],
+                    amount=new_amount,
                     category=data.get("category") if data.get("category") in allowed_categories else "Khác",
-                    date=parsed_date,
-                    tags=["AI Chatbot"],
-                    user_id=current_user.id,
+                    date=parsed_date, tags=["AI Chatbot"], user_id=current_user.id,
                 )
+                
+                if target_jar:
+                    new_transaction.tags.append(str(target_jar.id))
+                    
                 db.add(new_transaction)
 
-                # Cập nhật Hũ / Ngân sách
-                amount = new_transaction.amount
-                if amount > 0:
-                    distribute_to_jars(db, current_user.id, amount)
-                elif amount < 0:
-                    update_budget_spent(db, current_user.id, new_transaction.category, abs(amount))
-
+                if new_amount > 0: distribute_to_jars(db, current_user.id, new_amount)
+                elif new_amount < 0: 
+                    if target_jar:
+                        target_jar.balance -= Decimal(str(abs(new_amount))) 
+                    update_budget_spent(db, current_user.id, new_transaction.category, abs(new_amount))
+                    
                 db.commit()
                 db.refresh(new_transaction)
-
                 saved_txns.append({
-                    "id": new_tx_id, 
-                    "name": new_transaction.name, 
-                    "amount": new_transaction.amount,
-                    "category": new_transaction.category, 
-                    "date": new_transaction.date.isoformat(), 
+                    "id": new_tx_id, "name": new_transaction.name, "amount": new_transaction.amount,
+                    "category": new_transaction.category, "date": new_transaction.date.isoformat(), 
                     "tags": new_transaction.tags,
                 })
 
@@ -1034,89 +1057,155 @@ def chat_with_data(
         elif final_action == "update" and result_json.get("transaction_id") and result_json.get("data"):
             target_id = result_json["transaction_id"]
             raw_data = result_json["data"]
-            
-            # Xử lý trường hợp AI trả về mảng thay vì dict khi update
             data = raw_data[0] if isinstance(raw_data, list) and len(raw_data) > 0 else raw_data
             
             if isinstance(data, dict):
-                tx_to_update = db.query(models.Transaction).filter(
-                    models.Transaction.id == target_id, 
-                    models.Transaction.user_id == current_user.id
-                ).first()
-                
+                tx_to_update = db.query(models.Transaction).filter(models.Transaction.id == target_id, models.Transaction.user_id == current_user.id).first()
                 if tx_to_update:
                     old_amount = tx_to_update.amount
                     old_category = tx_to_update.category
-                    
-                    # Giữ nguyên giá trị cũ nếu AI không trả về trường đó
                     new_amount = float(data.get("amount", old_amount))
-                    raw_category = str(data.get("category", old_category))
-                    new_category = raw_category if raw_category in allowed_categories else "Khác"
+                    new_category = str(data.get("category", old_category)) if str(data.get("category", old_category)) in allowed_categories else "Khác"
 
-                    # Hoàn tác Ngân sách / Hũ cũ
-                    if old_amount > 0:
-                        distribute_to_jars(db, current_user.id, -old_amount)
-                    elif old_amount < 0:
-                        update_budget_spent(db, current_user.id, old_category, -abs(old_amount))
+                    if old_amount > 0: distribute_to_jars(db, current_user.id, -old_amount)
+                    elif old_amount < 0: update_budget_spent(db, current_user.id, old_category, -abs(old_amount))
                     
-                    # Cập nhật thông tin mới
                     if data.get("name"): tx_to_update.name = str(data.get("name"))[:255]
                     tx_to_update.category = new_category
                     tx_to_update.amount = new_amount
-                    try:
-                        tx_to_update.date = datetime.strptime(data.get("date", str(tx_to_update.date)), "%Y-%m-%d").date()
-                    except:
-                        pass
+                    try: tx_to_update.date = datetime.strptime(data.get("date", str(tx_to_update.date)), "%Y-%m-%d").date()
+                    except: pass
 
-                    # Trừ / Cộng Ngân sách mới
-                    if new_amount > 0:
-                        distribute_to_jars(db, current_user.id, new_amount)
-                    elif new_amount < 0:
-                        update_budget_spent(db, current_user.id, new_category, abs(new_amount))
-
+                    if new_amount > 0: distribute_to_jars(db, current_user.id, new_amount)
+                    elif new_amount < 0: update_budget_spent(db, current_user.id, new_category, abs(new_amount))
                     db.commit()
-                    db.refresh(tx_to_update)
-
-                    transaction_data = {
-                        "id": tx_to_update.id, "name": tx_to_update.name, "amount": tx_to_update.amount,
-                        "category": tx_to_update.category, "date": tx_to_update.date.isoformat(), "tags": tx_to_update.tags,
-                    }
-                else:
-                    final_action = "chat" 
+                else: final_action = "chat" 
 
         # 6.3. ĐỔI HỒ SƠ TÀI CHÍNH
-        elif final_action == "update_profile":
-            new_goal = None
-            new_risk = None
-
-            if result_json.get("profile_update") and isinstance(result_json["profile_update"], dict):
-                p_update = result_json["profile_update"]
-                new_goal = p_update.get("financial_goal")
-                new_risk = p_update.get("risk_tolerance")
-
-            if not new_goal and not new_risk and result_json.get("data"):
-                p_data = result_json["data"]
-                if isinstance(p_data, list) and len(p_data) > 0:
-                    p_data = p_data[0]
-                if isinstance(p_data, dict):
-                    new_goal = p_data.get("name")
-                    new_risk = p_data.get("category")
-
-            if new_goal or new_risk:
-                if user_config:
-                    if new_goal and new_goal != "Khác": 
-                        user_config.financial_goal = str(new_goal)
-                    if new_risk and new_risk != "Khác": 
-                        user_config.risk_tolerance = str(new_risk)
-                else:
-                    user_config = models.UserConfig(
-                        user_id=current_user.id, 
-                        financial_goal=str(new_goal) if new_goal else "Chưa xác định", 
-                        risk_tolerance=str(new_risk) if new_risk else "Cân bằng"
-                    )
-                    db.add(user_config)
-                
+        elif final_action == "update_profile" and result_json.get("profile_update"):
+            p_update = result_json["profile_update"]
+            if user_config:
+                if p_update.get("financial_goal"): user_config.financial_goal = str(p_update.get("financial_goal"))
+                if p_update.get("risk_tolerance"): user_config.risk_tolerance = str(p_update.get("risk_tolerance"))
                 db.commit()
+
+        # 6.4. TẠO HŨ MỚI
+        elif final_action == "create_jar" and result_json.get("jar_data"):
+            j_data = result_json["jar_data"]
+            jar_name = str(j_data.get("name", "Hũ mới"))[:50].strip()
+            
+            import re
+            clean_goal_str = re.sub(r'[^\d.]', '', str(j_data.get("goal_amount", 0)))
+            jar_goal = (float(clean_goal_str) if clean_goal_str else 0.0) * req.rate
+
+            existing_jar = db.query(models.Jar).filter(
+                models.Jar.user_id == current_user.id, 
+                models.Jar.name.ilike(jar_name)
+            ).first()
+
+            if not existing_jar:
+                new_jar = models.Jar(name=jar_name[0].upper() + jar_name[1:], percent=0, goal_amount=jar_goal, balance=0.0, color="#4ade80", icon="fa-bullseye", user_id=current_user.id)
+                db.add(new_jar)
+                db.commit()
+            elif jar_goal > 0:
+                existing_jar.goal_amount = jar_goal
+                db.commit()
+
+        # 6.5. XÓA HŨ
+        elif final_action == "delete_jar" and result_json.get("jar_data"):
+            # 💡 VÁ LỖI XÓA HŨ: Xóa chữ thừa và dùng ilike
+            jar_name = str(result_json["jar_data"].get("name", "")).strip().lower().replace("hũ ", "").replace("quỹ ", "").strip()
+            
+            jar_to_delete = db.query(models.Jar).filter(
+                models.Jar.user_id == current_user.id, 
+                models.Jar.name.ilike(f"%{jar_name}%")
+            ).first()
+            
+            if jar_to_delete:
+                if jar_to_delete.balance > 0:
+                    final_action = "chat"
+                    result_json["reply"] = f"Hũ '{jar_to_delete.name}' vẫn còn tiền. Vui lòng rút hết ra Số dư khả dụng rồi mới xóa được nhé!"
+                else:
+                    db.delete(jar_to_delete)
+                    db.commit()
+            else:
+                final_action = "chat"
+                result_json["reply"] = f"Tôi không tìm thấy hũ nào tên là '{jar_name}' cả."
+
+        # 6.6. NẠP / RÚT / CHUYỂN TIỀN QUỸ
+        elif final_action == "jar_transfer" and result_json.get("jar_data"):
+            j_data = result_json["jar_data"]
+            t_type = j_data.get("type", "deposit")
+            
+            # 💡 VÁ LỖI TÌM TÊN HŨ KHI NẠP RÚT: Gọt bớt chữ "hũ", "quỹ" thừa thãi
+            jar_name = str(j_data.get("name", "")).strip().lower().replace("hũ ", "").replace("quỹ ", "").strip()
+            target_name = str(j_data.get("target_name", "")).strip().lower().replace("hũ ", "").replace("quỹ ", "").strip()
+            
+            import re
+            clean_str = re.sub(r'[^\d.]', '', str(j_data.get("amount", 0)))
+            transfer_amount = float(clean_str) * req.rate if clean_str else 0.0
+
+            # 💡 VÁ LỖI BẰNG ILIKE: Tìm kiếm từ khóa chứa tên hũ thay vì so sánh tuyệt đối
+            jar = db.query(models.Jar).filter(
+                models.Jar.user_id == current_user.id, 
+                models.Jar.name.ilike(f"%{jar_name}%")
+            ).first()
+
+            if not jar or transfer_amount <= 0:
+                final_action = "chat"
+                result_json["reply"] = "Có lỗi xảy ra, không tìm thấy hũ hoặc số tiền không hợp lệ."
+            else:
+                success = False
+                history_name = ""
+                tags = ["Quỹ", t_type]
+
+                if t_type == "deposit":
+                    if transfer_amount > float(free_bal_all * req.rate):
+                        final_action = "chat"
+                        result_json["reply"] = f"Số dư khả dụng của bạn không đủ tiền! Tối đa chỉ còn {free_bal_all:,.0f} {req.currency.upper()} để nạp vào hũ."
+                    else:
+                        jar.balance += Decimal(str(transfer_amount))
+                        history_name = f"Nạp {(transfer_amount/req.rate):,.0f} {req.currency.upper()} TỪ SỐ DƯ KHẢ DỤNG vào hũ {jar.name}"
+                        tags.append(str(jar.id))
+                        success = True
+
+                elif t_type == "withdraw":
+                    if jar.balance < transfer_amount:
+                        final_action = "chat"
+                        result_json["reply"] = f"Hũ '{jar.name}' không đủ tiền để rút."
+                    else:
+                        jar.balance -= Decimal(str(transfer_amount))
+                        history_name = f"Rút {(transfer_amount/req.rate):,.0f} {req.currency.upper()} từ hũ {jar.name} RA SỐ DƯ KHẢ DỤNG"
+                        tags.append(str(jar.id))
+                        success = True
+
+                elif t_type == "internal":
+                    # Tương tự cho hũ nhận tiền
+                    target_jar = db.query(models.Jar).filter(
+                        models.Jar.user_id == current_user.id, 
+                        models.Jar.name.ilike(f"%{target_name}%")
+                    ).first()
+                    
+                    if not target_jar:
+                        final_action = "chat"
+                        result_json["reply"] = f"Tôi không tìm thấy hũ nhận tiền có tên '{target_name}'."
+                    elif jar.balance < transfer_amount:
+                        final_action = "chat"
+                        result_json["reply"] = f"Hũ '{jar.name}' không đủ tiền để chuyển."
+                    else:
+                        jar.balance -= Decimal(str(transfer_amount))
+                        target_jar.balance += Decimal(str(transfer_amount))
+                        history_name = f"Chuyển {(transfer_amount/req.rate):,.0f} {req.currency.upper()} từ hũ {jar.name} sang hũ {target_jar.name}"
+                        tags.extend([str(jar.id), str(target_jar.id)])
+                        success = True
+                
+                if success:
+                    new_tx = models.Transaction(
+                        id=str(uuid.uuid4()), name=history_name, amount=0.0,
+                        category="Chuyển Quỹ", date=datetime.now(), tags=tags, user_id=current_user.id
+                    )
+                    db.add(new_tx)
+                    db.commit()
 
         return {
             "reply": result_json.get("reply", "Cú Mèo đã ghi nhận yêu cầu của bạn!"),
@@ -2191,6 +2280,27 @@ def transfer_jar_funds(payload: dict = Body(...), db: Session = Depends(get_db),
     tags = ["Quỹ", t_type]
 
     if t_type == "deposit":
+        # 1. TÍNH SỐ DƯ KHẢ DỤNG (Tiền rảnh rỗi)
+        all_txs = db.query(models.Transaction).filter(
+            models.Transaction.user_id == current_user.id, 
+            models.Transaction.category != "Chuyển Quỹ"
+        ).all()
+        
+        total_income = sum(t.amount for t in all_txs if t.amount > 0)
+        total_expense = sum(abs(t.amount) for t in all_txs if t.amount < 0)
+        total_wallet = total_income - total_expense 
+        
+        # Tính tổng tiền đang bị khóa trong các hũ
+        all_jars = db.query(models.Jar).filter(models.Jar.user_id == current_user.id).all()
+        total_in_jars = sum(j.balance for j in all_jars)
+        
+        free_balance = total_wallet - total_in_jars # Tiền rảnh rỗi có thể nạp
+        
+        # 💡 CHỐT CHẶN: Nếu nạp lố tiền rảnh rỗi thì văng lỗi ngay
+        if amount > free_balance:
+            raise HTTPException(status_code=400, detail=f"Không đủ tiền rảnh rỗi! Bạn chỉ còn tối đa {free_balance:,.0f} để nạp.")
+
+        # Nếu hợp lệ thì mới cho nạp
         jar = db.query(models.Jar).filter(models.Jar.id == payload.get("to_id"), models.Jar.user_id == current_user.id).first()
         if jar: 
             jar.balance += amount
@@ -2499,6 +2609,38 @@ def setup_budgets_bulk(
     db.commit()
     return {"message": "Đã cập nhật ngân sách thành công!"}
 
+
+@planning_router.get("/dashboard-summary")
+def get_jar_dashboard_summary(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    jars = db.query(models.Jar).filter(models.Jar.user_id == current_user.id).all()
+    
+    if not jars:
+        return {"total_balance": 0, "near_goal": None, "biggest_jar": None}
+
+    # 1. Tổng tiền trong tất cả hũ
+    total_balance = sum(j.balance for j in jars)
+
+    # 2. Hũ gần đạt goal nhất (Dựa trên % tiến độ, loại bỏ hũ đã 100%)
+    near_goal = None
+    max_percent = -1
+    for j in jars:
+        if j.goal_amount > 0:
+            percent = (j.balance / j.goal_amount) * 100
+            if percent < 100 and percent > max_percent:
+                max_percent = percent
+                near_goal = {"name": j.name, "percent": round(percent, 1)}
+
+    # 3. Hũ lớn nhất (Dựa trên số dư hiện có)
+    biggest_jar = max(jars, key=lambda j: j.balance)
+    
+    return {
+        "total_balance": float(total_balance),
+        "near_goal": near_goal,
+        "biggest_jar": {"name": biggest_jar.name, "balance": float(biggest_jar.balance)}
+    }
 
 class N8nWebhookPayload(BaseModel):
     source: str

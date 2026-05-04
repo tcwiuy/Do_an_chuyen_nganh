@@ -3,10 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+    />
     <meta name="theme-color" content="#1a1a1a" />
     <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
     <link rel="manifest" href="/static/manifest.json" />
     <link rel="apple-touch-icon" href="/static/pwa/icon-192.png" />
     <link rel="stylesheet" href="/static/style.css" />
@@ -31,210 +37,655 @@
     <script src="/static/chart.min.js"></script>
 
     <style>
-      .wizard-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 9999; display: flex; justify-content: center; align-items: center; backdrop-filter: blur(5px); }
-      .wizard-box { background: linear-gradient(145deg, #1e1e2d, #2a2a40); border: 2px solid #8a2be2; border-radius: 12px; width: 90%; max-width: 550px; padding: 30px; box-shadow: 0 0 30px rgba(138, 43, 226, 0.4); color: #fff; max-height: 90vh; overflow-y: auto;}
-      .wizard-step { display: none; margin-top: 20px; animation: fadeIn 0.3s; }
-      .wizard-step.active { display: block; }
-      .wizard-progress { display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 0.85rem; color: #606060; font-weight: bold; border-bottom: 2px solid #3d3d5c; padding-bottom: 10px;}
-      .wizard-progress span { transition: color 0.3s; }
-      .wizard-progress span.active { color: #d4a5ff; border-bottom: 3px solid #d4a5ff; margin-bottom: -12px; padding-bottom: 9px;}
-      .wizard-input { width: 100%; padding: 12px; border-radius: 8px; background: #151521; color: #fff; border: 1px solid #2a2a40; outline: none; margin-bottom: 10px; box-sizing: border-box;}
-      .wizard-footer { display: flex; justify-content: space-between; margin-top: 25px; border-top: 1px solid #3d3d5c; padding-top: 20px; }
-      .wiz-cat-item { display: flex; align-items: center; justify-content: space-between; background: #151521; padding: 10px 15px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #2a2a40;}
-      .wiz-cat-item input[type="text"] { background: transparent; border: none; color: #fff; font-weight: bold; outline: none; width: 60%; font-size: 1rem;}
-      .wiz-cat-item input[type="color"] { background: transparent; border: none; cursor: pointer; height: 35px; width: 45px; padding: 0; border-radius: 4px; }
-      @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-      
+      .wizard-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.85);
+        z-index: 9999;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        backdrop-filter: blur(5px);
+      }
+      .wizard-box {
+        background: linear-gradient(145deg, #1e1e2d, #2a2a40);
+        border: 2px solid #8a2be2;
+        border-radius: 12px;
+        width: 90%;
+        max-width: 550px;
+        padding: 30px;
+        box-shadow: 0 0 30px rgba(138, 43, 226, 0.4);
+        color: #fff;
+        max-height: 90vh;
+        overflow-y: auto;
+      }
+      .wizard-step {
+        display: none;
+        margin-top: 20px;
+        animation: fadeIn 0.3s;
+      }
+      .wizard-step.active {
+        display: block;
+      }
+      .wizard-progress {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 20px;
+        font-size: 0.85rem;
+        color: #606060;
+        font-weight: bold;
+        border-bottom: 2px solid #3d3d5c;
+        padding-bottom: 10px;
+      }
+      .wizard-progress span {
+        transition: color 0.3s;
+      }
+      .wizard-progress span.active {
+        color: #d4a5ff;
+        border-bottom: 3px solid #d4a5ff;
+        margin-bottom: -12px;
+        padding-bottom: 9px;
+      }
+      .wizard-input {
+        width: 100%;
+        padding: 12px;
+        border-radius: 8px;
+        background: #151521;
+        color: #fff;
+        border: 1px solid #2a2a40;
+        outline: none;
+        margin-bottom: 10px;
+        box-sizing: border-box;
+      }
+      .wizard-footer {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 25px;
+        border-top: 1px solid #3d3d5c;
+        padding-top: 20px;
+      }
+      .wiz-cat-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: #151521;
+        padding: 10px 15px;
+        border-radius: 8px;
+        margin-bottom: 10px;
+        border: 1px solid #2a2a40;
+      }
+      .wiz-cat-item input[type="text"] {
+        background: transparent;
+        border: none;
+        color: #fff;
+        font-weight: bold;
+        outline: none;
+        width: 60%;
+        font-size: 1rem;
+      }
+      .wiz-cat-item input[type="color"] {
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        height: 35px;
+        width: 45px;
+        padding: 0;
+        border-radius: 4px;
+      }
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
       .four-col-grid {
-          display: grid; 
-          grid-template-columns: repeat(4, 1fr); 
-          gap: 15px; 
-          align-items: end; /* Căn lề dưới cho thẳng hàng */
-          margin-bottom: 20px;
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 15px;
+        align-items: end; /* Căn lề dưới cho thẳng hàng */
+        margin-bottom: 20px;
       }
       .form-group {
-          display: flex;
-          flex-direction: column;
-          width: 100%;
+        display: flex;
+        flex-direction: column;
+        width: 100%;
       }
       @media (max-width: 768px) {
-          .four-col-grid { grid-template-columns: 1fr !important; }
-          .four-col-grid .form-group { grid-column: span 1 !important; }
+        .four-col-grid {
+          grid-template-columns: 1fr !important;
+        }
+        .four-col-grid .form-group {
+          grid-column: span 1 !important;
+        }
       }
 
       /* TÙY CHỈNH GIAO DIỆN KHUNG NHẬP LIỆU ĐỒNG BỘ */
       .themed-input {
-          width: 100% !important; 
-          box-sizing: border-box;
-          padding: 10px 15px;
-          border-radius: 8px;
-          border: 1px solid var(--border);
-          background-color: var(--bg-primary);
-          color: var(--text-primary);
-          font-family: inherit;
-          font-size: 14px;
-          outline: none;
-          min-height: 42px; 
+        width: 100% !important;
+        box-sizing: border-box;
+        padding: 10px 15px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background-color: var(--bg-primary);
+        color: var(--text-primary);
+        font-family: inherit;
+        font-size: 14px;
+        outline: none;
+        min-height: 42px;
       }
-      .themed-input:focus { border-color: var(--accent); }
+      .themed-input:focus {
+        border-color: var(--accent);
+      }
 
-      .tags-dropdown { background-color: var(--bg-secondary) !important; border: 1px solid var(--border) !important; box-shadow: 0 4px 15px rgba(0,0,0,0.15) !important; }
-      .tags-dropdown div { padding: 8px 12px; color: var(--text-primary); cursor: pointer; transition: background 0.2s ease; }
-      .tags-dropdown div:hover { background-color: var(--bg-primary); }
-      .tags-dropdown .new-tag { color: var(--accent); font-style: italic; font-weight: bold; }
-      .tag-pill { background: var(--bg-primary) !important; color: var(--text-secondary) !important; border: 1px solid var(--border) !important; }
+      .tags-dropdown {
+        background-color: var(--bg-secondary) !important;
+        border: 1px solid var(--border) !important;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15) !important;
+      }
+      .tags-dropdown div {
+        padding: 8px 12px;
+        color: var(--text-primary);
+        cursor: pointer;
+        transition: background 0.2s ease;
+      }
+      .tags-dropdown div:hover {
+        background-color: var(--bg-primary);
+      }
+      .tags-dropdown .new-tag {
+        color: var(--accent);
+        font-style: italic;
+        font-weight: bold;
+      }
+      .tag-pill {
+        background: var(--bg-primary) !important;
+        color: var(--text-secondary) !important;
+        border: 1px solid var(--border) !important;
+      }
     </style>
   </head>
   <body>
     <div class="container">
       <header>
-      <div class="nav-bar">
-        <a href="/" class="view-button active" data-tooltip="Trang Chủ"><i class="fa-solid fa-chart-pie"></i></a>
-        <a href="/history" class="view-button" data-tooltip="Hoạt động"><i class="fa-solid fa-clock-rotate-left"></i></a>
-        <a href="/trends" class="view-button" data-tooltip="Biến động"><i class="fa-solid fa-chart-line"></i></a>
-        <a href="/suggestions" class="view-button" data-tooltip="Gợi Ý AI"><i class="fa-solid fa-lightbulb"></i></a>
-        <a href="/planning" class="view-button" data-tooltip="Ngân sách"><i class="fa-solid fa-piggy-bank"></i></a>
-        <a href="/profile" class="view-button" data-tooltip="Tài khoản">
+        <div class="nav-bar">
+          <a href="/" class="view-button active" data-tooltip="Trang Chủ"
+            ><i class="fa-solid fa-chart-pie"></i
+          ></a>
+          <a href="/history" class="view-button" data-tooltip="Hoạt động"
+            ><i class="fa-solid fa-clock-rotate-left"></i
+          ></a>
+          <a href="/trends" class="view-button" data-tooltip="Biến động"
+            ><i class="fa-solid fa-chart-line"></i
+          ></a>
+          <a href="/suggestions" class="view-button" data-tooltip="Gợi Ý AI"
+            ><i class="fa-solid fa-lightbulb"></i
+          ></a>
+          <a href="/planning" class="view-button" data-tooltip="Ngân sách"
+            ><i class="fa-solid fa-piggy-bank"></i
+          ></a>
+          <a href="/profile" class="view-button" data-tooltip="Tài khoản">
             <i class="fa-solid fa-user-tie"></i>
-        </a>
-        <a href="/settings" class="view-button" data-tooltip="Cài Đặt"><i class="fa-solid fa-gear"></i></a>
-        
-        <a href="javascript:void(0)" class="view-button" onclick="showLogoutModal()" data-tooltip="Đăng Xuất" style="margin-left: auto; color: #ff4d4d;"><i class="fa-solid fa-right-from-bracket"></i></a>
-      </div>
+          </a>
+          <a href="/settings" class="view-button" data-tooltip="Cài Đặt"
+            ><i class="fa-solid fa-gear"></i
+          ></a>
+
+          <a
+            href="javascript:void(0)"
+            class="view-button"
+            onclick="showLogoutModal()"
+            data-tooltip="Đăng Xuất"
+            style="margin-left: auto; color: #ff4d4d"
+            ><i class="fa-solid fa-right-from-bracket"></i
+          ></a>
+        </div>
       </header>
 
-      <div class="form-container" style="background-color: var(--bg-secondary); padding: 15px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 20px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
-            <select id="periodSelect" style="padding: 8px 15px; border-radius: 8px; background-color: var(--bg-primary); color: var(--text-primary); border: 1px solid var(--border); outline: none; cursor: pointer; font-family: inherit; font-weight: bold;">
-                <option value="week">Theo Tuần</option>
-                <option value="month" selected>Theo Tháng</option>
-                <option value="year">Theo Năm</option>
-                <option value="all">Tất cả thời gian</option>
-            </select>
+      <div
+        class="form-container"
+        style="
+          background-color: var(--bg-secondary);
+          padding: 15px;
+          border-radius: 12px;
+          border: 1px solid var(--border);
+          margin-bottom: 20px;
+        "
+      >
+        <div
+          style="
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            gap: 10px;
+          "
+        >
+          <select
+            id="periodSelect"
+            style="
+              padding: 8px 15px;
+              border-radius: 8px;
+              background-color: var(--bg-primary);
+              color: var(--text-primary);
+              border: 1px solid var(--border);
+              outline: none;
+              cursor: pointer;
+              font-family: inherit;
+              font-weight: bold;
+            "
+          >
+            <option value="week">Theo Tuần</option>
+            <option value="month" selected>Theo Tháng</option>
+            <option value="year">Theo Năm</option>
+            <option value="all">Tất cả thời gian</option>
+          </select>
 
-            <div style="display: flex; align-items: center; gap: 10px;">
-                <button id="prevPeriod" class="nav-button" style="padding: 5px 12px;"><i class="fa-solid fa-chevron-left"></i></button>
-                <div id="currentPeriodLabel" style="min-width: 150px; text-align: center; color: var(--text-primary); font-weight: bold; font-size: 1.1rem;"></div>
-                <button id="nextPeriod" class="nav-button" style="padding: 5px 12px;"><i class="fa-solid fa-chevron-right"></i></button>
-            </div>
+          <div style="display: flex; align-items: center; gap: 10px">
+            <button
+              id="prevPeriod"
+              class="nav-button"
+              style="padding: 5px 12px"
+            >
+              <i class="fa-solid fa-chevron-left"></i>
+            </button>
+            <div
+              id="currentPeriodLabel"
+              style="
+                min-width: 150px;
+                text-align: center;
+                color: var(--text-primary);
+                font-weight: bold;
+                font-size: 1.1rem;
+              "
+            ></div>
+            <button
+              id="nextPeriod"
+              class="nav-button"
+              style="padding: 5px 12px"
+            >
+              <i class="fa-solid fa-chevron-right"></i>
+            </button>
+          </div>
         </div>
 
         <div id="calendarWidget">
-            <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; text-align: center; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 8px; font-weight: bold;">
-                <div>T2</div><div>T3</div><div>T4</div><div>T5</div><div>T6</div><div>T7</div><div>CN</div>
-            </div>
-            <div id="calGrid" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; overflow: hidden; transition: max-height 0.3s ease;">
-            </div>
-            <div style="text-align: center; margin-top: 10px; border-top: 1px dashed var(--border); padding-top: 10px;">
-                <button id="calToggleBtn" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.2rem; transition: transform 0.2s;">
-                    <i class="fa-solid fa-chevron-up"></i>
-                </button>
-            </div>
+          <div
+            style="
+              display: grid;
+              grid-template-columns: repeat(7, 1fr);
+              gap: 5px;
+              text-align: center;
+              font-size: 0.85rem;
+              color: var(--text-secondary);
+              margin-bottom: 8px;
+              font-weight: bold;
+            "
+          >
+            <div>T2</div>
+            <div>T3</div>
+            <div>T4</div>
+            <div>T5</div>
+            <div>T6</div>
+            <div>T7</div>
+            <div>CN</div>
+          </div>
+          <div
+            id="calGrid"
+            style="
+              display: grid;
+              grid-template-columns: repeat(7, 1fr);
+              gap: 5px;
+              overflow: hidden;
+              transition: max-height 0.3s ease;
+            "
+          ></div>
+          <div
+            style="
+              text-align: center;
+              margin-top: 10px;
+              border-top: 1px dashed var(--border);
+              padding-top: 10px;
+            "
+          >
+            <button
+              id="calToggleBtn"
+              style="
+                background: none;
+                border: none;
+                color: var(--text-secondary);
+                cursor: pointer;
+                font-size: 1.2rem;
+                transition: transform 0.2s;
+              "
+            >
+              <i class="fa-solid fa-chevron-up"></i>
+            </button>
+          </div>
         </div>
       </div>
 
-      <div class="table-controls" style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
-        <button id="toggleExpenseFormBtn" class="nav-button"><i class="fa-solid fa-plus"></i> Thêm Giao Dịch</button>
-        <button onclick="OCRScanner.open(function () { initialize(); })" class="nav-button"><i class="fa-solid fa-receipt"></i> Quét Hóa Đơn</button>
+      <div
+        class="table-controls"
+        style="
+          display: flex;
+          gap: 10px;
+          justify-content: center;
+          flex-wrap: wrap;
+        "
+      >
+        <button id="toggleExpenseFormBtn" class="nav-button">
+          <i class="fa-solid fa-plus"></i> Thêm Giao Dịch
+        </button>
+        <button
+          onclick="
+            OCRScanner.open(function () {
+              initialize();
+            })
+          "
+          class="nav-button"
+        >
+          <i class="fa-solid fa-receipt"></i> Quét Hóa Đơn
+        </button>
         <script src="/static/ocr_scanner.js"></script>
-        <button onclick="PDFScanner.open(function() { initialize(); })" class="nav-button"><i class="fa-solid fa-file-pdf"></i> Quét File PDF</button>
+        <button
+          onclick="
+            PDFScanner.open(function () {
+              initialize();
+            })
+          "
+          class="nav-button"
+        >
+          <i class="fa-solid fa-file-pdf"></i> Quét File PDF
+        </button>
         <script src="/static/pdf_scanner.js"></script>
-        <button onclick="CSVScanner.open(function() { initialize(); })" class="nav-button"><i class="fa-solid fa-file-csv"></i> Quét File CSV</button>
+        <button
+          onclick="
+            CSVScanner.open(function () {
+              initialize();
+            })
+          "
+          class="nav-button"
+        >
+          <i class="fa-solid fa-file-csv"></i> Quét File CSV
+        </button>
         <script src="/static/csv_scanner.js"></script>
       </div>
       <div id="scan-preview-area"></div>
 
       <div id="addExpenseContainer" style="display: none">
-        
-        <div class="form-container" style="border: 1px solid var(--accent); background-color: var(--bg-secondary); margin-bottom: 20px; box-shadow: 0 0 10px rgba(138, 43, 226, 0.1);">
-          <h3 align="center" style="color: var(--accent); margin-top: 0;"><i class="fa-solid fa-wand-magic-sparkles"></i> Trợ lý AI Cú Mèo</h3>
-          <p style="text-align: center; color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 15px;">Hãy nhập chi tiêu hoặc hỏi Cú Mèo một câu về tài chính!</p>
+        <div
+          class="form-container"
+          style="
+            border: 1px solid var(--accent);
+            background-color: var(--bg-secondary);
+            margin-bottom: 20px;
+            box-shadow: 0 0 10px rgba(138, 43, 226, 0.1);
+          "
+        >
+          <h3 align="center" style="color: var(--accent); margin-top: 0">
+            <i class="fa-solid fa-wand-magic-sparkles"></i> Trợ lý AI Cú Mèo
+          </h3>
+          <p
+            style="
+              text-align: center;
+              color: var(--text-secondary);
+              font-size: 0.9rem;
+              margin-bottom: 15px;
+            "
+          >
+            Hãy nhập chi tiêu hoặc hỏi Cú Mèo một câu về tài chính!
+          </p>
 
-          <div class="form-group" style="display: flex; flex-direction: row; gap: 10px; align-items: center; margin-bottom: 0;">
-            <input type="text" id="aiInput" placeholder="VD: Tối qua đổ 50k tiền xăng và uống ly cafe 30k..." style="flex: 1; padding: 12px; border-radius: 8px; background-color: var(--bg-primary); border: 1px solid var(--border); color: var(--text-primary); outline: none;" />
-            <button onclick="sendToAI()" id="aiBtn" class="nav-button" style="background-color: var(--accent); color: #fff; width: auto; padding: 0 20px; border: none;"><i class="fa-solid fa-paper-plane"></i> Gửi</button>
+          <div
+            class="form-group"
+            style="
+              display: flex;
+              flex-direction: row;
+              gap: 10px;
+              align-items: center;
+              margin-bottom: 0;
+            "
+          >
+            <input
+              type="text"
+              id="aiInput"
+              placeholder="VD: Tối qua đổ 50k tiền xăng và uống ly cafe 30k..."
+              style="
+                flex: 1;
+                padding: 12px;
+                border-radius: 8px;
+                background-color: var(--bg-primary);
+                border: 1px solid var(--border);
+                color: var(--text-primary);
+                outline: none;
+              "
+            />
+            <button
+              onclick="sendToAI()"
+              id="aiBtn"
+              class="nav-button"
+              style="
+                background-color: var(--accent);
+                color: #fff;
+                width: auto;
+                padding: 0 20px;
+                border: none;
+              "
+            >
+              <i class="fa-solid fa-paper-plane"></i> Gửi
+            </button>
           </div>
         </div>
 
         <div class="form-container">
-          <form id="expenseForm"> 
+          <form id="expenseForm">
             <div class="four-col-grid">
-                <!-- HÀNG 1 -->
-                <div class="form-group">
-                    <label style="margin-bottom: 5px;">Mô tả</label>
-                    <input type="text" id="name" class="themed-input" placeholder="Ví dụ: Trà sữa" required>
-                </div>
-                <div class="form-group">
-                    <label style="margin-bottom: 5px;">Danh mục</label>
-                    <select id="category" class="themed-input" required></select>
-                </div>
-                <div class="form-group">
-                    <label style="margin-bottom: 5px;">Số tiền</label>
-                    <input type="text" id="amount" class="themed-input" placeholder="0" required oninput="formatCurrencyInput(this)">
-                </div>
-                <div class="form-group">
-                    <label style="margin-bottom: 5px;">Ngày</label>
-                    <input type="date" id="date" class="themed-input" required>
-                    <script>
-                        const todayDate = new Date();
-                        document.getElementById("date").value = `${todayDate.getFullYear()}-${String(todayDate.getMonth() + 1).padStart(2, "0")}-${String(todayDate.getDate()).padStart(2, "0")}`;
-                    </script>
-                </div>
+              <!-- HÀNG 1 -->
+              <div class="form-group">
+                <label style="margin-bottom: 5px">Mô tả</label>
+                <input
+                  type="text"
+                  id="name"
+                  class="themed-input"
+                  placeholder="Ví dụ: Trà sữa"
+                  required
+                />
+              </div>
+              <div class="form-group">
+                <label style="margin-bottom: 5px">Danh mục</label>
+                <select id="category" class="themed-input" required></select>
+              </div>
+              <!-- Thêm phần chọn Nguồn tiền (Ví chính hay Hũ) -->
+              <div class="form-group">
+                <label style="margin-bottom: 5px" title="Chỉ áp dụng cho Chi Tiêu">Nguồn tiền / Rút từ</label>
+                <select id="transactionJar" class="themed-input">
+                    <option value="">Ví chính (Số dư khả dụng)</option>
+                    <!-- Các hũ sẽ được JS tự động tải và đổ vào đây -->
+                </select>
+              </div>
+              <div class="form-group">
+                <label style="margin-bottom: 5px">Số tiền</label>
+                <input
+                  type="text"
+                  id="amount"
+                  class="themed-input"
+                  placeholder="0"
+                  required
+                  oninput="formatCurrencyInput(this)"
+                />
+              </div>
+              <div class="form-group">
+                <label style="margin-bottom: 5px">Ngày</label>
+                <input type="date" id="date" class="themed-input" required />
+                <script>
+                  const todayDate = new Date();
+                  document.getElementById("date").value =
+                    `${todayDate.getFullYear()}-${String(todayDate.getMonth() + 1).padStart(2, "0")}-${String(todayDate.getDate()).padStart(2, "0")}`;
+                </script>
+              </div>
 
-                <!-- HÀNG 2 -->
-                <div class="form-group">
-                    <label style="margin-bottom: 5px;">Tần suất lặp lại</label>
-                    <select id="recurring_interval" class="themed-input">
-                        <option value="">Không lặp lại</option>
-                        <option value="daily">Hàng ngày</option>
-                        <option value="weekly">Hàng tuần</option>
-                        <option value="monthly">Hàng tháng</option>
-                        <option value="yearly">Hàng năm</option>
-                    </select>
-                </div>
-                
-                <div class="form-group" id="jarSourceGroup" style="display: flex; flex-direction: column;">
-                    <label style="margin-bottom: 5px;">Rút từ Quỹ (Hũ)</label>
-                    <select id="jar_id" class="themed-input"></select>
-                </div>
+              <!-- HÀNG 2 -->
+              <div class="form-group">
+                <label style="margin-bottom: 5px">Tần suất lặp lại</label>
+                <select id="recurring_interval" class="themed-input">
+                  <option value="">Không lặp lại</option>
+                  <option value="daily">Hàng ngày</option>
+                  <option value="weekly">Hàng tuần</option>
+                  <option value="monthly">Hàng tháng</option>
+                  <option value="yearly">Hàng năm</option>
+                </select>
+              </div>
 
-                <div class="form-group" style="position: relative;">
-                    <label style="margin-bottom: 5px;">Nhãn</label>
-                    <div id="tags-input-container" class="themed-input" style="display: flex; flex-wrap: wrap; gap: 5px; align-items: center; cursor: text;">
-                        <div id="selected-tags" style="display: flex; flex-wrap: wrap; gap: 5px;"></div>
-                        <input type="text" id="tags-input" placeholder="Nhập & Enter..." autocomplete="off" style="flex: 1; min-width: 80px; border: none; background: none; outline: none; padding: 0; margin: 0; color: var(--text-primary); font-size: inherit;">
-                    </div>
-                    <div id="tags-dropdown" class="tags-dropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: #2a2a40; border: 1px solid #3d3d5c; border-radius: 8px; z-index: 100; max-height: 150px; overflow-y: auto; box-shadow: 0 4px 12px rgba(0,0,0,0.5);"></div>
+              <div class="form-group" style="position: relative">
+                <label style="margin-bottom: 5px">Nhãn</label>
+                <div
+                  id="tags-input-container"
+                  class="themed-input"
+                  style="
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 5px;
+                    align-items: center;
+                    cursor: text;
+                  "
+                >
+                  <div
+                    id="selected-tags"
+                    style="display: flex; flex-wrap: wrap; gap: 5px"
+                  ></div>
+                  <input
+                    type="text"
+                    id="tags-input"
+                    placeholder="Nhập & Enter..."
+                    autocomplete="off"
+                    style="
+                      flex: 1;
+                      min-width: 80px;
+                      border: none;
+                      background: none;
+                      outline: none;
+                      padding: 0;
+                      margin: 0;
+                      color: var(--text-primary);
+                      font-size: inherit;
+                    "
+                  />
                 </div>
-                
-                <div class="form-group">
-                    <label style="margin-bottom: 5px;">Ghi chú chi tiết</label>
-                    <input type="text" id="note" class="themed-input" placeholder="Ghi chú thêm (không bắt buộc)...">
-                </div>
+                <div
+                  id="tags-dropdown"
+                  class="tags-dropdown"
+                  style="
+                    display: none;
+                    position: absolute;
+                    top: 100%;
+                    left: 0;
+                    right: 0;
+                    background: #2a2a40;
+                    border: 1px solid #3d3d5c;
+                    border-radius: 8px;
+                    z-index: 100;
+                    max-height: 150px;
+                    overflow-y: auto;
+                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+                  "
+                ></div>
+              </div>
+
+              <div class="form-group">
+                <label style="margin-bottom: 5px">Ghi chú chi tiết</label>
+                <input
+                  type="text"
+                  id="note"
+                  class="themed-input"
+                  placeholder="Ghi chú thêm (không bắt buộc)..."
+                />
+              </div>
             </div>
 
-            <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 15px;">
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <label for="reportGain" style="margin: 0; color: var(--text-secondary);">Khoản thu</label>
-                    <input type="checkbox" id="reportGain" style="transform: scale(1.2); cursor: pointer;">
-                </div>
-                <button type="submit" class="nav-button" style="padding: 10px 25px; font-weight: bold;">Lưu Giao Dịch</button>
+            <div
+              style="
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                border-top: 1px solid var(--border);
+                padding-top: 15px;
+              "
+            >
+              <div style="display: flex; align-items: center; gap: 10px">
+                <label
+                  for="reportGain"
+                  style="margin: 0; color: var(--text-secondary)"
+                  >Khoản thu</label
+                >
+                <input
+                  type="checkbox"
+                  id="reportGain"
+                  style="transform: scale(1.2); cursor: pointer"
+                />
+              </div>
+              <button
+                type="submit"
+                class="nav-button"
+                style="padding: 10px 25px; font-weight: bold"
+              >
+                Lưu Giao Dịch
+              </button>
             </div>
           </form>
         </div>
       </div>
 
       <div class="chart-container">
-        <div id="noDataMessage" class="no-data" style="display: none; width: 100%">
+        <div
+          id="noDataMessage"
+          class="no-data"
+          style="display: none; width: 100%"
+        >
           Chưa có dữ liệu chi tiêu. Hãy thêm giao dịch để xem biểu đồ!
         </div>
 
-        <div class="chart-left-wrapper" id="chartLeftWrapper" style="display: flex; flex-direction: column; flex: 1; min-width: 0; padding-right: 15px;">
-          <div class="chart-box" style="position: relative; height: 320px; width: 100%">
+        <div
+          class="chart-left-wrapper"
+          id="chartLeftWrapper"
+          style="
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-width: 0;
+            padding-right: 15px;
+          "
+        >
+          <div
+            class="chart-box"
+            style="position: relative; height: 320px; width: 100%"
+          >
             <canvas id="categoryPieChart"></canvas>
           </div>
-          <div class="chart-controls" style="text-align: center; margin-top: 20px; width: 100%">
-            <select id="chartTypeSelect" style="padding: 8px 15px; border-radius: 8px; background-color: var(--bg-primary); color: var(--text-primary); border: 1px solid var(--border); outline: none; cursor: pointer; font-family: inherit;">
+          <div
+            class="chart-controls"
+            style="text-align: center; margin-top: 20px; width: 100%"
+          >
+            <select
+              id="chartTypeSelect"
+              style="
+                padding: 8px 15px;
+                border-radius: 8px;
+                background-color: var(--bg-primary);
+                color: var(--text-primary);
+                border: 1px solid var(--border);
+                outline: none;
+                cursor: pointer;
+                font-family: inherit;
+              "
+            >
               <option value="doughnut">🍩 Biểu đồ Vòng</option>
               <option value="pie">🍕 Biểu đồ Tròn</option>
               <option value="bar">📊 Biểu đồ Cột</option>
@@ -261,104 +712,472 @@
         </div>
       </div>
 
-      <!-- BẢNG BÁO CÁO NGÂN SÁCH TRÊN DASHBOARD -->
-      <div id="budgetAlertsContainer" class="form-container" style="background-color: var(--bg-secondary); border: 1px solid var(--border); margin-top: 20px; display: none;">
-          <h3 style="color: var(--text-primary); margin-top: 0; margin-bottom: 15px;"><i class="fa-solid fa-bell" style="color: #fbbf24;"></i> Báo Cáo Ngân Sách Nhanh</h3>
-          <div id="budgetAlertsContent" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
+      <div
+        id="jarDashboardOverview"
+        style="
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+          gap: 20px;
+          margin-bottom: 30px;
+        "
+      >
+        <!-- Thẻ 1: Tổng tiền trong hũ -->
+        <div
+          class="jar-card"
+          style="
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: left;
+            border-left: 5px solid #4ade80;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+          "
+        >
+          <div
+            style="
+              font-size: 0.85rem;
+              color: var(--text-secondary);
+              margin-bottom: 8px;
+            "
+          >
+            <i class="fa-solid fa-piggy-bank"></i> Tổng tiền trong các Hũ
           </div>
+          <div
+            id="dbTotalBalance"
+            style="font-size: 1.5rem; font-weight: bold; color: #4ade80"
+          >
+            $0.00
+          </div>
+        </div>
+
+        <!-- Thẻ 2: Hũ gần đạt goal nhất -->
+        <div
+          class="jar-card"
+          style="
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: left;
+            border-left: 5px solid #fbbf24;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+          "
+        >
+          <div
+            style="
+              font-size: 0.85rem;
+              color: var(--text-secondary);
+              margin-bottom: 8px;
+            "
+          >
+            <i class="fa-solid fa-fire"></i> Hũ sắp hoàn thành mục tiêu
+          </div>
+          <div
+            id="dbNearGoal"
+            style="
+              font-size: 1.1rem;
+              font-weight: bold;
+              color: var(--text-primary);
+            "
+          >
+            Đang tính toán...
+          </div>
+          <div
+            id="dbNearGoalBar"
+            style="
+              height: 6px;
+              background: var(--bg-primary);
+              border-radius: 3px;
+              margin-top: 10px;
+              overflow: hidden;
+            "
+          >
+            <div
+              id="dbNearGoalProgress"
+              style="
+                width: 0%;
+                height: 100%;
+                background: #fbbf24;
+                transition: width 1s ease;
+              "
+            ></div>
+          </div>
+        </div>
+
+        <!-- Thẻ 3: Hũ lớn nhất -->
+        <div
+          class="jar-card"
+          style="
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: left;
+            border-left: 5px solid var(--accent);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+          "
+        >
+          <div
+            style="
+              font-size: 0.85rem;
+              color: var(--text-secondary);
+              margin-bottom: 8px;
+            "
+          >
+            <i class="fa-solid fa-crown"></i> Hũ có số dư lớn nhất
+          </div>
+          <div
+            id="dbBiggestJar"
+            style="
+              font-size: 1.1rem;
+              font-weight: bold;
+              color: var(--text-primary);
+            "
+          >
+            Chưa có dữ liệu
+          </div>
+          <div
+            id="dbBiggestValue"
+            style="
+              font-size: 0.85rem;
+              color: var(--text-secondary);
+              margin-top: 5px;
+            "
+          >
+            $0.00
+          </div>
+        </div>
+      </div>
+      <!-- BẢNG BÁO CÁO NGÂN SÁCH TRÊN DASHBOARD -->
+      <div
+        id="budgetAlertsContainer"
+        class="form-container"
+        style="
+          background-color: var(--bg-secondary);
+          border: 1px solid var(--border);
+          margin-top: 20px;
+          display: none;
+        "
+      >
+        <h3
+          style="color: var(--text-primary); margin-top: 0; margin-bottom: 15px"
+        >
+          <i class="fa-solid fa-bell" style="color: #fbbf24"></i> Báo Cáo Ngân
+          Sách Nhanh
+        </h3>
+        <div
+          id="budgetAlertsContent"
+          style="
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+          "
+        ></div>
       </div>
     </div>
 
     <!-- WIZARD OVERLAY -->
-    <div id="setupWizardOverlay" class="wizard-overlay" style="display: none;">
+    <div id="setupWizardOverlay" class="wizard-overlay" style="display: none">
       <div class="wizard-box">
-          <h2 style="color: #d4a5ff; text-align: center; margin-top: 0;"><i class="fa-solid fa-rocket"></i> Chào mừng người mới!</h2>
-          <p style="text-align: center; color: #a0a0b0;">Hãy dành 1 phút để thiết lập sổ sách của bạn</p>
-          
-          <div class="wizard-progress">
-              <span id="prog1" class="active">1. Số dư</span>
-              <span id="prog2">2. Danh mục</span>
-              <span id="prog3">3. AI Cú Mèo</span>
-              <span id="prog4">4. Dữ liệu cũ</span>
-              <span id="prog5">5. Xác nhận</span>
+        <h2 style="color: #d4a5ff; text-align: center; margin-top: 0">
+          <i class="fa-solid fa-rocket"></i> Chào mừng người mới!
+        </h2>
+        <p style="text-align: center; color: #a0a0b0">
+          Hãy dành 1 phút để thiết lập sổ sách của bạn
+        </p>
+
+        <div class="wizard-progress">
+          <span id="prog1" class="active">1. Số dư</span>
+          <span id="prog2">2. Danh mục</span>
+          <span id="prog3">3. AI Cú Mèo</span>
+          <span id="prog4">4. Dữ liệu cũ</span>
+          <span id="prog5">5. Xác nhận</span>
+        </div>
+
+        <div id="wStep1" class="wizard-step active">
+          <h3 style="margin-top: 0; color: #fff">
+            1. Thu nhập / Số dư ban đầu
+          </h3>
+          <p style="font-size: 0.9rem; color: #a0a0b0; line-height: 1.5">
+            Nhập số tiền hiện có trong ví hoặc tài khoản để bắt đầu theo dõi
+            chính xác nhất.
+          </p>
+          <label
+            style="
+              color: #d4a5ff;
+              font-weight: bold;
+              margin-bottom: 5px;
+              display: block;
+            "
+            >Số dư hiện tại:</label
+          >
+          <input
+            type="text"
+            id="wBalance"
+            class="wizard-input"
+            placeholder="Ví dụ: 5,000,000"
+            oninput="formatCurrencyInput(this)"
+          />
+        </div>
+
+        <div id="wStep2" class="wizard-step">
+          <h3 style="margin-top: 0; color: #fff">2. Danh mục & Màu sắc</h3>
+          <p style="font-size: 0.9rem; color: #a0a0b0; margin-bottom: 10px">
+            Thêm mới danh mục, xóa mục không cần thiết và chọn màu sắc đại diện
+            cho từng mục.
+          </p>
+
+          <div style="display: flex; gap: 10px; margin-bottom: 15px">
+            <button
+              id="btnWizExp"
+              onclick="switchWizCatType('expense')"
+              class="nav-button"
+              style="flex: 1; background: #8a2be2"
+            >
+              Khoản Chi
+            </button>
+            <button
+              id="btnWizInc"
+              onclick="switchWizCatType('income')"
+              class="nav-button"
+              style="flex: 1; background: #2a2a40; color: #a0a0b0"
+            >
+              Khoản Thu
+            </button>
           </div>
 
-          <div id="wStep1" class="wizard-step active">
-              <h3 style="margin-top: 0; color: #fff;">1. Thu nhập / Số dư ban đầu</h3>
-              <p style="font-size: 0.9rem; color: #a0a0b0; line-height: 1.5;">Nhập số tiền hiện có trong ví hoặc tài khoản để bắt đầu theo dõi chính xác nhất.</p>
-              <label style="color: #d4a5ff; font-weight: bold; margin-bottom: 5px; display: block;">Số dư hiện tại:</label>
-              <input type="text" id="wBalance" class="wizard-input" placeholder="Ví dụ: 5,000,000" oninput="formatCurrencyInput(this)">
-          </div>
+          <div
+            id="wCatList"
+            style="
+              max-height: 180px;
+              overflow-y: auto;
+              margin-bottom: 15px;
+              padding-right: 5px;
+            "
+          ></div>
 
-          <div id="wStep2" class="wizard-step">
-              <h3 style="margin-top: 0; color: #fff;">2. Danh mục & Màu sắc</h3>
-              <p style="font-size: 0.9rem; color: #a0a0b0; margin-bottom: 10px;">Thêm mới danh mục, xóa mục không cần thiết và chọn màu sắc đại diện cho từng mục.</p>
-              
-              <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                  <button id="btnWizExp" onclick="switchWizCatType('expense')" class="nav-button" style="flex: 1; background: #8a2be2;">Khoản Chi</button>
-                  <button id="btnWizInc" onclick="switchWizCatType('income')" class="nav-button" style="flex: 1; background: #2a2a40; color: #a0a0b0;">Khoản Thu</button>
-              </div>
-              
-              <div id="wCatList" style="max-height: 180px; overflow-y: auto; margin-bottom: 15px; padding-right: 5px;"></div>
-              
-              <div style="display: flex; gap: 10px;">
-                  <input type="text" id="wNewCat" class="wizard-input" style="margin-bottom: 0; flex: 1" placeholder="Tên danh mục mới...">
-                  <button onclick="addWizCat()" class="nav-button" style="width: auto; background: #2a2a40;"><i class="fa-solid fa-plus"></i></button>
-              </div>
+          <div style="display: flex; gap: 10px">
+            <input
+              type="text"
+              id="wNewCat"
+              class="wizard-input"
+              style="margin-bottom: 0; flex: 1"
+              placeholder="Tên danh mục mới..."
+            />
+            <button
+              onclick="addWizCat()"
+              class="nav-button"
+              style="width: auto; background: #2a2a40"
+            >
+              <i class="fa-solid fa-plus"></i>
+            </button>
           </div>
+        </div>
 
-          <div id="wStep3" class="wizard-step">
-              <h3 style="margin-top: 0; color: #fff;"><i class="fa-solid fa-brain"></i> 3. Huấn luyện AI Cú Mèo</h3>
-              <p style="font-size: 0.9rem; color: #a0a0b0; margin-bottom: 15px;">Cho Cú Mèo biết tính cách và mục tiêu của bạn để nhận được lời khuyên chuẩn xác nhất nhé.</p>
-              
-              <label style="color: #d4a5ff; font-weight: bold; margin-bottom: 5px; display: block;">Mục tiêu lớn nhất hiện tại:</label>
-              <select id="wFinancialGoal" class="wizard-input" style="cursor: pointer; margin-bottom: 15px;">
-                  <option value="Chưa xác định">Chưa xác định</option>
-                  <option value="Tiết kiệm phòng thân">Tiết kiệm phòng thân</option>
-                  <option value="Đầu tư sinh lời">Đầu tư sinh lời</option>
-                  <option value="Trả dứt điểm nợ">Trả dứt điểm nợ</option>
-                  <option value="Mua sắm tài sản lớn">Mua sắm tài sản lớn</option>
-                  <option value="Cải thiện dòng tiền">Cải thiện dòng tiền</option>
-              </select>
+        <div id="wStep3" class="wizard-step">
+          <h3 style="margin-top: 0; color: #fff">
+            <i class="fa-solid fa-brain"></i> 3. Huấn luyện AI Cú Mèo
+          </h3>
+          <p style="font-size: 0.9rem; color: #a0a0b0; margin-bottom: 15px">
+            Cho Cú Mèo biết tính cách và mục tiêu của bạn để nhận được lời
+            khuyên chuẩn xác nhất nhé.
+          </p>
 
-              <label style="color: #d4a5ff; font-weight: bold; margin-bottom: 5px; display: block;">Khẩu vị rủi ro:</label>
-              <select id="wRiskTolerance" class="wizard-input" style="cursor: pointer;">
-                  <option value="An toàn">An toàn (Thích gửi tiết kiệm)</option>
-                  <option value="Cân bằng">Cân bằng</option>
-                  <option value="Mạo hiểm">Mạo hiểm (Thích Crypto, Cổ phiếu)</option>
-              </select>
+          <label
+            style="
+              color: #d4a5ff;
+              font-weight: bold;
+              margin-bottom: 5px;
+              display: block;
+            "
+            >Mục tiêu lớn nhất hiện tại:</label
+          >
+          <select
+            id="wFinancialGoal"
+            class="wizard-input"
+            style="cursor: pointer; margin-bottom: 15px"
+          >
+            <option value="Chưa xác định">Chưa xác định</option>
+            <option value="Tiết kiệm phòng thân">Tiết kiệm phòng thân</option>
+            <option value="Đầu tư sinh lời">Đầu tư sinh lời</option>
+            <option value="Trả dứt điểm nợ">Trả dứt điểm nợ</option>
+            <option value="Mua sắm tài sản lớn">Mua sắm tài sản lớn</option>
+            <option value="Cải thiện dòng tiền">Cải thiện dòng tiền</option>
+          </select>
+
+          <label
+            style="
+              color: #d4a5ff;
+              font-weight: bold;
+              margin-bottom: 5px;
+              display: block;
+            "
+            >Khẩu vị rủi ro:</label
+          >
+          <select
+            id="wRiskTolerance"
+            class="wizard-input"
+            style="cursor: pointer"
+          >
+            <option value="An toàn">An toàn (Thích gửi tiết kiệm)</option>
+            <option value="Cân bằng">Cân bằng</option>
+            <option value="Mạo hiểm">Mạo hiểm (Thích Crypto, Cổ phiếu)</option>
+          </select>
+        </div>
+
+        <div id="wStep4" class="wizard-step">
+          <h3 style="margin-top: 0; color: #fff">
+            4. Nhập dữ liệu cũ (Tùy chọn)
+          </h3>
+          <p style="font-size: 0.9rem; color: #a0a0b0; line-height: 1.5">
+            Nếu bạn có file CSV từ ứng dụng cũ, hãy tải lên đây. Bạn cũng có thể
+            làm sau trong Cài đặt.
+          </p>
+
+          <label
+            for="wCsvFile"
+            class="wizard-input"
+            style="
+              display: block;
+              text-align: center;
+              cursor: pointer;
+              padding: 20px;
+              border: 2px dashed #8a2be2;
+              background: rgba(138, 43, 226, 0.1);
+            "
+          >
+            <i
+              class="fa-solid fa-file-csv"
+              style="font-size: 30px; color: #d4a5ff; margin-bottom: 10px"
+            ></i
+            ><br />
+            <span id="wFileName">Chọn file CSV...</span>
+          </label>
+          <input
+            type="file"
+            id="wCsvFile"
+            accept=".csv"
+            style="display: none"
+            onchange="
+              document.getElementById('wFileName').textContent = this.files[0]
+                ? this.files[0].name
+                : 'Chọn file CSV...'
+            "
+          />
+        </div>
+
+        <div id="wStep5" class="wizard-step">
+          <h3 style="margin-top: 0; color: #fff">5. Xác nhận thiết lập</h3>
+          <ul
+            style="
+              color: #e0e0e0;
+              line-height: 2;
+              list-style: none;
+              padding-left: 0;
+              background: #151521;
+              padding: 15px;
+              border-radius: 8px;
+              border: 1px solid #2a2a40;
+            "
+          >
+            <li>
+              <i
+                class="fa-solid fa-wallet"
+                style="color: #4ade80; width: 25px"
+              ></i>
+              <strong>Số dư ban đầu:</strong>
+              <span
+                id="wConfirmBalance"
+                style="float: right; font-weight: bold; color: #4ade80"
+                >0</span
+              >
+            </li>
+            <li>
+              <i
+                class="fa-solid fa-tags"
+                style="color: #d4a5ff; width: 25px"
+              ></i>
+              <strong>Danh mục tùy chỉnh:</strong>
+              <span id="wConfirmCats" style="float: right">0</span>
+            </li>
+            <li>
+              <i
+                class="fa-solid fa-brain"
+                style="color: #ff79c6; width: 25px"
+              ></i>
+              <strong>Hồ sơ AI:</strong>
+              <span id="wConfirmAI" style="float: right; color: #ff79c6"
+                >Sẵn sàng</span
+              >
+            </li>
+            <li>
+              <i
+                class="fa-solid fa-file-import"
+                style="color: #ffb86c; width: 25px"
+              ></i>
+              <strong>File dữ liệu:</strong>
+              <span id="wConfirmFile" style="float: right">Không có</span>
+            </li>
+          </ul>
+          <p
+            style="
+              text-align: center;
+              color: #4ade80;
+              font-size: 0.9rem;
+              margin-top: 15px;
+            "
+          >
+            <i class="fa-solid fa-check-circle"></i> Cú Mèo đã sẵn sàng phục vụ
+            bạn!
+          </p>
+        </div>
+
+        <div class="wizard-footer">
+          <button
+            onclick="skipWizard()"
+            class="nav-button"
+            style="
+              background: transparent;
+              border: 1px solid #ff4d4d;
+              color: #ff4d4d;
+              width: auto;
+            "
+          >
+            Bỏ qua
+          </button>
+          <div style="display: flex; gap: 10px">
+            <button
+              id="wBtnPrev"
+              onclick="wizPrev()"
+              class="nav-button"
+              style="display: none; background: #4a4a60; width: auto"
+            >
+              Quay lại
+            </button>
+            <button
+              id="wBtnNext"
+              onclick="wizNext()"
+              class="nav-button"
+              style="background: #8a2be2; width: auto"
+            >
+              Tiếp tục <i class="fa-solid fa-arrow-right"></i>
+            </button>
+            <button
+              id="wBtnFinish"
+              onclick="wizFinish()"
+              class="nav-button"
+              style="
+                display: none;
+                background: #4ade80;
+                color: #1a1a1a;
+                width: auto;
+              "
+            >
+              <i class="fa-solid fa-rocket"></i> Hoàn tất
+            </button>
           </div>
-
-          <div id="wStep4" class="wizard-step">
-              <h3 style="margin-top: 0; color: #fff;">4. Nhập dữ liệu cũ (Tùy chọn)</h3>
-              <p style="font-size: 0.9rem; color: #a0a0b0; line-height: 1.5;">Nếu bạn có file CSV từ ứng dụng cũ, hãy tải lên đây. Bạn cũng có thể làm sau trong Cài đặt.</p>
-              
-              <label for="wCsvFile" class="wizard-input" style="display: block; text-align: center; cursor: pointer; padding: 20px; border: 2px dashed #8a2be2; background: rgba(138, 43, 226, 0.1);">
-                  <i class="fa-solid fa-file-csv" style="font-size: 30px; color: #d4a5ff; margin-bottom: 10px;"></i><br>
-                  <span id="wFileName">Chọn file CSV...</span>
-              </label>
-              <input type="file" id="wCsvFile" accept=".csv" style="display: none;" onchange="document.getElementById('wFileName').textContent = this.files[0] ? this.files[0].name : 'Chọn file CSV...'">
-          </div>
-
-          <div id="wStep5" class="wizard-step">
-              <h3 style="margin-top: 0; color: #fff;">5. Xác nhận thiết lập</h3>
-              <ul style="color: #e0e0e0; line-height: 2; list-style: none; padding-left: 0; background: #151521; padding: 15px; border-radius: 8px; border: 1px solid #2a2a40;">
-                  <li><i class="fa-solid fa-wallet" style="color: #4ade80; width: 25px;"></i> <strong>Số dư ban đầu:</strong> <span id="wConfirmBalance" style="float: right; font-weight: bold; color: #4ade80;">0</span></li>
-                  <li><i class="fa-solid fa-tags" style="color: #d4a5ff; width: 25px;"></i> <strong>Danh mục tùy chỉnh:</strong> <span id="wConfirmCats" style="float: right;">0</span></li>
-                  <li><i class="fa-solid fa-brain" style="color: #ff79c6; width: 25px;"></i> <strong>Hồ sơ AI:</strong> <span id="wConfirmAI" style="float: right; color: #ff79c6;">Sẵn sàng</span></li>
-                  <li><i class="fa-solid fa-file-import" style="color: #ffb86c; width: 25px;"></i> <strong>File dữ liệu:</strong> <span id="wConfirmFile" style="float: right;">Không có</span></li>
-              </ul>
-              <p style="text-align: center; color: #4ade80; font-size: 0.9rem; margin-top: 15px;"><i class="fa-solid fa-check-circle"></i> Cú Mèo đã sẵn sàng phục vụ bạn!</p>
-          </div>
-
-          <div class="wizard-footer">
-              <button onclick="skipWizard()" class="nav-button" style="background: transparent; border: 1px solid #ff4d4d; color: #ff4d4d; width: auto;">Bỏ qua</button>
-              <div style="display: flex; gap: 10px;">
-                  <button id="wBtnPrev" onclick="wizPrev()" class="nav-button" style="display: none; background: #4a4a60; width: auto;">Quay lại</button>
-                  <button id="wBtnNext" onclick="wizNext()" class="nav-button" style="background: #8a2be2; width: auto;">Tiếp tục <i class="fa-solid fa-arrow-right"></i></button>
-                  <button id="wBtnFinish" onclick="wizFinish()" class="nav-button" style="display: none; background: #4ade80; color: #1a1a1a; width: auto;"><i class="fa-solid fa-rocket"></i> Hoàn tất</button>
-              </div>
-          </div>
+        </div>
       </div>
     </div>
 
@@ -366,18 +1185,18 @@
     <script src="/static/functions.js"></script>
     <script>
       function formatCurrencyInput(input) {
-          let value = input.value;
-          value = value.replace(/[^\d.]/g, '');
-          const parts = value.split('.');
-          if (parts.length > 2) {
-              value = parts[0] + '.' + parts.slice(1).join('');
-          }
-          if (value) {
-              let splitValue = value.split('.');
-              splitValue[0] = splitValue[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-              value = splitValue.join('.');
-          }
-          input.value = value;
+        let value = input.value;
+        value = value.replace(/[^\d.]/g, "");
+        const parts = value.split(".");
+        if (parts.length > 2) {
+          value = parts[0] + "." + parts.slice(1).join("");
+        }
+        if (value) {
+          let splitValue = value.split(".");
+          splitValue[0] = splitValue[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+          value = splitValue.join(".");
+        }
+        input.value = value;
       }
 
       let expenseCategories = [];
@@ -392,325 +1211,609 @@
       let categoryColors = {};
       let allTags = new Set();
       let selectedTags = new Set();
-      
+
       let currentPeriodType = "month"; // Mặc định hiển thị lịch theo tháng
-      let isCalendarExpanded = true;  // Mặc định hiển thị đầy đủ lịch
-      let selectedDayFilter = null;   
+      let isCalendarExpanded = true; // Mặc định hiển thị đầy đủ lịch
+      let selectedDayFilter = null;
 
       // 💡 Gom nhóm danh mục bằng optgroup
       function updateExpenseFormCategoryOptions() {
-          const categorySelect = document.getElementById("category");
-          const isIncome = document.getElementById("reportGain").checked;
-          
-          if(categorySelect) {
-              const currentValue = categorySelect.value;
-              const expOptions = expenseCategories.map(c => `<option value="${c}">${c}</option>`).join('');
-              const incOptions = incomeCategories.map(c => `<option value="${c}">${c}</option>`).join('');
-              categorySelect.innerHTML = `<optgroup label="Chi Tiêu">${expOptions}</optgroup><optgroup label="Thu Nhập">${incOptions}</optgroup>`;
-              
-              if (currentValue && (expenseCategories.includes(currentValue) || incomeCategories.includes(currentValue))) {
-                  categorySelect.value = currentValue;
-              } else {
-                  categorySelect.value = isIncome ? incomeCategories[0] : expenseCategories[0];
-              }
-          }
+        const categorySelect = document.getElementById("category");
+        const reportGainCheckbox = document.getElementById("reportGain");
+        if (!categorySelect || !reportGainCheckbox) return;
 
-          const jarGroup = document.getElementById("jarSourceGroup");
-          if(jarGroup) {
-              jarGroup.style.display = isIncome ? 'none' : 'flex';
-          }
+        const isIncome = reportGainCheckbox.checked;
+        // Tách biệt hoàn toàn mảng Thu và Chi
+        const targetArray = isIncome ? incomeCategories : expenseCategories;
+        
+        categorySelect.innerHTML = targetArray
+            .map((c) => `<option value="${c}">${c}</option>`)
+            .join("");
+            
+        
+        if (targetArray.length > 0) {
+            categorySelect.value = targetArray[0];
+        }
       }
 
       document.addEventListener("DOMContentLoaded", () => {
-          const reportGainCheckbox = document.getElementById("reportGain");
-          const categorySelect = document.getElementById("category");
+        const reportGainCheckbox = document.getElementById("reportGain");
+        const categorySelect = document.getElementById("category");
 
-          if(reportGainCheckbox) {
-              reportGainCheckbox.addEventListener("change", () => {
-                  updateExpenseFormCategoryOptions();
-                  if (categorySelect) categorySelect.value = reportGainCheckbox.checked ? incomeCategories[0] : expenseCategories[0];
-              });
-          }
+        if (reportGainCheckbox) {
+          reportGainCheckbox.addEventListener("change", () => {
+            updateExpenseFormCategoryOptions();
+            if (categorySelect)
+              categorySelect.value = reportGainCheckbox.checked
+                ? incomeCategories[0]
+                : expenseCategories[0];
+          });
+        }
 
-          if(categorySelect) {
-              categorySelect.addEventListener("change", (e) => {
-                  const isIncomeCat = incomeCategories.includes(e.target.value);
-                  if (reportGainCheckbox && reportGainCheckbox.checked !== isIncomeCat) {
-                      reportGainCheckbox.checked = isIncomeCat;
-                      updateExpenseFormCategoryOptions();
-                      categorySelect.value = e.target.value; 
-                  }
-              });
-          }
+        if (categorySelect) {
+          categorySelect.addEventListener("change", (e) => {
+            const isIncomeCat = incomeCategories.includes(e.target.value);
+            if (
+              reportGainCheckbox &&
+              reportGainCheckbox.checked !== isIncomeCat
+            ) {
+              reportGainCheckbox.checked = isIncomeCat;
+              updateExpenseFormCategoryOptions();
+              categorySelect.value = e.target.value;
+            }
+          });
+        }
       });
 
       // HÀM TẢI DANH SÁCH HŨ TỪ DATABASE
       let globalJars = [];
       async function loadJarsForSelect() {
-          const token = localStorage.getItem('token');
-          const res = await fetch('/api/planning/jars', { headers: { 'Authorization': `Bearer ${token}` } });
-          if (res.ok) {
-              const jars = await res.json();
-              globalJars = jars;
-              const select = document.getElementById('jar_id');
-              if (select) {
-                  select.innerHTML = '<option value="">-- Chọn Quỹ để rút --</option>';
-                  jars.forEach(j => {
-                      select.innerHTML += `<option value="${j.id}">${j.name} (${formatCurrency(j.balance)})</option>`;
+        const token = localStorage.getItem("token");
+        const res = await fetch("/api/planning/jars", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const jars = await res.json();
+          globalJars = jars;
+          const select = document.getElementById("jar_id");
+          if (select) {
+            select.innerHTML =
+              '<option value="">-- Chọn Quỹ để rút --</option>';
+            jars.forEach((j) => {
+              select.innerHTML += `<option value="${j.id}">${j.name} (${formatCurrency(j.balance)})</option>`;
+            });
+          }
+        }
+      }
+
+      // Hàm tải danh sách Hũ cho Form tạo giao dịch
+      async function loadJarsForTransactionForm() {
+          const jarSelect = document.getElementById('transactionJar');
+          if (!jarSelect) return;
+
+          try {
+              const token = localStorage.getItem('token');
+              const response = await fetch('/api/planning/jars', {
+                  headers: { 'Authorization': `Bearer ${token}` }
+              });
+
+              if (response.ok) {
+                  const jars = await response.json();
+            
+                  const curr = typeof currentCurrency !== 'undefined' ? currentCurrency.toUpperCase() : 'VND';
+                  const rate = (typeof exchangeRatesToVND !== 'undefined' && exchangeRatesToVND[curr.toLowerCase()]) ? exchangeRatesToVND[curr.toLowerCase()] : 1;
+
+                  jarSelect.innerHTML = '<option value="">Ví chính (Số dư khả dụng)</option>';
+            
+                  jars.forEach(jar => {
+                      let displayBalance = parseFloat(jar.balance) / rate;
+                      jarSelect.innerHTML += `<option value="${jar.id}">Hũ: ${jar.name} (Đang có: ${displayBalance.toLocaleString('vi-VN')} ${curr})</option>`;
                   });
               }
+          } catch (error) {
+              console.error("Lỗi khi tải danh sách Hũ:", error);
           }
       }
 
       function showCustomAlert(message) {
-          document.getElementById("alertMessage").textContent = message;
-          document.getElementById("customAlertModal").style.display = "flex";
+        document.getElementById("alertMessage").textContent = message;
+        document.getElementById("customAlertModal").style.display = "flex";
       }
+
+      async function updateJarDashboardSummary() {
+        try {
+          
+          const token = localStorage.getItem("token");
+          if (!token) return; 
+
+          
+          const resConfig = await fetch("/api/config", {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const config = await resConfig.json();
+
+          
+          const currency = (config.currency || "usd").toLowerCase();
+          
+          const rate = currency === "vnd" ? 1 : 25400;
+
+          
+          const res = await fetch("/api/planning/dashboard-summary", {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const data = await res.json();
+
+          
+          const formatMoney = (val) => {
+            return new Intl.NumberFormat(
+              currency === "usd" ? "en-US" : "vi-VN",
+              {
+                style: "currency",
+                currency: currency.toUpperCase(),
+              },
+            ).format(val);
+          };
+
+          
+          
+          document.getElementById("dbTotalBalance").innerText = formatMoney(
+            data.total_balance / rate,
+          );
+
+          
+          if (data.near_goal) {
+            
+            document.getElementById("dbNearGoal").innerText =
+              data.near_goal.name;
+            
+            document.getElementById("dbNearGoalProgress").style.width =
+              data.near_goal.percent + "%";
+            
+            document.getElementById("dbNearGoal").title =
+              `Tiến độ: ${data.near_goal.percent}%`;
+          } else {
+            
+            document.getElementById("dbNearGoal").innerText =
+              "Chưa có mục tiêu";
+            document.getElementById("dbNearGoalProgress").style.width = "0%";
+          }
+
+          
+          if (data.biggest_jar) {
+            
+            document.getElementById("dbBiggestJar").innerText =
+              data.biggest_jar.name;
+            
+            document.getElementById("dbBiggestValue").innerText = formatMoney(
+              data.biggest_jar.balance / rate,
+            );
+          } else {
+            document.getElementById("dbBiggestJar").innerText =
+              "Chưa có dữ liệu";
+            document.getElementById("dbBiggestValue").innerText = "$0.00";
+          }
+        } catch (e) {
+          console.error("Lỗi cập nhật Dashboard Quỹ:", e);
+        }
+      }
+
+      
+      document.addEventListener("DOMContentLoaded", () => {
+        updateJarDashboardSummary();
+      });
 
       // =========================================
       // WIZARD LOGIC
       // =========================================
       let wStep = 1;
-      let wCurrentCatType = 'expense';
-      let wData = { balance: 0, expenseCategories: [], incomeCategories: [], colors: {} }; 
+      let wCurrentCatType = "expense";
+      let wData = {
+        balance: 0,
+        expenseCategories: [],
+        incomeCategories: [],
+        colors: {},
+      };
       let initialCategories = [];
 
       function getUsernameFromToken() {
-          try {
-              const token = localStorage.getItem('token');
-              if (!token) return 'default_user';
-              const base64Url = token.split('.')[1];
-              const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-              const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
-                  return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-              }).join(''));
-              return JSON.parse(jsonPayload).sub || 'default_user';
-          } catch (e) { return 'default_user'; }
+        try {
+          const token = localStorage.getItem("token");
+          if (!token) return "default_user";
+          const base64Url = token.split(".")[1];
+          const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+          const jsonPayload = decodeURIComponent(
+            atob(base64)
+              .split("")
+              .map(function (c) {
+                return "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2);
+              })
+              .join(""),
+          );
+          return JSON.parse(jsonPayload).sub || "default_user";
+        } catch (e) {
+          return "default_user";
+        }
       }
 
       function checkSetupWizard() {
-          const username = getUsernameFromToken();
-          if (!localStorage.getItem(`setupDone_${username}`)) {
-              wData.expenseCategories = [...expenseCategories]; 
-              wData.incomeCategories = [...incomeCategories];
-              switchWizCatType('expense');
-              document.getElementById('setupWizardOverlay').style.display = 'flex';
-          }
+        const username = getUsernameFromToken();
+        if (!localStorage.getItem(`setupDone_${username}`)) {
+          wData.expenseCategories = [...expenseCategories];
+          wData.incomeCategories = [...incomeCategories];
+          switchWizCatType("expense");
+          document.getElementById("setupWizardOverlay").style.display = "flex";
+        }
       }
 
-      function skipWizard() { markWizardDone(); document.getElementById('setupWizardOverlay').style.display = 'none'; if(window.showToast) showToast("Đã bỏ qua thiết lập ban đầu", "success"); }
-      function markWizardDone() { localStorage.setItem(`setupDone_${getUsernameFromToken()}`, 'true'); }
+      function skipWizard() {
+        markWizardDone();
+        document.getElementById("setupWizardOverlay").style.display = "none";
+        if (window.showToast)
+          showToast("Đã bỏ qua thiết lập ban đầu", "success");
+      }
+      function markWizardDone() {
+        localStorage.setItem(`setupDone_${getUsernameFromToken()}`, "true");
+      }
 
       function switchWizCatType(type) {
-          wCurrentCatType = type;
-          const btnExp = document.getElementById('btnWizExp');
-          const btnInc = document.getElementById('btnWizInc');
-          
-          if(type === 'expense') {
-              btnExp.style.background = '#8a2be2'; btnExp.style.color = '#fff';
-              btnInc.style.background = '#2a2a40'; btnInc.style.color = '#a0a0b0';
-          } else {
-              btnInc.style.background = '#8a2be2'; btnInc.style.color = '#fff';
-              btnExp.style.background = '#2a2a40'; btnExp.style.color = '#a0a0b0';
-          }
-          renderWizCats();
+        wCurrentCatType = type;
+        const btnExp = document.getElementById("btnWizExp");
+        const btnInc = document.getElementById("btnWizInc");
+
+        if (type === "expense") {
+          btnExp.style.background = "#8a2be2";
+          btnExp.style.color = "#fff";
+          btnInc.style.background = "#2a2a40";
+          btnInc.style.color = "#a0a0b0";
+        } else {
+          btnInc.style.background = "#8a2be2";
+          btnInc.style.color = "#fff";
+          btnExp.style.background = "#2a2a40";
+          btnExp.style.color = "#a0a0b0";
+        }
+        renderWizCats();
       }
 
       function renderWizCats() {
-          const list = document.getElementById('wCatList'); list.innerHTML = '';
-          const activeArray = wCurrentCatType === 'expense' ? wData.expenseCategories : wData.incomeCategories;
+        const list = document.getElementById("wCatList");
+        list.innerHTML = "";
+        const activeArray =
+          wCurrentCatType === "expense"
+            ? wData.expenseCategories
+            : wData.incomeCategories;
 
-          activeArray.forEach((cat, idx) => {
-              const color = wData.colors[cat] || categoryColors[cat] || colorPalette[idx % colorPalette.length] || "#8a2be2";
-              wData.colors[cat] = color;
-              list.innerHTML += `<div class="wiz-cat-item"><input type="text" value="${cat}" readonly><div style="display: flex; gap: 15px; align-items: center;"><input type="color" value="${color}" onchange="wData.colors['${cat}'] = this.value"><button onclick="removeWizCat(${idx})" style="background: none; border: none; color: #ff4d4d; cursor: pointer; padding: 5px;"><i class="fa-solid fa-trash"></i></button></div></div>`;
-          });
+        activeArray.forEach((cat, idx) => {
+          const color =
+            wData.colors[cat] ||
+            categoryColors[cat] ||
+            colorPalette[idx % colorPalette.length] ||
+            "#8a2be2";
+          wData.colors[cat] = color;
+          list.innerHTML += `<div class="wiz-cat-item"><input type="text" value="${cat}" readonly><div style="display: flex; gap: 15px; align-items: center;"><input type="color" value="${color}" onchange="wData.colors['${cat}'] = this.value"><button onclick="removeWizCat(${idx})" style="background: none; border: none; color: #ff4d4d; cursor: pointer; padding: 5px;"><i class="fa-solid fa-trash"></i></button></div></div>`;
+        });
       }
 
       function addWizCat() {
-          const input = document.getElementById('wNewCat'); const val = input.value.trim().replace(/[<>]/g, '');
-          const activeArray = wCurrentCatType === 'expense' ? wData.expenseCategories : wData.incomeCategories;
-          if (val && !activeArray.includes(val)) { activeArray.push(val); input.value = ''; renderWizCats(); }
+        const input = document.getElementById("wNewCat");
+        const val = input.value.trim().replace(/[<>]/g, "");
+        const activeArray =
+          wCurrentCatType === "expense"
+            ? wData.expenseCategories
+            : wData.incomeCategories;
+        if (val && !activeArray.includes(val)) {
+          activeArray.push(val);
+          input.value = "";
+          renderWizCats();
+        }
       }
 
-      window.removeWizCat = function(idx) {
-          const activeArray = wCurrentCatType === 'expense' ? wData.expenseCategories : wData.incomeCategories;
-          if (activeArray.length <= 1) { if(window.showToast) showToast('Cần giữ lại ít nhất một danh mục!', "error"); return; }
-          activeArray.splice(idx, 1); renderWizCats();
-      }
+      window.removeWizCat = function (idx) {
+        const activeArray =
+          wCurrentCatType === "expense"
+            ? wData.expenseCategories
+            : wData.incomeCategories;
+        if (activeArray.length <= 1) {
+          if (window.showToast)
+            showToast("Cần giữ lại ít nhất một danh mục!", "error");
+          return;
+        }
+        activeArray.splice(idx, 1);
+        renderWizCats();
+      };
 
       function updateWizardUI() {
-          [1, 2, 3, 4, 5].forEach(i => { document.getElementById(`wStep${i}`).classList.remove('active'); document.getElementById(`prog${i}`).classList.remove('active'); });
-          document.getElementById(`wStep${wStep}`).classList.add('active'); document.getElementById(`prog${wStep}`).classList.add('active');
-          document.getElementById('wBtnPrev').style.display = wStep > 1 ? 'block' : 'none';
-          document.getElementById('wBtnNext').style.display = wStep < 5 ? 'block' : 'none';
-          document.getElementById('wBtnFinish').style.display = wStep === 5 ? 'block' : 'none';
+        [1, 2, 3, 4, 5].forEach((i) => {
+          document.getElementById(`wStep${i}`).classList.remove("active");
+          document.getElementById(`prog${i}`).classList.remove("active");
+        });
+        document.getElementById(`wStep${wStep}`).classList.add("active");
+        document.getElementById(`prog${wStep}`).classList.add("active");
+        document.getElementById("wBtnPrev").style.display =
+          wStep > 1 ? "block" : "none";
+        document.getElementById("wBtnNext").style.display =
+          wStep < 5 ? "block" : "none";
+        document.getElementById("wBtnFinish").style.display =
+          wStep === 5 ? "block" : "none";
 
-          if (wStep === 5) {
-              let rawBal = document.getElementById('wBalance').value.replace(/,/g, '');
-              wData.balance = parseFloat(rawBal) || 0;
-              
-              const rate = (typeof exchangeRatesToVND !== 'undefined') ? (exchangeRatesToVND[currentCurrency] || 1) : 1;
-              document.getElementById('wConfirmBalance').textContent = formatCurrency(wData.balance * rate);
-              document.getElementById('wConfirmCats').textContent = `${wData.expenseCategories.length} Chi, ${wData.incomeCategories.length} Thu`;
-              
-              const goal = document.getElementById('wFinancialGoal').value; const risk = document.getElementById('wRiskTolerance').value;
-              let aiStatus = "Đã thiết lập"; if (goal === "Chưa xác định" && risk === "Cân bằng") aiStatus = "Mặc định";
-              document.getElementById('wConfirmAI').textContent = aiStatus;
+        if (wStep === 5) {
+          let rawBal = document
+            .getElementById("wBalance")
+            .value.replace(/,/g, "");
+          wData.balance = parseFloat(rawBal) || 0;
 
-              const fileInput = document.getElementById('wCsvFile'); document.getElementById('wConfirmFile').textContent = fileInput.files.length > 0 ? fileInput.files[0].name : "Không có";
-          }
+          const rate =
+            typeof exchangeRatesToVND !== "undefined"
+              ? exchangeRatesToVND[currentCurrency] || 1
+              : 1;
+          document.getElementById("wConfirmBalance").textContent =
+            formatCurrency(wData.balance * rate);
+          document.getElementById("wConfirmCats").textContent =
+            `${wData.expenseCategories.length} Chi, ${wData.incomeCategories.length} Thu`;
+
+          const goal = document.getElementById("wFinancialGoal").value;
+          const risk = document.getElementById("wRiskTolerance").value;
+          let aiStatus = "Đã thiết lập";
+          if (goal === "Chưa xác định" && risk === "Cân bằng")
+            aiStatus = "Mặc định";
+          document.getElementById("wConfirmAI").textContent = aiStatus;
+
+          const fileInput = document.getElementById("wCsvFile");
+          document.getElementById("wConfirmFile").textContent =
+            fileInput.files.length > 0 ? fileInput.files[0].name : "Không có";
+        }
       }
 
-      function wizNext() { if (wStep < 5) { wStep++; updateWizardUI(); } }
-      function wizPrev() { if (wStep > 1) { wStep--; updateWizardUI(); } }
+      function wizNext() {
+        if (wStep < 5) {
+          wStep++;
+          updateWizardUI();
+        }
+      }
+      function wizPrev() {
+        if (wStep > 1) {
+          wStep--;
+          updateWizardUI();
+        }
+      }
 
       async function wizFinish() {
-          const btn = document.getElementById('wBtnFinish'); btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang lưu...'; btn.disabled = true;
-          try {
-              localStorage.setItem('customCategoryColors', JSON.stringify(wData.colors));
-              
-              const payloadObject = {
-                  expenseCategories: wData.expenseCategories,
-                  incomeCategories: wData.incomeCategories
-              };
-              await fetch('/api/categories/edit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payloadObject) }).catch(e => {});
+        const btn = document.getElementById("wBtnFinish");
+        btn.innerHTML =
+          '<i class="fa-solid fa-spinner fa-spin"></i> Đang lưu...';
+        btn.disabled = true;
+        try {
+          localStorage.setItem(
+            "customCategoryColors",
+            JSON.stringify(wData.colors),
+          );
 
-              const goal = document.getElementById('wFinancialGoal').value; const risk = document.getElementById('wRiskTolerance').value;
-              await fetch('/api/profile/edit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ goal: goal, risk: risk }) }).catch(e => {});
+          const payloadObject = {
+            expenseCategories: wData.expenseCategories,
+            incomeCategories: wData.incomeCategories,
+          };
+          await fetch("/api/categories/edit", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payloadObject),
+          }).catch((e) => {});
 
-              if (wData.balance > 0) {
-                  const rate = (typeof exchangeRatesToVND !== 'undefined') ? (exchangeRatesToVND[currentCurrency] || 1) : 1;
-                  const incCat = incomeCategories.length > 0 ? incomeCategories[0] : 'Khác';
-                  const todayStr = new Date().toISOString().split('T')[0];
-                  const formData = { name: "Số dư ban đầu", category: incCat, amount: wData.balance * rate, date: new Date(todayStr + "T00:00:00Z").toISOString(), tags: ["Setup"], note: null, recurring_interval: null };
-                  const res = await fetch('/api/expenses/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData) });
-                  if (!res.ok) throw new Error("Dữ liệu không hợp lệ");
-              }
+          const goal = document.getElementById("wFinancialGoal").value;
+          const risk = document.getElementById("wRiskTolerance").value;
+          await fetch("/api/profile/edit", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ goal: goal, risk: risk }),
+          }).catch((e) => {});
 
-              const fileInput = document.getElementById('wCsvFile');
-              if (fileInput.files.length > 0) {
-                  const fd = new FormData(); fd.append('file', fileInput.files[0]);
-                  await fetch('/api/expenses/import/csv', { method: 'POST', body: fd }).catch(e => {});
-              }
-
-              markWizardDone(); document.getElementById('setupWizardOverlay').style.display = 'none';
-              if(window.showToast) showToast("Thiết lập thành công! Hãy bắt đầu theo dõi.", "success");
-              await initialize();
-          } catch (e) {
-              if(window.showToast) showToast("Lỗi hệ thống: " + e.message, "error");
-              btn.innerHTML = '<i class="fa-solid fa-rocket"></i> Hoàn tất'; btn.disabled = false;
+          if (wData.balance > 0) {
+            const rate =
+              typeof exchangeRatesToVND !== "undefined"
+                ? exchangeRatesToVND[currentCurrency] || 1
+                : 1;
+            const incCat =
+              incomeCategories.length > 0 ? incomeCategories[0] : "Khác";
+            const todayStr = new Date().toISOString().split("T")[0];
+            const formData = {
+              name: "Số dư ban đầu",
+              category: incCat,
+              amount: wData.balance * rate,
+              date: new Date(todayStr + "T00:00:00Z").toISOString(),
+              tags: ["Setup"],
+              note: null,
+              recurring_interval: null,
+            };
+            const res = await fetch("/api/expenses/", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(formData),
+            });
+            if (!res.ok) throw new Error("Dữ liệu không hợp lệ");
           }
+
+          const fileInput = document.getElementById("wCsvFile");
+          if (fileInput.files.length > 0) {
+            const fd = new FormData();
+            fd.append("file", fileInput.files[0]);
+            await fetch("/api/expenses/import/csv", {
+              method: "POST",
+              body: fd,
+            }).catch((e) => {});
+          }
+
+          markWizardDone();
+          document.getElementById("setupWizardOverlay").style.display = "none";
+          if (window.showToast)
+            showToast("Thiết lập thành công! Hãy bắt đầu theo dõi.", "success");
+          await initialize();
+        } catch (e) {
+          if (window.showToast)
+            showToast("Lỗi hệ thống: " + e.message, "error");
+          btn.innerHTML = '<i class="fa-solid fa-rocket"></i> Hoàn tất';
+          btn.disabled = false;
+        }
       }
 
-      function showLogoutModal() { document.getElementById('logoutConfirmModal').style.display = 'flex'; }
-      function closeLogoutModal() { document.getElementById('logoutConfirmModal').style.display = 'none'; }
+      function showLogoutModal() {
+        document.getElementById("logoutConfirmModal").style.display = "flex";
+      }
+      function closeLogoutModal() {
+        document.getElementById("logoutConfirmModal").style.display = "none";
+      }
       function proceedLogout() {
-          closeLogoutModal();
-          if (typeof logout === 'function') { logout(); } 
-          else { localStorage.removeItem('token'); window.location.href = '/login'; }
+        closeLogoutModal();
+        if (typeof logout === "function") {
+          logout();
+        } else {
+          localStorage.removeItem("token");
+          window.location.href = "/login";
+        }
       }
 
       // =========================================
       // TÍNH NĂNG LỊCH HEATMAP
       // =========================================
       function renderCalendar() {
-          const grid = document.getElementById('calGrid');
-          const widget = document.getElementById('calendarWidget');
-          const toggleBtn = document.getElementById('calToggleBtn');
-          if(!grid) return;
+        const grid = document.getElementById("calGrid");
+        const widget = document.getElementById("calendarWidget");
+        const toggleBtn = document.getElementById("calToggleBtn");
+        if (!grid) return;
 
-          if (currentPeriodType === 'year' || currentPeriodType === 'all') {
-              widget.style.display = 'none';
-              return;
+        if (currentPeriodType === "year" || currentPeriodType === "all") {
+          widget.style.display = "none";
+          return;
+        } else {
+          widget.style.display = "block";
+        }
+
+        toggleBtn.innerHTML = isCalendarExpanded
+          ? '<i class="fa-solid fa-chevron-up"></i>'
+          : '<i class="fa-solid fa-chevron-down"></i>';
+
+        let days = [];
+        let start = new Date(
+          currentDate.getFullYear(),
+          currentDate.getMonth(),
+          currentDate.getDate(),
+        );
+
+        if (!isCalendarExpanded) {
+          let day = start.getDay() || 7;
+          start.setDate(start.getDate() - day + 1);
+          for (let i = 0; i < 7; i++) {
+            days.push(new Date(start));
+            start.setDate(start.getDate() + 1);
+          }
+        } else {
+          start.setDate(1);
+          let day = start.getDay() || 7;
+          start.setDate(start.getDate() - day + 1);
+          for (let i = 0; i < 42; i++) {
+            days.push(new Date(start));
+            start.setDate(start.getDate() + 1);
+          }
+        }
+
+        const dailyData = {};
+        let totalMonthExpense = 0;
+        const rate =
+          typeof exchangeRatesToVND !== "undefined"
+            ? exchangeRatesToVND[currentCurrency] || 1
+            : 1;
+
+        allExpenses.forEach((exp) => {
+          const dStr = exp.date.split("T")[0];
+          const expDateObj = new Date(dStr);
+
+          if (!dailyData[dStr]) dailyData[dStr] = { in: 0, out: 0 };
+
+          if (exp.amount > 0) {
+            dailyData[dStr].in += exp.amount / rate;
           } else {
-              widget.style.display = 'block';
+            const outAmt = Math.abs(exp.amount) / rate;
+            dailyData[dStr].out += outAmt;
+            if (
+              expDateObj.getFullYear() === currentDate.getFullYear() &&
+              expDateObj.getMonth() === currentDate.getMonth()
+            ) {
+              totalMonthExpense += outAmt;
+            }
           }
-          
-          toggleBtn.innerHTML = isCalendarExpanded ? '<i class="fa-solid fa-chevron-up"></i>' : '<i class="fa-solid fa-chevron-down"></i>';
+        });
 
-          let days = [];
-          let start = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate());
-          
-          if (!isCalendarExpanded) {
-              let day = start.getDay() || 7; 
-              start.setDate(start.getDate() - day + 1);
-              for(let i = 0; i < 7; i++) { days.push(new Date(start)); start.setDate(start.getDate() + 1); }
-          } else {
-              start.setDate(1); 
-              let day = start.getDay() || 7;
-              start.setDate(start.getDate() - day + 1); 
-              for(let i = 0; i < 42; i++) { days.push(new Date(start)); start.setDate(start.getDate() + 1); }
+        const todayObj = new Date();
+        let daysToDivide = new Date(
+          currentDate.getFullYear(),
+          currentDate.getMonth() + 1,
+          0,
+        ).getDate();
+        if (
+          currentDate.getFullYear() === todayObj.getFullYear() &&
+          currentDate.getMonth() === todayObj.getMonth()
+        ) {
+          daysToDivide = todayObj.getDate() || 1;
+        }
+        const avgDailyExpense = totalMonthExpense / daysToDivide;
+        const threshold = avgDailyExpense * 2;
+
+        grid.innerHTML = "";
+        const todayStr =
+          todayObj.getFullYear() +
+          "-" +
+          String(todayObj.getMonth() + 1).padStart(2, "0") +
+          "-" +
+          String(todayObj.getDate()).padStart(2, "0");
+
+        const formatShort = (val) => {
+          if (val === 0) return "";
+          return new Intl.NumberFormat("vi-VN", {
+            notation: "compact",
+            compactDisplay: "short",
+            maximumFractionDigits: 1,
+          }).format(val);
+        };
+
+        days.forEach((d) => {
+          const dStr =
+            d.getFullYear() +
+            "-" +
+            String(d.getMonth() + 1).padStart(2, "0") +
+            "-" +
+            String(d.getDate()).padStart(2, "0");
+          const data = dailyData[dStr] || { in: 0, out: 0 };
+          const isToday = dStr === todayStr;
+          const isCurrentMonth = d.getMonth() === currentDate.getMonth();
+
+          let opacity = isCurrentMonth ? "1" : "0.4";
+          let bg = "var(--bg-primary)";
+          let border = "1px solid var(--border)";
+          let dateColor = "var(--text-secondary)";
+
+          if (selectedDayFilter === dStr) {
+            bg = "rgba(138, 43, 226, 0.15)";
+            border = "2px solid #8a2be2";
+            dateColor = "#d4a5ff";
+            opacity = "1";
+          } else if (isToday) {
+            bg = "rgba(105, 175, 222, 0.1)";
+            border = "1px solid var(--accent)";
+            dateColor = "var(--accent)";
           }
 
-          const dailyData = {};
-          let totalMonthExpense = 0;
-          const rate = (typeof exchangeRatesToVND !== 'undefined') ? (exchangeRatesToVND[currentCurrency] || 1) : 1;
-          
-          allExpenses.forEach(exp => {
-              const dStr = exp.date.split('T')[0];
-              const expDateObj = new Date(dStr);
-              
-              if(!dailyData[dStr]) dailyData[dStr] = { in: 0, out: 0 };
-              
-              if(exp.amount > 0) {
-                  dailyData[dStr].in += exp.amount / rate;
-              } else {
-                  const outAmt = Math.abs(exp.amount) / rate;
-                  dailyData[dStr].out += outAmt;
-                  if (expDateObj.getFullYear() === currentDate.getFullYear() && expDateObj.getMonth() === currentDate.getMonth()) {
-                      totalMonthExpense += outAmt;
-                  }
-              }
-          });
-
-          const todayObj = new Date();
-          let daysToDivide = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
-          if (currentDate.getFullYear() === todayObj.getFullYear() && currentDate.getMonth() === todayObj.getMonth()) {
-              daysToDivide = todayObj.getDate() || 1;
+          let dotHtml = "";
+          if (data.out > 0 && threshold > 0 && data.out > threshold) {
+            dotHtml = `<div style="position: absolute; top: 6px; left: 6px; width: 8px; height: 8px; background-color: #ff4d4d; border-radius: 50%; box-shadow: 0 0 5px rgba(255,77,77,0.5);"></div>`;
           }
-          const avgDailyExpense = totalMonthExpense / daysToDivide;
-          const threshold = avgDailyExpense * 2;
 
-          grid.innerHTML = '';
-          const todayStr = todayObj.getFullYear() + '-' + String(todayObj.getMonth()+1).padStart(2,'0') + '-' + String(todayObj.getDate()).padStart(2,'0');
+          let inText =
+            data.in > 0
+              ? `<div style="color: #2EAB7D; font-size: 0.75rem; font-weight: bold; margin-bottom: 2px;">+${formatShort(data.in)}</div>`
+              : "";
+          let outText =
+            data.out > 0
+              ? `<div style="color: var(--text-primary); font-size: 0.75rem; font-weight: bold; display: inline-block;">-${formatShort(data.out)}</div>`
+              : "";
 
-          const formatShort = (val) => {
-              if (val === 0) return '';
-              return new Intl.NumberFormat('vi-VN', { notation: 'compact', compactDisplay: 'short', maximumFractionDigits: 1 }).format(val);
-          };
-
-          days.forEach(d => {
-              const dStr = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
-              const data = dailyData[dStr] || { in: 0, out: 0 };
-              const isToday = dStr === todayStr;
-              const isCurrentMonth = d.getMonth() === currentDate.getMonth();
-              
-              let opacity = isCurrentMonth ? '1' : '0.4';
-              let bg = 'var(--bg-primary)';
-              let border = '1px solid var(--border)';
-              let dateColor = 'var(--text-secondary)';
-
-              if (selectedDayFilter === dStr) {
-                  bg = 'rgba(138, 43, 226, 0.15)'; 
-                  border = '2px solid #8a2be2';
-                  dateColor = '#d4a5ff';
-                  opacity = '1'; 
-              } else if (isToday) {
-                  bg = 'rgba(105, 175, 222, 0.1)'; 
-                  border = '1px solid var(--accent)';
-                  dateColor = 'var(--accent)';
-              }
-
-              let dotHtml = '';
-              if (data.out > 0 && threshold > 0 && data.out > threshold) {
-                  dotHtml = `<div style="position: absolute; top: 6px; left: 6px; width: 8px; height: 8px; background-color: #ff4d4d; border-radius: 50%; box-shadow: 0 0 5px rgba(255,77,77,0.5);"></div>`;
-              }
-
-              let inText = data.in > 0 ? `<div style="color: #2EAB7D; font-size: 0.75rem; font-weight: bold; margin-bottom: 2px;">+${formatShort(data.in)}</div>` : '';
-              let outText = data.out > 0 ? `<div style="color: var(--text-primary); font-size: 0.75rem; font-weight: bold; display: inline-block;">-${formatShort(data.out)}</div>` : ''; 
-
-              grid.innerHTML += `
+          grid.innerHTML += `
                   <div onclick="toggleDayFilter('${dStr}')" style="position: relative; cursor: pointer; background: ${bg}; border: ${border}; border-radius: 6px; padding: 5px; min-height: 60px; opacity: ${opacity}; display: flex; flex-direction: column; transition: all 0.2s ease;">
                       ${dotHtml}
                       <div style="text-align: right; font-size: 0.8rem; color: ${dateColor}; font-weight: bold;">${d.getDate()}</div>
@@ -720,26 +1823,26 @@
                       </div>
                   </div>
               `;
-          });
+        });
       }
 
       document.addEventListener("DOMContentLoaded", () => {
-          const calToggleBtn = document.getElementById('calToggleBtn');
-          if(calToggleBtn) {
-              calToggleBtn.addEventListener('click', () => {
-                  isCalendarExpanded = !isCalendarExpanded; 
-                  renderCalendar();
-              });
-          }
+        const calToggleBtn = document.getElementById("calToggleBtn");
+        if (calToggleBtn) {
+          calToggleBtn.addEventListener("click", () => {
+            isCalendarExpanded = !isCalendarExpanded;
+            renderCalendar();
+          });
+        }
       });
 
-      window.toggleDayFilter = function(dStr) {
-          if (selectedDayFilter === dStr) {
-              selectedDayFilter = null; 
-          } else {
-              selectedDayFilter = dStr; 
-          }
-          updateChartAndLegend(); 
+      window.toggleDayFilter = function (dStr) {
+        if (selectedDayFilter === dStr) {
+          selectedDayFilter = null;
+        } else {
+          selectedDayFilter = dStr;
+        }
+        updateChartAndLegend();
       };
 
       // =========================================
@@ -747,127 +1850,192 @@
       // =========================================
       async function initialize() {
         try {
-          let config = { expenseCategories: ["Ăn uống", "Đi lại", "Mua sắm", "Hóa đơn", "Giải trí"], incomeCategories: ["Lương", "Thưởng", "Đầu tư", "Khác"], currency: "usd", startDate: 1 };
+          let config = {
+            expenseCategories: [
+              "Ăn uống",
+              "Đi lại",
+              "Mua sắm",
+              "Hóa đơn",
+              "Giải trí",
+            ],
+            incomeCategories: ["Lương", "Thưởng", "Đầu tư", "Khác"],
+            currency: "usd",
+            startDate: 1,
+          };
           try {
-              const configResponse = await fetch("/api/config");
-              if (configResponse.ok) {
-                  const fetchedConfig = await configResponse.json();
-                  if (fetchedConfig) config = {...config, ...fetchedConfig};
-              }
-          } catch(e) {}
-          
+            const configResponse = await fetch("/api/config");
+            if (configResponse.ok) {
+              const fetchedConfig = await configResponse.json();
+              if (fetchedConfig) config = { ...config, ...fetchedConfig };
+            }
+          } catch (e) {}
+
           if (config.expenseCategories && config.incomeCategories) {
-              expenseCategories = config.expenseCategories;
-              incomeCategories = config.incomeCategories;
+            expenseCategories = config.expenseCategories;
+            incomeCategories = config.incomeCategories;
           } else if (config.categories) {
-              expenseCategories = config.categories;
-              incomeCategories = ["Lương", "Thưởng", "Đầu tư", "Khác"];
+            expenseCategories = config.categories;
+            incomeCategories = ["Lương", "Thưởng", "Đầu tư", "Khác"];
           }
-          
+
           initialCategories = [...expenseCategories, ...incomeCategories];
           updateExpenseFormCategoryOptions();
-          
-          window.currentCurrency = config.currency || 'usd'; currentCurrency = window.currentCurrency; window.startDate = config.startDate || 1;
+
+          window.currentCurrency = config.currency || "usd";
+          currentCurrency = window.currentCurrency;
+          window.startDate = config.startDate || 1;
 
           let fetchedExpenses = [];
           try {
-              const response = await fetch("/api/expenses/");
-              if (response.ok) {
-                  const data = await response.json();
-                  fetchedExpenses = Array.isArray(data) ? data : data && Array.isArray(data.expenses) ? data.expenses : [];
-              }
-          } catch(e) {}
+            const response = await fetch("/api/expenses/");
+            if (response.ok) {
+              const data = await response.json();
+              fetchedExpenses = Array.isArray(data)
+                ? data
+                : data && Array.isArray(data.expenses)
+                  ? data.expenses
+                  : [];
+            }
+          } catch (e) {}
 
-          allExpenses = fetchedExpenses.map(exp => {
-              let safeTags = [];
-              if (Array.isArray(exp.tags)) safeTags = exp.tags;
-              else if (typeof exp.tags === 'string') {
-                  try { safeTags = JSON.parse(exp.tags); } catch(e) {}
-                  if (!Array.isArray(safeTags) && exp.tags.trim() !== '') safeTags = [exp.tags];
+          allExpenses = fetchedExpenses.map((exp) => {
+            let safeTags = [];
+            if (Array.isArray(exp.tags)) safeTags = exp.tags;
+            else if (typeof exp.tags === "string") {
+              try {
+                safeTags = JSON.parse(exp.tags);
+              } catch (e) {}
+              if (!Array.isArray(safeTags) && exp.tags.trim() !== "")
+                safeTags = [exp.tags];
+            }
+            let safeDate = new Date().toISOString();
+            if (typeof exp.date === "string" && exp.date.trim() !== "")
+              safeDate = exp.date;
+
+            let catName = exp.category || "Khác";
+            const exactMatch = initialCategories.find((c) => c === catName);
+            if (!exactMatch) {
+              const lowerMatch = initialCategories.find(
+                (c) => c.toLowerCase() === catName.toLowerCase(),
+              );
+              if (lowerMatch) {
+                catName = lowerMatch;
               }
-              let safeDate = new Date().toISOString();
-              if (typeof exp.date === 'string' && exp.date.trim() !== '') safeDate = exp.date;
-              
-              let catName = exp.category || 'Khác';
-              const exactMatch = initialCategories.find(c => c === catName);
-              if (!exactMatch) {
-                  const lowerMatch = initialCategories.find(c => c.toLowerCase() === catName.toLowerCase());
-                  if (lowerMatch) {
-                      catName = lowerMatch;
-                  }
-              }
-              return { ...exp, amount: parseFloat(exp.amount) || 0, date: safeDate, tags: safeTags, category: catName };
+            }
+            return {
+              ...exp,
+              amount: parseFloat(exp.amount) || 0,
+              date: safeDate,
+              tags: safeTags,
+              category: catName,
+            };
           });
 
           allTags.clear();
-          allExpenses.forEach((exp) => { exp.tags.forEach((tag) => allTags.add(tag)); });
+          allExpenses.forEach((exp) => {
+            exp.tags.forEach((tag) => allTags.add(tag));
+          });
 
-          const savedColors = JSON.parse(localStorage.getItem('customCategoryColors') || '{}');
-          const uniqueCategories = [...new Set(allExpenses.map((exp) => exp.category))];
-          initialCategories.forEach(c => { if(!uniqueCategories.includes(c)) uniqueCategories.push(c); });
-          
+          const savedColors = JSON.parse(
+            localStorage.getItem("customCategoryColors") || "{}",
+          );
+          const uniqueCategories = [
+            ...new Set(allExpenses.map((exp) => exp.category)),
+          ];
+          initialCategories.forEach((c) => {
+            if (!uniqueCategories.includes(c)) uniqueCategories.push(c);
+          });
+
           uniqueCategories.forEach((category, index) => {
-            if (savedColors[category]) { 
-                categoryColors[category] = savedColors[category]; 
+            if (savedColors[category]) {
+              categoryColors[category] = savedColors[category];
             } else {
-                const foundKey = Object.keys(savedColors).find(k => k.toLowerCase() === category.toLowerCase());
-                if (foundKey) {
-                    categoryColors[category] = savedColors[foundKey];
-                } else if (!categoryColors[category]) { 
-                    categoryColors[category] = colorPalette[index % colorPalette.length] || "#8a2be2"; 
-                }
+              const foundKey = Object.keys(savedColors).find(
+                (k) => k.toLowerCase() === category.toLowerCase(),
+              );
+              if (foundKey) {
+                categoryColors[category] = savedColors[foundKey];
+              } else if (!categoryColors[category]) {
+                categoryColors[category] =
+                  colorPalette[index % colorPalette.length] || "#8a2be2";
+              }
             }
           });
 
-          updatePeriodDisplayOverride(); updateChartAndLegend(); setupTagInput();
-          await loadJarsForSelect();
+          updatePeriodDisplayOverride();
+          await loadJarsForSelect();         
+          await loadJarsForTransactionForm(); 
+          updateChartAndLegend();            
+          setupTagInput();
           checkSetupWizard();
-
-        } catch (error) { console.error("Fatal error during initialization:", error); }
+        } catch (error) {
+          console.error("Fatal error during initialization:", error);
+        }
       }
 
       function getPeriodBoundsOverride(date, period) {
         const localDate = new Date(date);
-        if (period === "all") return { start: new Date("1970-01-01"), end: new Date("2099-12-31") };
-        if (period === "year") return { start: new Date(Date.UTC(localDate.getFullYear(), 0, 1, 0, 0, 0)), end: new Date(Date.UTC(localDate.getFullYear(), 11, 31, 23, 59, 59, 999)) };
+        if (period === "all")
+          return { start: new Date("1970-01-01"), end: new Date("2099-12-31") };
+        if (period === "year")
+          return {
+            start: new Date(Date.UTC(localDate.getFullYear(), 0, 1, 0, 0, 0)),
+            end: new Date(
+              Date.UTC(localDate.getFullYear(), 11, 31, 23, 59, 59, 999),
+            ),
+          };
         if (period === "week") {
-          const day = localDate.getDay() || 7; 
+          const day = localDate.getDay() || 7;
           const startLocal = new Date(localDate);
-          startLocal.setDate(localDate.getDate() - day + 1); startLocal.setHours(0, 0, 0, 0);
+          startLocal.setDate(localDate.getDate() - day + 1);
+          startLocal.setHours(0, 0, 0, 0);
           const endLocal = new Date(startLocal);
-          endLocal.setDate(startLocal.getDate() + 6); endLocal.setHours(23, 59, 59, 999);
+          endLocal.setDate(startLocal.getDate() + 6);
+          endLocal.setHours(23, 59, 59, 999);
           return { start: startLocal, end: endLocal };
         }
-        return getMonthBounds(date); 
+        return getMonthBounds(date);
       }
 
       function getFilteredExpensesOverride(expenses) {
         if (selectedDayFilter) {
-            return expenses.filter(exp => {
-                const expDateStr = exp.date.split('T')[0];
-                return expDateStr === selectedDayFilter;
-            }).sort((a, b) => new Date(b.date) - new Date(a.date));
+          return expenses
+            .filter((exp) => {
+              const expDateStr = exp.date.split("T")[0];
+              return expDateStr === selectedDayFilter;
+            })
+            .sort((a, b) => new Date(b.date) - new Date(a.date));
         }
 
-        const { start, end } = getPeriodBoundsOverride(currentDate, currentPeriodType);
-        return expenses.filter((exp) => {
+        const { start, end } = getPeriodBoundsOverride(
+          currentDate,
+          currentPeriodType,
+        );
+        return expenses
+          .filter((exp) => {
             let safeDateString = exp.date;
             if (!safeDateString.endsWith("Z")) safeDateString += "Z";
             const expDate = new Date(safeDateString);
             return expDate >= start && expDate <= end;
-          }).sort((a, b) => new Date(b.date) - new Date(a.date));
+          })
+          .sort((a, b) => new Date(b.date) - new Date(a.date));
       }
 
       function updatePeriodDisplayOverride() {
         const label = document.getElementById("currentPeriodLabel");
-        const btnPrev = document.getElementById("prevPeriod"); const btnNext = document.getElementById("nextPeriod");
+        const btnPrev = document.getElementById("prevPeriod");
+        const btnNext = document.getElementById("nextPeriod");
         if (!label) return;
 
         if (currentPeriodType === "all") {
-          label.textContent = "Toàn bộ lịch sử"; btnPrev.style.visibility = "hidden"; btnNext.style.visibility = "hidden";
+          label.textContent = "Toàn bộ lịch sử";
+          btnPrev.style.visibility = "hidden";
+          btnNext.style.visibility = "hidden";
         } else {
-          btnPrev.style.visibility = "visible"; btnNext.style.visibility = "visible";
-          if (currentPeriodType === "year") label.textContent = `Năm ${currentDate.getFullYear()}`;
+          btnPrev.style.visibility = "visible";
+          btnNext.style.visibility = "visible";
+          if (currentPeriodType === "year")
+            label.textContent = `Năm ${currentDate.getFullYear()}`;
           else if (currentPeriodType === "week") {
             const { start, end } = getPeriodBoundsOverride(currentDate, "week");
             label.textContent = `Tuần: ${String(start.getDate()).padStart(2, "0")}/${String(start.getMonth() + 1).padStart(2, "0")} - ${String(end.getDate()).padStart(2, "0")}/${String(end.getMonth() + 1).padStart(2, "0")}`;
@@ -875,41 +2043,69 @@
         }
       }
 
-      document.getElementById("periodSelect").addEventListener("change", (e) => { 
-          currentPeriodType = e.target.value; 
-          currentDate = new Date(); 
-          selectedDayFilter = null; 
-          isCalendarExpanded = currentPeriodType === 'month'; 
-          updatePeriodDisplayOverride(); 
-          updateChartAndLegend(); 
-      });
+      document
+        .getElementById("periodSelect")
+        .addEventListener("change", (e) => {
+          currentPeriodType = e.target.value;
+          currentDate = new Date();
+          selectedDayFilter = null;
+          isCalendarExpanded = currentPeriodType === "month";
+          updatePeriodDisplayOverride();
+          updateChartAndLegend();
+        });
       document.getElementById("prevPeriod").addEventListener("click", () => {
-        if (currentPeriodType === "month") currentDate.setMonth(currentDate.getMonth() - 1);
-        else if (currentPeriodType === "year") currentDate.setFullYear(currentDate.getFullYear() - 1);
-        else if (currentPeriodType === "week") currentDate.setDate(currentDate.getDate() - 7);
+        if (currentPeriodType === "month")
+          currentDate.setMonth(currentDate.getMonth() - 1);
+        else if (currentPeriodType === "year")
+          currentDate.setFullYear(currentDate.getFullYear() - 1);
+        else if (currentPeriodType === "week")
+          currentDate.setDate(currentDate.getDate() - 7);
         selectedDayFilter = null;
-        updatePeriodDisplayOverride(); updateChartAndLegend();
+        updatePeriodDisplayOverride();
+        updateChartAndLegend();
       });
       document.getElementById("nextPeriod").addEventListener("click", () => {
-        if (currentPeriodType === "month") currentDate.setMonth(currentDate.getMonth() + 1);
-        else if (currentPeriodType === "year") currentDate.setFullYear(currentDate.getFullYear() + 1);
-        else if (currentPeriodType === "week") currentDate.setDate(currentDate.getDate() + 7);
+        if (currentPeriodType === "month")
+          currentDate.setMonth(currentDate.getMonth() + 1);
+        else if (currentPeriodType === "year")
+          currentDate.setFullYear(currentDate.getFullYear() + 1);
+        else if (currentPeriodType === "week")
+          currentDate.setDate(currentDate.getDate() + 7);
         selectedDayFilter = null;
-        updatePeriodDisplayOverride(); updateChartAndLegend();
+        updatePeriodDisplayOverride();
+        updateChartAndLegend();
       });
 
       function calculateCategoryBreakdown(expenses) {
-        const categoryTotals = {}; let totalAmount = 0;
+        const categoryTotals = {};
+        let totalAmount = 0;
         expenses.forEach((exp) => {
           if (exp.amount < 0 && !disabledCategories.has(exp.category)) {
-            const amount = Math.abs(exp.amount); categoryTotals[exp.category] = (categoryTotals[exp.category] || 0) + amount; totalAmount += amount;
+            const amount = Math.abs(exp.amount);
+            categoryTotals[exp.category] =
+              (categoryTotals[exp.category] || 0) + amount;
+            totalAmount += amount;
           }
         });
-        return Object.entries(categoryTotals).map(([category, total]) => ({ category, total, percentage: totalAmount > 0 ? (total / totalAmount) * 100 : 0 })).sort((a, b) => b.total - a.total);
+        return Object.entries(categoryTotals)
+          .map(([category, total]) => ({
+            category,
+            total,
+            percentage: totalAmount > 0 ? (total / totalAmount) * 100 : 0,
+          }))
+          .sort((a, b) => b.total - a.total);
       }
 
-      function calculateIncome(expenses) { return expenses.filter((exp) => exp.amount > 0).reduce((sum, exp) => sum + exp.amount, 0); }
-      function calculateExpenses(expenses) { return expenses.filter((exp) => exp.amount < 0).reduce((sum, exp) => sum + Math.abs(exp.amount), 0); }
+      function calculateIncome(expenses) {
+        return expenses
+          .filter((exp) => exp.amount > 0)
+          .reduce((sum, exp) => sum + exp.amount, 0);
+      }
+      function calculateExpenses(expenses) {
+        return expenses
+          .filter((exp) => exp.amount < 0)
+          .reduce((sum, exp) => sum + Math.abs(exp.amount), 0);
+      }
 
       function updateChartAndLegend() {
         const periodExpenses = getFilteredExpensesOverride(allExpenses);
@@ -922,27 +2118,42 @@
         updateCashflow(periodExpenses);
 
         if (!hasExpenses) {
-          if (pieChart) { pieChart.destroy(); pieChart = null; }
-          chartWrapper.style.display = "none"; legendBox.style.display = "none"; 
+          if (pieChart) {
+            pieChart.destroy();
+            pieChart = null;
+          }
+          chartWrapper.style.display = "none";
+          legendBox.style.display = "none";
           noDataMessage.style.display = "block";
         } else {
-          chartWrapper.style.display = "flex"; legendBox.style.display = "flex"; noDataMessage.style.display = "none";
+          chartWrapper.style.display = "flex";
+          legendBox.style.display = "flex";
+          noDataMessage.style.display = "none";
           const categoryData = calculateCategoryBreakdown(periodExpenses);
-          createPieChart(categoryData); updateLegend(categoryData);
+          createPieChart(categoryData);
+          updateLegend(categoryData);
         }
-        
+
         renderCalendar();
       }
 
       function updateCashflow(periodExpenses) {
-        // 1. Tính toán cho kỳ hiện tại (bộ lọc động)
+        // 1. Tính toán cho kỳ hiện tại
         const incomePeriod = calculateIncome(periodExpenses);
         const expensePeriod = calculateExpenses(periodExpenses);
 
-        // 2. Tính toán cho toàn bộ thời gian (tài sản thực tế bất di bất dịch)
+        // 2. Tính toán cho toàn bộ thời gian
         const totalIncomeAll = calculateIncome(allExpenses);
         const totalExpenseAll = calculateExpenses(allExpenses);
-        const totalBalanceAll = totalIncomeAll - totalExpenseAll;
+        
+        // 💡 BƯỚC MỚI: Tính tổng tiền đang bị khóa trong các hũ
+        let totalInJars = 0;
+        if (typeof globalJars !== 'undefined') {
+            totalInJars = globalJars.reduce((sum, jar) => sum + parseFloat(jar.balance || 0), 0);
+        }
+
+        // 💡 TÍNH LẠI SỐ DƯ KHẢ DỤNG: Tổng Thu - Tổng Chi - Tổng Hũ
+        const totalBalanceAll = totalIncomeAll - totalExpenseAll - totalInJars;
 
         // 3. Cập nhật UI
         document.getElementById("cashflow-income").textContent = formatCurrency(incomePeriod);
@@ -950,88 +2161,123 @@
         document.getElementById("cashflow-balance").textContent = formatCurrency(totalBalanceAll);
 
         const balanceElement = document.getElementById("cashflow-balance");
-        if (totalBalanceAll >= 0) { 
-            balanceElement.classList.add("positive"); balanceElement.classList.remove("negative"); 
-        } else { 
-            balanceElement.classList.add("negative"); balanceElement.classList.remove("positive"); 
+        if (totalBalanceAll >= 0) {
+          balanceElement.classList.add("positive");
+          balanceElement.classList.remove("negative");
+        } else {
+          balanceElement.classList.add("negative");
+          balanceElement.classList.remove("positive");
+        }
+        
+        // 💡 ĐỔI TÊN LABEL CHO CHUẨN UX (Đổi chữ "Tổng Số Dư" thành "Số Dư Khả Dụng")
+        const balanceLabel = document.querySelector('.cashflow-item.balance .cashflow-label');
+        if (balanceLabel) {
+            balanceLabel.textContent = "Số Dư Khả Dụng";
         }
       }
 
       // HÀM TẢI CẢNH BÁO NGÂN SÁCH CHO DASHBOARD
       async function loadDashboardBudgets(periodExpenses) {
-          const token = localStorage.getItem('token');
-          if (!token) return;
+        const token = localStorage.getItem("token");
+        if (!token) return;
 
-          // 1. SỬA LỖI TỶ GIÁ: Lấy tỷ giá chuẩn
-          const rate = (typeof exchangeRatesToVND !== 'undefined') ? (exchangeRatesToVND[currentCurrency] || 1) : 1;
-          
-          // Lấy khoảng thời gian dựa trên biến TOÀN CỤC currentPeriodType đang chọn trên giao diện
-          const { start, end } = getPeriodBoundsOverride(currentDate, currentPeriodType);
-          const getISODate = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-          
-          try {
-              // 2. CẬP NHẬT THEO CHU KỲ: Gửi đúng chu kỳ người dùng đang chọn (Tuần/Tháng/Năm)
-              const res = await fetch(`/api/planning/budgets?start_date=${getISODate(start)}&end_date=${getISODate(end)}&period_type=${currentPeriodType}`, {
-                  headers: { 'Authorization': `Bearer ${token}` }
-              });
-              
-              if (!res.ok) return;
-              const budgets = await res.json();
-              const alertContainer = document.getElementById('budgetAlertsContainer');
-              const alertContent = document.getElementById('budgetAlertsContent');
-              
-              const activeBudgets = budgets.filter(b => b.limit_amount > 0);
-              
-              // Nếu là "Tất cả thời gian" hoặc không có ngân sách -> Ẩn bảng
-              if (currentPeriodType === 'all' || activeBudgets.length === 0) {
-                  alertContainer.style.display = 'none';
-                  return;
-              }
-              
-              alertContainer.style.display = 'block';
-              
-              let totalLimit = 0;
-              let totalSpentInBudgets = 0;
-              let warningsHTML = '';
-              
-              activeBudgets.forEach(b => {
-                  totalLimit += b.limit_amount;
-                  totalSpentInBudgets += b.spent_amount;
-                  
-                  const percent = (b.spent_amount / b.limit_amount) * 100;
-                  // SỬA HIỂN THỊ: Dùng formatCurrency chuẩn của hệ thống
-                  if (percent >= 80) {
-                      let color = percent >= 100 ? '#ff4d4d' : '#fbbf24';
-                      let icon = percent >= 100 ? 'fa-triangle-exclamation fa-fade' : 'fa-circle-exclamation';
-                      warningsHTML += `
+        // 1. SỬA LỖI TỶ GIÁ: Lấy tỷ giá chuẩn
+        const rate =
+          typeof exchangeRatesToVND !== "undefined"
+            ? exchangeRatesToVND[currentCurrency] || 1
+            : 1;
+
+        // Lấy khoảng thời gian dựa trên biến TOÀN CỤC currentPeriodType đang chọn trên giao diện
+        const { start, end } = getPeriodBoundsOverride(
+          currentDate,
+          currentPeriodType,
+        );
+        const getISODate = (d) =>
+          `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+        try {
+          // 2. CẬP NHẬT THEO CHU KỲ: Gửi đúng chu kỳ người dùng đang chọn (Tuần/Tháng/Năm)
+          const res = await fetch(
+            `/api/planning/budgets?start_date=${getISODate(start)}&end_date=${getISODate(end)}&period_type=${currentPeriodType}`,
+            {
+              headers: { Authorization: `Bearer ${token}` },
+            },
+          );
+
+          if (!res.ok) return;
+          const budgets = await res.json();
+          const alertContainer = document.getElementById(
+            "budgetAlertsContainer",
+          );
+          const alertContent = document.getElementById("budgetAlertsContent");
+
+          const activeBudgets = budgets.filter((b) => b.limit_amount > 0);
+
+          // Nếu là "Tất cả thời gian" hoặc không có ngân sách -> Ẩn bảng
+          if (currentPeriodType === "all" || activeBudgets.length === 0) {
+            alertContainer.style.display = "none";
+            return;
+          }
+
+          alertContainer.style.display = "block";
+
+          let totalLimit = 0;
+          let totalSpentInBudgets = 0;
+          let warningsHTML = "";
+
+          activeBudgets.forEach((b) => {
+            totalLimit += b.limit_amount;
+            totalSpentInBudgets += b.spent_amount;
+
+            const percent = (b.spent_amount / b.limit_amount) * 100;
+            // SỬA HIỂN THỊ: Dùng formatCurrency chuẩn của hệ thống
+            if (percent >= 80) {
+              let color = percent >= 100 ? "#ff4d4d" : "#fbbf24";
+              let icon =
+                percent >= 100
+                  ? "fa-triangle-exclamation fa-fade"
+                  : "fa-circle-exclamation";
+              warningsHTML += `
                           <div style="background: var(--bg-primary); padding: 10px; border-radius: 8px; border-left: 4px solid ${color}; margin-bottom: 10px;">
                               <div style="font-weight: bold; color: ${color};"><i class="fa-solid ${icon}"></i> ${b.category}</div>
                               <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 5px;">
                                   Đã chi: ${formatCurrency(b.spent_amount)} / ${formatCurrency(b.limit_amount)} (${percent.toFixed(1)}%)
                               </div>
                           </div>`;
-                  }
-              });
-              
-              const expenseMap = {};
-              periodExpenses.forEach(exp => {
-                  if (exp.amount < 0) {
-                      expenseMap[exp.category] = (expenseMap[exp.category] || 0) + Math.abs(exp.amount);
-                  }
-              });
-              
-              let topCategory = "Chưa có chi tiêu";
-              let topAmount = 0;
-              for (const [cat, amt] of Object.entries(expenseMap)) {
-                  if (amt > topAmount) { topAmount = amt; topCategory = cat; }
-              }
-              
-              const totalPercent = totalLimit > 0 ? Math.min((totalSpentInBudgets / totalLimit) * 100, 100) : 0;
-              const progressColor = totalPercent >= 90 ? '#ff4d4d' : (totalPercent >= 75 ? '#fbbf24' : '#4ade80');
-              
-              alertContent.innerHTML = `
+            }
+          });
+
+          const expenseMap = {};
+          periodExpenses.forEach((exp) => {
+            if (exp.amount < 0) {
+              expenseMap[exp.category] =
+                (expenseMap[exp.category] || 0) + Math.abs(exp.amount);
+            }
+          });
+
+          let topCategory = "Chưa có chi tiêu";
+          let topAmount = 0;
+          for (const [cat, amt] of Object.entries(expenseMap)) {
+            if (amt > topAmount) {
+              topAmount = amt;
+              topCategory = cat;
+            }
+          }
+
+          const totalPercent =
+            totalLimit > 0
+              ? Math.min((totalSpentInBudgets / totalLimit) * 100, 100)
+              : 0;
+          const progressColor =
+            totalPercent >= 90
+              ? "#ff4d4d"
+              : totalPercent >= 75
+                ? "#fbbf24"
+                : "#4ade80";
+
+          alertContent.innerHTML = `
                   <div style="background: var(--bg-primary); padding: 15px; border-radius: 8px; border: 1px solid var(--border);">
-                      <div style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 5px;">Tổng Ngân Sách (${currentPeriodType === 'week' ? 'Tuần' : currentPeriodType === 'month' ? 'Tháng' : 'Năm'})</div>
+                      <div style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 5px;">Tổng Ngân Sách (${currentPeriodType === "week" ? "Tuần" : currentPeriodType === "month" ? "Tháng" : "Năm"})</div>
                       <div style="font-size: 1.1rem; font-weight: bold; color: var(--text-primary);">
                           ${formatCurrency(totalSpentInBudgets)} / ${formatCurrency(totalLimit)}
                       </div>
@@ -1047,263 +2293,820 @@
                   <div style="grid-column: 1 / -1; margin-top: 10px;">
                       ${warningsHTML ? '<div style="color: var(--text-primary); font-weight: bold; margin-bottom: 10px;">Cảnh báo chi tiêu:</div>' + warningsHTML : '<div style="color: #4ade80; font-style: italic; background: var(--bg-primary); padding: 10px; border-radius: 8px;"><i class="fa-solid fa-shield-cat"></i> Ngân sách kỳ này đang rất an toàn!</div>'}
                   </div>`;
-          } catch (e) { console.error("Lỗi Dashboard Budget:", e); }
+        } catch (e) {
+          console.error("Lỗi Dashboard Budget:", e);
+        }
       }
 
       function createPieChart(categoryData) {
         if (pieChart) pieChart.destroy();
         const isBarChart = currentChartType === "bar";
-        const rate = (typeof exchangeRatesToVND !== 'undefined') ? (exchangeRatesToVND[currentCurrency] || 1) : 1;
+        const rate =
+          typeof exchangeRatesToVND !== "undefined"
+            ? exchangeRatesToVND[currentCurrency] || 1
+            : 1;
 
-        let chartOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: (context) => { const value = context.raw; const total = context.dataset.data.reduce((sum, val) => sum + val, 0); const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0; return `${context.label}: ${formatCurrency(value * rate)} (${percentage}%)`; }, }, }, }, };
-        if (isBarChart) { chartOptions.scales = { y: { beginAtZero: true, grid: { color: "rgba(255, 255, 255, 0.05)" }, ticks: { color: "#a0a0b0", callback: function(value) { return formatCurrency(value * rate); } } }, x: { grid: { display: false }, ticks: { color: "#a0a0b0" } }, }; }
+        let chartOptions = {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (context) => {
+                  const value = context.raw;
+                  const total = context.dataset.data.reduce(
+                    (sum, val) => sum + val,
+                    0,
+                  );
+                  const percentage =
+                    total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                  return `${context.label}: ${formatCurrency(value * rate)} (${percentage}%)`;
+                },
+              },
+            },
+          },
+        };
+        if (isBarChart) {
+          chartOptions.scales = {
+            y: {
+              beginAtZero: true,
+              grid: { color: "rgba(255, 255, 255, 0.05)" },
+              ticks: {
+                color: "#a0a0b0",
+                callback: function (value) {
+                  return formatCurrency(value * rate);
+                },
+              },
+            },
+            x: { grid: { display: false }, ticks: { color: "#a0a0b0" } },
+          };
+        }
         const convertedDataset = categoryData.map((c) => c.total / rate);
-        pieChart = new Chart("categoryPieChart", { type: currentChartType, data: { labels: categoryData.map((c) => c.category), datasets: [{ label: "Tổng chi", data: convertedDataset, backgroundColor: categoryData.map((c) => categoryColors[c.category] || "#8a2be2"), borderColor: "#1a1a1a", borderWidth: 1, borderRadius: isBarChart ? 6 : 0, }], }, options: chartOptions, });
+        pieChart = new Chart("categoryPieChart", {
+          type: currentChartType,
+          data: {
+            labels: categoryData.map((c) => c.category),
+            datasets: [
+              {
+                label: "Tổng chi",
+                data: convertedDataset,
+                backgroundColor: categoryData.map(
+                  (c) => categoryColors[c.category] || "#8a2be2",
+                ),
+                borderColor: "#1a1a1a",
+                borderWidth: 1,
+                borderRadius: isBarChart ? 6 : 0,
+              },
+            ],
+          },
+          options: chartOptions,
+        });
       }
 
       function updateLegend(categoryData) {
-        const legendContainer = document.getElementById("customLegend"); legendContainer.innerHTML = "";
+        const legendContainer = document.getElementById("customLegend");
+        legendContainer.innerHTML = "";
         const periodExpenses = getFilteredExpensesOverride(allExpenses);
-        const currentPeriodCategories = [...new Set(periodExpenses.filter((exp) => exp.amount < 0).map((exp) => exp.category))];
-        const categoryMap = new Map(categoryData.map((cat) => [cat.category, cat]));
+        const currentPeriodCategories = [
+          ...new Set(
+            periodExpenses
+              .filter((exp) => exp.amount < 0)
+              .map((exp) => exp.category),
+          ),
+        ];
+        const categoryMap = new Map(
+          categoryData.map((cat) => [cat.category, cat]),
+        );
 
-        currentPeriodCategories.sort((a, b) => {
-            const dataA = categoryMap.get(a); const dataB = categoryMap.get(b);
+        currentPeriodCategories
+          .sort((a, b) => {
+            const dataA = categoryMap.get(a);
+            const dataB = categoryMap.get(b);
             if (dataA && dataB) return dataB.total - dataA.total;
-            if (dataA) return -1; if (dataB) return 1; return a.localeCompare(b);
-          }).forEach((category) => {
-            const item = document.createElement("div"); item.className = `legend-item${disabledCategories.has(category) ? " disabled" : ""}`;
-            const color = categoryColors[category]; const categoryDataItem = categoryMap.get(category);
-            const percentage = categoryDataItem ? ` (${categoryDataItem.percentage.toFixed(1)}%)` : "";
-            const amount = categoryDataItem ? formatCurrency(categoryDataItem.total) : "";
+            if (dataA) return -1;
+            if (dataB) return 1;
+            return a.localeCompare(b);
+          })
+          .forEach((category) => {
+            const item = document.createElement("div");
+            item.className = `legend-item${disabledCategories.has(category) ? " disabled" : ""}`;
+            const color = categoryColors[category];
+            const categoryDataItem = categoryMap.get(category);
+            const percentage = categoryDataItem
+              ? ` (${categoryDataItem.percentage.toFixed(1)}%)`
+              : "";
+            const amount = categoryDataItem
+              ? formatCurrency(categoryDataItem.total)
+              : "";
             item.innerHTML = `<div class="color-box" style="background-color: ${color}"></div><div class="legend-text"><span>${category}${percentage}</span><span class="amount">${amount}</span></div>`;
-            item.addEventListener("click", () => toggleCategory(category)); legendContainer.appendChild(item);
+            item.addEventListener("click", () => toggleCategory(category));
+            legendContainer.appendChild(item);
           });
-        const activeTotalExpenses = periodExpenses.filter((exp) => exp.amount < 0 && !disabledCategories.has(exp.category)).reduce((sum, exp) => sum + Math.abs(exp.amount), 0);
-        
-        let extraInfo = selectedDayFilter ? `<span style="color:var(--accent); font-size:0.8rem; margin-right:10px;">(Đang xem: ${selectedDayFilter.split('-').reverse().join('/')})</span>` : '';
-        
-        legendContainer.insertAdjacentHTML("beforeend", `<div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border);"><div style="display: flex; justify-content: space-between; align-items: center;"><span>${extraInfo}Tổng cộng:</span><span class="amount">${formatCurrency(activeTotalExpenses)}</span></div></div>`);
+        const activeTotalExpenses = periodExpenses
+          .filter(
+            (exp) => exp.amount < 0 && !disabledCategories.has(exp.category),
+          )
+          .reduce((sum, exp) => sum + Math.abs(exp.amount), 0);
+
+        let extraInfo = selectedDayFilter
+          ? `<span style="color:var(--accent); font-size:0.8rem; margin-right:10px;">(Đang xem: ${selectedDayFilter.split("-").reverse().join("/")})</span>`
+          : "";
+
+        legendContainer.insertAdjacentHTML(
+          "beforeend",
+          `<div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border);"><div style="display: flex; justify-content: space-between; align-items: center;"><span>${extraInfo}Tổng cộng:</span><span class="amount">${formatCurrency(activeTotalExpenses)}</span></div></div>`,
+        );
       }
 
-      function toggleCategory(category) { if (disabledCategories.has(category)) disabledCategories.delete(category); else disabledCategories.add(category); updateChartAndLegend(); }
+      function toggleCategory(category) {
+        if (disabledCategories.has(category))
+          disabledCategories.delete(category);
+        else disabledCategories.add(category);
+        updateChartAndLegend();
+      }
 
-      Chart.defaults.color = "#b3b3b3"; Chart.defaults.borderColor = "#606060"; Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      Chart.defaults.color = "#b3b3b3";
+      Chart.defaults.borderColor = "#606060";
+      Chart.defaults.font.family =
+        '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
 
       function setupTagInput() {
-        const container = document.getElementById("tags-input-container"); const input = document.getElementById("tags-input"); const dropdown = document.getElementById("tags-dropdown"); const selectedContainer = document.getElementById("selected-tags"); const formGroup = container.parentElement;
-        const addTag = (tag) => { tag = tag.trim(); if (tag && !selectedTags.has(tag)) { selectedTags.add(tag); const pill = document.createElement("div"); pill.className = "tag-pill"; pill.textContent = tag; const removeBtn = document.createElement("span"); removeBtn.className = "remove-tag"; removeBtn.textContent = "×"; removeBtn.onclick = () => { selectedTags.delete(tag); pill.remove(); }; pill.appendChild(removeBtn); selectedContainer.appendChild(pill); } input.value = ""; dropdown.style.display = "none"; };
-        input.addEventListener("focus", () => { dropdown.innerHTML = ""; const availableTags = [...allTags].filter((tag) => !selectedTags.has(tag)); if (availableTags.length > 0) { availableTags.forEach((tag) => { const item = document.createElement("div"); item.textContent = tag; item.onclick = () => addTag(tag); dropdown.appendChild(item); }); dropdown.style.display = "block"; } });
-        input.addEventListener("input", () => { const value = input.value.trim().toLowerCase(); dropdown.innerHTML = ""; const filteredTags = [...allTags].filter((tag) => tag.toLowerCase().includes(value) && !selectedTags.has(tag)); if (value && ![...allTags].map((t) => t.toLowerCase()).includes(value)) { const newItem = document.createElement("div"); newItem.textContent = `+ Thêm nhãn "${input.value.trim()}"`; newItem.className = "new-tag"; newItem.onclick = () => addTag(input.value.trim()); dropdown.appendChild(newItem); } filteredTags.forEach((tag) => { const item = document.createElement("div"); item.textContent = tag; item.onclick = () => addTag(tag); dropdown.appendChild(item); }); dropdown.style.display = dropdown.children.length > 0 ? "block" : "none"; });
-        input.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); if (input.value.trim()) { addTag(input.value.trim()); } } });
-        container.addEventListener("click", () => input.focus()); document.addEventListener("click", (e) => { if (!formGroup.contains(e.target)) dropdown.style.display = "none"; });
+        const container = document.getElementById("tags-input-container");
+        const input = document.getElementById("tags-input");
+        const dropdown = document.getElementById("tags-dropdown");
+        const selectedContainer = document.getElementById("selected-tags");
+        const formGroup = container.parentElement;
+        const addTag = (tag) => {
+          tag = tag.trim();
+          if (tag && !selectedTags.has(tag)) {
+            selectedTags.add(tag);
+            const pill = document.createElement("div");
+            pill.className = "tag-pill";
+            pill.textContent = tag;
+            const removeBtn = document.createElement("span");
+            removeBtn.className = "remove-tag";
+            removeBtn.textContent = "×";
+            removeBtn.onclick = () => {
+              selectedTags.delete(tag);
+              pill.remove();
+            };
+            pill.appendChild(removeBtn);
+            selectedContainer.appendChild(pill);
+          }
+          input.value = "";
+          dropdown.style.display = "none";
+        };
+        input.addEventListener("focus", () => {
+          dropdown.innerHTML = "";
+          const availableTags = [...allTags].filter(
+            (tag) => !selectedTags.has(tag),
+          );
+          if (availableTags.length > 0) {
+            availableTags.forEach((tag) => {
+              const item = document.createElement("div");
+              item.textContent = tag;
+              item.onclick = () => addTag(tag);
+              dropdown.appendChild(item);
+            });
+            dropdown.style.display = "block";
+          }
+        });
+        input.addEventListener("input", () => {
+          const value = input.value.trim().toLowerCase();
+          dropdown.innerHTML = "";
+          const filteredTags = [...allTags].filter(
+            (tag) =>
+              tag.toLowerCase().includes(value) && !selectedTags.has(tag),
+          );
+          if (
+            value &&
+            ![...allTags].map((t) => t.toLowerCase()).includes(value)
+          ) {
+            const newItem = document.createElement("div");
+            newItem.textContent = `+ Thêm nhãn "${input.value.trim()}"`;
+            newItem.className = "new-tag";
+            newItem.onclick = () => addTag(input.value.trim());
+            dropdown.appendChild(newItem);
+          }
+          filteredTags.forEach((tag) => {
+            const item = document.createElement("div");
+            item.textContent = tag;
+            item.onclick = () => addTag(tag);
+            dropdown.appendChild(item);
+          });
+          dropdown.style.display =
+            dropdown.children.length > 0 ? "block" : "none";
+        });
+        input.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            if (input.value.trim()) {
+              addTag(input.value.trim());
+            }
+          }
+        });
+        container.addEventListener("click", () => input.focus());
+        document.addEventListener("click", (e) => {
+          if (!formGroup.contains(e.target)) dropdown.style.display = "none";
+        });
       }
 
-      document.getElementById("toggleExpenseFormBtn").addEventListener("click", function () {
-        const formContainer = document.getElementById("addExpenseContainer"); const isHidden = formContainer.style.display === "none" || formContainer.style.display === "";
-        if (isHidden) { formContainer.style.display = "block"; this.innerHTML = '<i class="fa-solid fa-times"></i> Đóng'; } else { formContainer.style.display = "none"; this.innerHTML = '<i class="fa-solid fa-plus"></i> Thêm Giao Dịch'; }
-      });
+      document
+        .getElementById("toggleExpenseFormBtn")
+        .addEventListener("click", function () {
+          const formContainer = document.getElementById("addExpenseContainer");
+          const isHidden =
+            formContainer.style.display === "none" ||
+            formContainer.style.display === "";
+          if (isHidden) {
+            formContainer.style.display = "block";
+            this.innerHTML = '<i class="fa-solid fa-times"></i> Đóng';
+          } else {
+            formContainer.style.display = "none";
+            this.innerHTML = '<i class="fa-solid fa-plus"></i> Thêm Giao Dịch';
+          }
+        });
 
       function showCustomConfirm(message) {
         return new Promise((resolve) => {
-          const modal = document.getElementById("customConfirmModal"); const msgEl = document.getElementById("confirmMessage"); const btnCancel = document.getElementById("btnConfirmCancel"); const btnProceed = document.getElementById("btnConfirmProceed");
-          msgEl.textContent = message; modal.style.display = "flex";
-          const cleanup = () => { modal.style.display = "none"; btnCancel.removeEventListener("click", onCancel); btnProceed.removeEventListener("click", onProceed); };
-          const onCancel = () => { cleanup(); resolve(false); }; const onProceed = () => { cleanup(); resolve(true); };
-          btnCancel.addEventListener("click", onCancel); btnProceed.addEventListener("click", onProceed);
+          const modal = document.getElementById("customConfirmModal");
+          const msgEl = document.getElementById("confirmMessage");
+          const btnCancel = document.getElementById("btnConfirmCancel");
+          const btnProceed = document.getElementById("btnConfirmProceed");
+          msgEl.textContent = message;
+          modal.style.display = "flex";
+          const cleanup = () => {
+            modal.style.display = "none";
+            btnCancel.removeEventListener("click", onCancel);
+            btnProceed.removeEventListener("click", onProceed);
+          };
+          const onCancel = () => {
+            cleanup();
+            resolve(false);
+          };
+          const onProceed = () => {
+            cleanup();
+            resolve(true);
+          };
+          btnCancel.addEventListener("click", onCancel);
+          btnProceed.addEventListener("click", onProceed);
         });
       }
 
       document.getElementById("expenseForm").addEventListener("submit", async (e) => {
-        e.preventDefault();
-        const isGain = document.getElementById("reportGain").checked;
-        
-        let rawStringAmount = document.getElementById("amount").value.replace(/,/g, '');
-        let rawAmount = parseFloat(rawStringAmount);
-        
-        if (isNaN(rawAmount) || rawAmount <= 0) {
-            if (window.showToast) showToast("Vui lòng nhập số tiền hợp lệ lớn hơn 0!", "error");
+          e.preventDefault();
+          const isGain = document.getElementById("reportGain").checked;
+
+          let rawStringAmount = document
+            .getElementById("amount")
+            .value.replace(/,/g, "");
+          let rawAmount = parseFloat(rawStringAmount);
+
+          if (isNaN(rawAmount) || rawAmount <= 0) {
+            if (window.showToast)
+              showToast("Vui lòng nhập số tiền hợp lệ lớn hơn 0!", "error");
             return;
-        }
+          }
 
-        const selectedCategory = document.getElementById("category").value;
-        const selectedJar = document.getElementById("jar_id").value;
+          const selectedCategory = document.getElementById("category").value;
 
-        let rate = 1; if (typeof exchangeRatesToVND !== "undefined") { rate = exchangeRatesToVND[currentCurrency] || 1; }
-        let amountInVND = rawAmount * rate;
+          let rate = 1;
+          if (typeof exchangeRatesToVND !== "undefined") {
+            rate = exchangeRatesToVND[currentCurrency] || 1;
+          }
+          let amountInVND = rawAmount * rate;
 
-        if (!isGain && !selectedJar) {
-            showCustomAlert("Bạn ơi, vui lòng chọn Quỹ (Hũ) để rút tiền nhé!");
-            return; 
-        }
+         
 
-        if (!isGain && selectedJar) {
-            const jarId = parseInt(selectedJar);
-            const jarData = globalJars.find(j => j.id === jarId);
-            
-            if (jarData && jarData.balance < amountInVND) {
-                const balanceDisplay = formatCurrency(jarData.balance);
-                const amountDisplay = formatCurrency(amountInVND);
-                
-                showCustomAlert(`Quỹ "${jarData.name}" hiện không đủ tiền để thực hiện giao dịch này!\n\n- Số dư hiện tại: ${balanceDisplay}\n- Số tiền cần rút: ${amountDisplay}`);
-                return; 
-            }
-        }
+          // --- BẮT ĐẦU LOGIC KIỂM TRA NGÂN SÁCH (CHỈ KIỂM TRA KHOẢN CHI) ---
+          if (!isGain && selectedCategory) {
+            try {
+              const token = localStorage.getItem("token");
+              const resBudgets = await fetch("/api/planning/budgets", {
+                headers: { Authorization: `Bearer ${token}` },
+              });
 
+              if (resBudgets.ok) {
+                const currentBudgets = await resBudgets.json();
 
-        // --- BẮT ĐẦU LOGIC KIỂM TRA NGÂN SÁCH (CHỈ KIỂM TRA KHOẢN CHI) ---
-        if (!isGain && selectedCategory) {
-          try {
-             const token = localStorage.getItem('token');
-             const resBudgets = await fetch('/api/planning/budgets', {
-                 headers: { 'Authorization': `Bearer ${token}` }
-             });
-             
-             if (resBudgets.ok) {
-                 const currentBudgets = await resBudgets.json();
-                 
-                 const categoryBudget = currentBudgets.find(b => b.category === selectedCategory);
-                 
-                 if (categoryBudget && categoryBudget.limit_amount > 0) {
-                     const totalAfterExpense = categoryBudget.spent_amount + amountInVND;
-                     
-                     if (totalAfterExpense > categoryBudget.limit_amount) {
-                         const limitDisplay = formatCurrency(categoryBudget.limit_amount);
-                         const newTotalDisplay = formatCurrency(totalAfterExpense);
-                         
-                         const confirmMsg = `CẢNH BÁO VƯỢT NGÂN SÁCH!\n\nKhoản chi này sẽ làm bạn vượt hạn mức ngân sách của mục "${selectedCategory}".\n- Hạn mức: ${limitDisplay}\n- Tổng nếu lưu: ${newTotalDisplay}\n\nBạn có chắc chắn muốn tiếp tục lưu không?`;
-                         
-                         const userConfirmed = await showCustomConfirm(confirmMsg); 
-                         if (!userConfirmed) return; 
-                     }
-                 }
-             }
-          } catch(error) {
+                const categoryBudget = currentBudgets.find(
+                  (b) => b.category === selectedCategory,
+                );
+
+                if (categoryBudget && categoryBudget.limit_amount > 0) {
+                  const totalAfterExpense =
+                    categoryBudget.spent_amount + amountInVND;
+
+                  if (totalAfterExpense > categoryBudget.limit_amount) {
+                    const limitDisplay = formatCurrency(
+                      categoryBudget.limit_amount,
+                    );
+                    const newTotalDisplay = formatCurrency(totalAfterExpense);
+
+                    const confirmMsg = `CẢNH BÁO VƯỢT NGÂN SÁCH!\n\nKhoản chi này sẽ làm bạn vượt hạn mức ngân sách của mục "${selectedCategory}".\n- Hạn mức: ${limitDisplay}\n- Tổng nếu lưu: ${newTotalDisplay}\n\nBạn có chắc chắn muốn tiếp tục lưu không?`;
+
+                    const userConfirmed = await showCustomConfirm(confirmMsg);
+                    if (!userConfirmed) return;
+                  }
+                }
+              }
+            } catch (error) {
               console.error("Không thể kiểm tra ngân sách:", error);
+            }
           }
-        }
-        // --- KẾT THÚC LOGIC KIỂM TRA NGÂN SÁCH ---
+          // --- KẾT THÚC LOGIC KIỂM TRA NGÂN SÁCH ---
 
-
-        let finalAmountToSave = amountInVND; if (!isGain) { finalAmountToSave *= -1; }
-
-        const formData = {
-          name: document.getElementById("name").value.trim(), category: selectedCategory, amount: finalAmountToSave,
-          date: new Date(document.getElementById("date").value + "T00:00:00Z").toISOString(), 
-          tags: Array.from(selectedTags).map(t => String(t)), note: document.getElementById("note").value.trim() || null, recurring_interval: document.getElementById("recurring_interval").value || null,
-          jar_id: parseInt(document.getElementById("jar_id").value) || null
-        };
-
-        try {
-          const response = await fetch("/api/expenses/", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(formData), });
-          if (response.ok) {
-            if (window.showToast) showToast("Đã thêm giao dịch thành công!", "success");
-            const lastDate = document.getElementById("date").value; 
-            document.getElementById("expenseForm").reset(); document.getElementById("selected-tags").innerHTML = ""; selectedTags.clear();
-            await initialize(); document.getElementById("date").value = lastDate; 
-          } else {
-            const error = await response.json(); const msg = error.detail?.[0]?.msg || error.error || "Dữ liệu không hợp lệ";
-            if (window.showToast) showToast(`Lỗi: ${msg}`, "error");
+          let finalAmountToSave = amountInVND;
+          if (!isGain) {
+            finalAmountToSave *= -1;
           }
-        } catch (error) { if (window.showToast) showToast("Lỗi kết nối đến máy chủ", "error"); }
-      });
+
+          const selectedJarId = document.getElementById('transactionJar').value;
+
+          const formData = {
+            name: document.getElementById("name").value.trim(),
+            category: selectedCategory,
+            amount: finalAmountToSave,
+            date: new Date(
+              document.getElementById("date").value + "T00:00:00Z",
+            ).toISOString(),
+            tags: Array.from(selectedTags).map((t) => String(t)),
+            note: document.getElementById("note").value.trim() || null,
+            recurring_interval:
+              document.getElementById("recurring_interval").value || null,
+            jar_id: selectedJarId ? selectedJarId : null
+          };
+
+          try {
+            const response = await fetch("/api/expenses/", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(formData),
+            });
+            if (response.ok) {
+              if (window.showToast)
+                showToast("Đã thêm giao dịch thành công!", "success");
+              const lastDate = document.getElementById("date").value;
+              document.getElementById("expenseForm").reset();
+              document.getElementById("selected-tags").innerHTML = "";
+              selectedTags.clear();
+              await initialize();
+              document.getElementById("date").value = lastDate;
+            } else {
+              const error = await response.json();
+              const msg =
+                error.detail?.[0]?.msg || error.error || "Dữ liệu không hợp lệ";
+              if (window.showToast) showToast(`Lỗi: ${msg}`, "error");
+            }
+          } catch (error) {
+            if (window.showToast) showToast("Lỗi kết nối đến máy chủ", "error");
+          }
+        });
 
       document.addEventListener("DOMContentLoaded", initialize);
-      document.getElementById("name").addEventListener("click", (e) => { if (e.target.value === "-") e.target.value = ""; });
+      document.getElementById("name").addEventListener("click", (e) => {
+        if (e.target.value === "-") e.target.value = "";
+      });
 
       async function sendToAI() {
-        const inputField = document.getElementById("aiInput"); const btn = document.getElementById("aiBtn"); const text = inputField.value.trim();
-        if (!text) { if (window.showToast) showToast("Vui lòng nhập chi tiêu của bạn!", "error"); return; }
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang nghĩ...'; btn.disabled = true;
+        const inputField = document.getElementById("aiInput");
+        const btn = document.getElementById("aiBtn");
+        const text = inputField.value.trim();
+        if (!text) {
+          if (window.showToast)
+            showToast("Vui lòng nhập chi tiêu của bạn!", "error");
+          return;
+        }
+        btn.innerHTML =
+          '<i class="fa-solid fa-spinner fa-spin"></i> Đang nghĩ...';
+        btn.disabled = true;
 
         try {
-          const currentRate = (typeof exchangeRatesToVND !== 'undefined') ? (exchangeRatesToVND[currentCurrency] || 1) : 1;
-          const res = await fetch("/api/ai/parse-expense", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: text, currency: currentCurrency, rate: currentRate }), });
+          const currentRate =
+            typeof exchangeRatesToVND !== "undefined"
+              ? exchangeRatesToVND[currentCurrency] || 1
+              : 1;
+          const res = await fetch("/api/ai/parse-expense", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              text: text,
+              currency: currentCurrency,
+              rate: currentRate,
+            }),
+          });
 
           if (res.ok) {
-            const data = await res.json(); const parsedTxn = data.transaction;
-            let rate = 1; if (typeof exchangeRatesToVND !== "undefined") { rate = exchangeRatesToVND[currentCurrency] || 1; }
-            let amountInVND = Math.abs(parsedTxn.amount); let amountDisplay = amountInVND / rate; 
+            const data = await res.json();
+            const parsedTxn = data.transaction;
+            let rate = 1;
+            if (typeof exchangeRatesToVND !== "undefined") {
+              rate = exchangeRatesToVND[currentCurrency] || 1;
+            }
+            let amountInVND = Math.abs(parsedTxn.amount);
+            let amountDisplay = amountInVND / rate;
 
             if (parsedTxn.amount < 0) {
-              const categoryExpenses = allExpenses.filter((exp) => exp.amount < 0 && exp.category === parsedTxn.category); let categoryAverageVND = 0;
-              if (categoryExpenses.length > 0) { const totalCategory = categoryExpenses.reduce((sum, exp) => sum + Math.abs(exp.amount), 0); categoryAverageVND = totalCategory / categoryExpenses.length; }
-              let avgDisplay = categoryAverageVND / rate; const minAlertAmountVND = 50 * exchangeRatesToVND["usd"];
+              const categoryExpenses = allExpenses.filter(
+                (exp) => exp.amount < 0 && exp.category === parsedTxn.category,
+              );
+              let categoryAverageVND = 0;
+              if (categoryExpenses.length > 0) {
+                const totalCategory = categoryExpenses.reduce(
+                  (sum, exp) => sum + Math.abs(exp.amount),
+                  0,
+                );
+                categoryAverageVND = totalCategory / categoryExpenses.length;
+              }
+              let avgDisplay = categoryAverageVND / rate;
+              const minAlertAmountVND = 50 * exchangeRatesToVND["usd"];
 
-              if (categoryAverageVND > 0 && amountInVND > categoryAverageVND * 3 && amountInVND > minAlertAmountVND) {
-                let fmtAmount = amountDisplay.toLocaleString('vi-VN', { maximumFractionDigits: 2 }) + " " + currentCurrency.toUpperCase();
-                let fmtAvg = avgDisplay.toLocaleString('vi-VN', { maximumFractionDigits: 2 }) + " " + currentCurrency.toUpperCase();
+              if (
+                categoryAverageVND > 0 &&
+                amountInVND > categoryAverageVND * 3 &&
+                amountInVND > minAlertAmountVND
+              ) {
+                let fmtAmount =
+                  amountDisplay.toLocaleString("vi-VN", {
+                    maximumFractionDigits: 2,
+                  }) +
+                  " " +
+                  currentCurrency.toUpperCase();
+                let fmtAvg =
+                  avgDisplay.toLocaleString("vi-VN", {
+                    maximumFractionDigits: 2,
+                  }) +
+                  " " +
+                  currentCurrency.toUpperCase();
                 const confirmMsg = `Trợ lý AI phát hiện bạn vừa nhập một khoản chi RẤT LỚN!\n\nSố tiền (${fmtAmount}) lớn hơn GẤP NHIỀU LẦN mức trung bình của danh mục "${parsedTxn.category}" (${fmtAvg}).\n\nBạn có chắc chắn muốn lưu giao dịch này không?`;
                 const userConfirmed = await showCustomConfirm(confirmMsg);
-                if (!userConfirmed) { btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Gửi'; btn.disabled = false; return; }
+                if (!userConfirmed) {
+                  btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Gửi';
+                  btn.disabled = false;
+                  return;
+                }
               }
             }
 
-            let finalAmountToSave = amountInVND; if (parsedTxn.amount < 0) { finalAmountToSave *= -1; }
-            const safeAIDate = parsedTxn.date.includes('T') ? parsedTxn.date : new Date(parsedTxn.date + "T00:00:00Z").toISOString();
+            let finalAmountToSave = amountInVND;
+            if (parsedTxn.amount < 0) {
+              finalAmountToSave *= -1;
+            }
+            const safeAIDate = parsedTxn.date.includes("T")
+              ? parsedTxn.date
+              : new Date(parsedTxn.date + "T00:00:00Z").toISOString();
 
-            const saveRes = await fetch("/api/expenses/", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: parsedTxn.name, category: parsedTxn.category, amount: finalAmountToSave, date: safeAIDate, tags: ["AI Assistant"], note: null, recurring_interval: null }), });
+            const saveRes = await fetch("/api/expenses/", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                name: parsedTxn.name,
+                category: parsedTxn.category,
+                amount: finalAmountToSave,
+                date: safeAIDate,
+                tags: ["AI Assistant"],
+                note: null,
+                recurring_interval: null,
+              }),
+            });
             if (saveRes.ok) {
-              let fmtSaved = amountDisplay.toLocaleString('vi-VN', { maximumFractionDigits: 2 }) + " " + currentCurrency.toUpperCase();
-              if (window.showToast) showToast(`Đã lưu: ${parsedTxn.name} (${fmtSaved})`, "success");
-              inputField.value = ""; await initialize();
+              let fmtSaved =
+                amountDisplay.toLocaleString("vi-VN", {
+                  maximumFractionDigits: 2,
+                }) +
+                " " +
+                currentCurrency.toUpperCase();
+              if (window.showToast)
+                showToast(`Đã lưu: ${parsedTxn.name} (${fmtSaved})`, "success");
+              inputField.value = "";
+              await initialize();
             } else {
-              const err = await saveRes.json(); if (window.showToast) showToast(`Lỗi khi lưu: ${err.error || "Lỗi không xác định"}`, "error");
+              const err = await saveRes.json();
+              if (window.showToast)
+                showToast(
+                  `Lỗi khi lưu: ${err.error || "Lỗi không xác định"}`,
+                  "error",
+                );
             }
           } else {
-            const err = await res.json(); if (window.showToast) showToast(err.detail || "Có lỗi xảy ra khi AI phân tích.", "error");
+            const err = await res.json();
+            if (window.showToast)
+              showToast(
+                err.detail || "Có lỗi xảy ra khi AI phân tích.",
+                "error",
+              );
           }
-        } catch (error) { if (window.showToast) showToast("Lỗi kết nối đến máy chủ AI.", "error"); } finally { btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Gửi'; btn.disabled = false; }
+        } catch (error) {
+          if (window.showToast)
+            showToast("Lỗi kết nối đến máy chủ AI.", "error");
+        } finally {
+          btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Gửi';
+          btn.disabled = false;
+        }
       }
 
-      document.getElementById("aiInput").addEventListener("keypress", function (e) { if (e.key === "Enter") { sendToAI(); } });
-      document.getElementById("chartTypeSelect").addEventListener("change", (e) => { currentChartType = e.target.value; updateChartAndLegend(); });
+      document
+        .getElementById("aiInput")
+        .addEventListener("keypress", function (e) {
+          if (e.key === "Enter") {
+            sendToAI();
+          }
+        });
+      document
+        .getElementById("chartTypeSelect")
+        .addEventListener("change", (e) => {
+          currentChartType = e.target.value;
+          updateChartAndLegend();
+        });
     </script>
-    
+
     <script src="/static/chatbot.js"></script>
-    
+
     <!-- MODALS -->
-    <div id="aiModal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.7); align-items: center; justify-content: center;">
-      <div style="background: linear-gradient(145deg, #1e1e2d, #2a2a40); border: 2px solid #8a2be2; border-radius: 12px; width: 90%; max-width: 500px; max-height: 80vh; overflow-y: auto; padding: 20px; box-shadow: 0 0 20px rgba(138, 43, 226, 0.4); position: relative;">
-        <button onclick="closeAiModal()" style="position: absolute; right: 15px; top: 15px; background: none; border: none; color: #ff4d4d; font-size: 20px; cursor: pointer;"><i class="fa-solid fa-xmark"></i></button>
-        <h3 style="color: #d4a5ff; margin-top: 0; margin-bottom: 15px; text-align: center;"><i class="fa-solid fa-wand-magic-sparkles"></i> Báo Cáo Từ Cú Mèo</h3>
-        <div id="aiLoading" style="display: none; color: #a0a0b0; font-style: italic; text-align: center;"><i class="fa-solid fa-spinner fa-spin" style="font-size: 24px; margin-bottom: 10px"></i><br />Cú Mèo đang đọc hồ sơ...</div>
+    <div
+      id="aiModal"
+      style="
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.7);
+        align-items: center;
+        justify-content: center;
+      "
+    >
+      <div
+        style="
+          background: linear-gradient(145deg, #1e1e2d, #2a2a40);
+          border: 2px solid #8a2be2;
+          border-radius: 12px;
+          width: 90%;
+          max-width: 500px;
+          max-height: 80vh;
+          overflow-y: auto;
+          padding: 20px;
+          box-shadow: 0 0 20px rgba(138, 43, 226, 0.4);
+          position: relative;
+        "
+      >
+        <button
+          onclick="closeAiModal()"
+          style="
+            position: absolute;
+            right: 15px;
+            top: 15px;
+            background: none;
+            border: none;
+            color: #ff4d4d;
+            font-size: 20px;
+            cursor: pointer;
+          "
+        >
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+        <h3
+          style="
+            color: #d4a5ff;
+            margin-top: 0;
+            margin-bottom: 15px;
+            text-align: center;
+          "
+        >
+          <i class="fa-solid fa-wand-magic-sparkles"></i> Báo Cáo Từ Cú Mèo
+        </h3>
+        <div
+          id="aiLoading"
+          style="
+            display: none;
+            color: #a0a0b0;
+            font-style: italic;
+            text-align: center;
+          "
+        >
+          <i
+            class="fa-solid fa-spinner fa-spin"
+            style="font-size: 24px; margin-bottom: 10px"
+          ></i
+          ><br />Cú Mèo đang đọc hồ sơ...
+        </div>
         <div id="aiContent" style="line-height: 1.6; color: #e0e0e0"></div>
       </div>
     </div>
-    
-    <div id="customConfirmModal" style="display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.8); align-items: center; justify-content: center;">
-      <div style="background: linear-gradient(145deg, #2a1e2d, #402a30); border: 2px solid #ff4d4d; border-radius: 12px; width: 90%; max-width: 450px; padding: 25px; box-shadow: 0 0 25px rgba(255, 77, 77, 0.4); text-align: center;">
-        <h3 style="color: #ff4d4d; margin-top: 0; margin-bottom: 15px"><i class="fa-solid fa-triangle-exclamation fa-beat"></i> Cảnh Báo</h3>
-        <p id="confirmMessage" style="color: #e0e0e0; line-height: 1.6; margin-bottom: 25px; white-space: pre-line; font-size: 15px;"></p>
+
+    <div
+      id="customConfirmModal"
+      style="
+        display: none;
+        position: fixed;
+        z-index: 2000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.8);
+        align-items: center;
+        justify-content: center;
+      "
+    >
+      <div
+        style="
+          background: linear-gradient(145deg, #2a1e2d, #402a30);
+          border: 2px solid #ff4d4d;
+          border-radius: 12px;
+          width: 90%;
+          max-width: 450px;
+          padding: 25px;
+          box-shadow: 0 0 25px rgba(255, 77, 77, 0.4);
+          text-align: center;
+        "
+      >
+        <h3 style="color: #ff4d4d; margin-top: 0; margin-bottom: 15px">
+          <i class="fa-solid fa-triangle-exclamation fa-beat"></i> Cảnh Báo
+        </h3>
+        <p
+          id="confirmMessage"
+          style="
+            color: #e0e0e0;
+            line-height: 1.6;
+            margin-bottom: 25px;
+            white-space: pre-line;
+            font-size: 15px;
+          "
+        ></p>
         <div style="display: flex; gap: 15px; justify-content: center">
-          <button id="btnConfirmCancel" style="padding: 10px 20px; background-color: #4a4a60; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">Hủy bỏ</button>
-          <button id="btnConfirmProceed" style="padding: 10px 20px; background-color: #ff4d4d; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">Vẫn Lưu</button>
+          <button
+            id="btnConfirmCancel"
+            style="
+              padding: 10px 20px;
+              background-color: #4a4a60;
+              color: white;
+              border: none;
+              border-radius: 6px;
+              cursor: pointer;
+              font-weight: bold;
+            "
+          >
+            Hủy bỏ
+          </button>
+          <button
+            id="btnConfirmProceed"
+            style="
+              padding: 10px 20px;
+              background-color: #ff4d4d;
+              color: white;
+              border: none;
+              border-radius: 6px;
+              cursor: pointer;
+              font-weight: bold;
+            "
+          >
+            Vẫn Lưu
+          </button>
         </div>
       </div>
     </div>
 
-    <div id="customAlertModal" style="display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.8); align-items: center; justify-content: center;">
-      <div style="background: linear-gradient(145deg, #2a1e2d, #402a30); border: 2px solid #ff4d4d; border-radius: 12px; width: 90%; max-width: 450px; padding: 25px; box-shadow: 0 0 25px rgba(255, 77, 77, 0.4); text-align: center;">
-        <h3 style="color: #ff4d4d; margin-top: 0; margin-bottom: 15px"><i class="fa-solid fa-circle-xmark fa-beat"></i> Lỗi Giao Dịch</h3>
-        <p id="alertMessage" style="color: #e0e0e0; line-height: 1.6; margin-bottom: 25px; white-space: pre-line; font-size: 15px;"></p>
+    <div
+      id="customAlertModal"
+      style="
+        display: none;
+        position: fixed;
+        z-index: 2000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.8);
+        align-items: center;
+        justify-content: center;
+      "
+    >
+      <div
+        style="
+          background: linear-gradient(145deg, #2a1e2d, #402a30);
+          border: 2px solid #ff4d4d;
+          border-radius: 12px;
+          width: 90%;
+          max-width: 450px;
+          padding: 25px;
+          box-shadow: 0 0 25px rgba(255, 77, 77, 0.4);
+          text-align: center;
+        "
+      >
+        <h3 style="color: #ff4d4d; margin-top: 0; margin-bottom: 15px">
+          <i class="fa-solid fa-circle-xmark fa-beat"></i> Lỗi Giao Dịch
+        </h3>
+        <p
+          id="alertMessage"
+          style="
+            color: #e0e0e0;
+            line-height: 1.6;
+            margin-bottom: 25px;
+            white-space: pre-line;
+            font-size: 15px;
+          "
+        ></p>
         <div style="display: flex; justify-content: center">
-          <button onclick="document.getElementById('customAlertModal').style.display='none'" style="padding: 10px 30px; background-color: #ff4d4d; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">Đã hiểu</button>
+          <button
+            onclick="
+              document.getElementById('customAlertModal').style.display = 'none'
+            "
+            style="
+              padding: 10px 30px;
+              background-color: #ff4d4d;
+              color: white;
+              border: none;
+              border-radius: 6px;
+              cursor: pointer;
+              font-weight: bold;
+            "
+          >
+            Đã hiểu
+          </button>
         </div>
       </div>
     </div>
 
-    <div id="logoutConfirmModal" class="modal" style="display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); align-items: center; justify-content: center;">
-        <div style="background-color: var(--bg-secondary); border: 1px solid var(--border); border-radius: 12px; width: 90%; max-width: 400px; padding: 25px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); text-align: center;">
-            <h3 style="color: var(--accent); margin-top: 0; margin-bottom: 15px;">
-                <i class="fa-solid fa-right-from-bracket"></i> Xác nhận Đăng Xuất
-            </h3>
-            <p style="color: var(--text-secondary); line-height: 1.6; margin-bottom: 25px; font-size: 15px;">Bạn có chắc chắn muốn đăng xuất khỏi ExpenseOwl không?</p>
-            <div style="display: flex; gap: 15px; justify-content: center;">
-                <button onclick="closeLogoutModal()" style="flex: 1; padding: 10px 20px; background-color: var(--bg-primary); color: var(--text-primary); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s;">Hủy bỏ</button>
-                <button onclick="proceedLogout()" style="flex: 1; padding: 10px 20px; background-color: #ff4d4d; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s;">Đăng Xuất</button>
-            </div>
+    <div
+      id="logoutConfirmModal"
+      class="modal"
+      style="
+        display: none;
+        position: fixed;
+        z-index: 2000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.8);
+        align-items: center;
+        justify-content: center;
+      "
+    >
+      <div
+        style="
+          background-color: var(--bg-secondary);
+          border: 1px solid var(--border);
+          border-radius: 12px;
+          width: 90%;
+          max-width: 400px;
+          padding: 25px;
+          box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+          text-align: center;
+        "
+      >
+        <h3 style="color: var(--accent); margin-top: 0; margin-bottom: 15px">
+          <i class="fa-solid fa-right-from-bracket"></i> Xác nhận Đăng Xuất
+        </h3>
+        <p
+          style="
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin-bottom: 25px;
+            font-size: 15px;
+          "
+        >
+          Bạn có chắc chắn muốn đăng xuất khỏi ExpenseOwl không?
+        </p>
+        <div style="display: flex; gap: 15px; justify-content: center">
+          <button
+            onclick="closeLogoutModal()"
+            style="
+              flex: 1;
+              padding: 10px 20px;
+              background-color: var(--bg-primary);
+              color: var(--text-primary);
+              border: 1px solid var(--border);
+              border-radius: 6px;
+              cursor: pointer;
+              font-weight: bold;
+              transition: 0.2s;
+            "
+          >
+            Hủy bỏ
+          </button>
+          <button
+            onclick="proceedLogout()"
+            style="
+              flex: 1;
+              padding: 10px 20px;
+              background-color: #ff4d4d;
+              color: white;
+              border: none;
+              border-radius: 6px;
+              cursor: pointer;
+              font-weight: bold;
+              transition: 0.2s;
+            "
+          >
+            Đăng Xuất
+          </button>
         </div>
+      </div>
     </div>
   </body>
 </html>

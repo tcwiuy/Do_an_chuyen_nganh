@@ -1257,24 +1257,68 @@
         };
 
         async function executeTransfer() {
-            const amountRaw = document.getElementById('transferAmount').value.replace(/,/g, '');
-            const amount = parseFloat(amountRaw);
-            if (!amount || amount <= 0) { showToast("Số tiền không hợp lệ!", "error"); return; }
-            const rate = window.planRates[window.planCurrency] || 1;
-            
-            // 💡 ĐẢO NGƯỢC LOGIC CHUYỂN HŨ: Từ Hũ đang chọn -> Hũ Đích
-            let fromId = selectedTargetJarId;
-            let toId = selectedTargetJarId;
-            if (currentTransferType === 'internal') {
-                toId = parseInt(document.getElementById('transferTargetJar').value);
-            }
-            
-            const payload = { type: currentTransferType, amount: amount * rate, to_id: toId, from_id: fromId };
-            const res = await fetch('/api/planning/jars/transfer', { method: 'POST', headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}`, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-            if (res.ok) { showToast("Thành công!", "success"); closeTransferModal(); await loadPlanningData(); }
-            else { const err = await res.json(); showToast(err.detail, "error"); }
-        }
+            try {
+                const amountInput = document.getElementById('transferAmount');
+                const amountRaw = amountInput.value.replace(/,/g, '');
+                const amount = parseFloat(amountRaw);
+                
+                if (!amount || amount <= 0) { 
+                    showToast("Số tiền không hợp lệ!", "error"); 
+                    return; 
+                }
+                
+                const rate = window.planRates[window.planCurrency] || 1;
+                let fromId = selectedTargetJarId;
+                let toId = selectedTargetJarId;
+                
+                if (currentTransferType === 'internal') {
+                    toId = parseInt(document.getElementById('transferTargetJar').value);
+                }
+                
+                const payload = { 
+                    type: currentTransferType, 
+                    amount: amount * rate, 
+                    to_id: toId, 
+                    from_id: fromId 
+                };
 
+                const res = await fetch('/api/planning/jars/transfer', { 
+                    method: 'POST', 
+                    headers: { 
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`, 
+                        'Content-Type': 'application/json' 
+                    }, 
+                    body: JSON.stringify(payload) 
+                });
+
+                if (res.ok) { 
+                    showToast("Thành công!", "success"); 
+                    closeTransferModal(); 
+                    await loadPlanningData(); 
+                } else {
+                    const err = await res.json();
+                    let errorMsg = err.detail || "Có lỗi xảy ra!";
+
+                    // 💡 XỬ LÝ QUY ĐỔI TIỀN TRONG THÔNG BÁO LỖI (Sạch 100%)
+                    try {
+                        const match = errorMsg.match(/([\d,.]+)/);
+                        if (match) {
+                            const rawVndAmount = parseFloat(match[1].replace(/,/g, ''));
+                            const convertedAmount = formatPlanMoney(rawVndAmount / rate);
+                            errorMsg = errorMsg.replace(match[1], convertedAmount);
+                        }
+                    } catch (regexError) {
+                        console.error("Lỗi Regex quy đổi:", regexError);
+                    }
+
+                    showToast(errorMsg, "error");
+                }
+            } catch (globalError) {
+                console.error("Lỗi hệ thống:", globalError);
+                showToast("Lỗi kết nối máy chủ!", "error");
+            }
+        }
+        
         async function loadGlobalJarHistory() {
             const listContainer = document.getElementById('globalJarHistoryList');
             const rate = window.planRates[window.planCurrency] || 1; 

@@ -197,7 +197,6 @@ window.sendChatMessage = async function() {
     isAIGenerating = true;
 
     try {
-        // 💡 SỬA LỖI BIẾN TÀNG HÌNH: Kiểm tra cực kỳ an toàn trước khi đọc tỷ giá
         const curr = typeof currentCurrency !== 'undefined' ? currentCurrency : 'usd';
         const currentRate = (typeof exchangeRatesToVND !== 'undefined' && exchangeRatesToVND[curr]) ? exchangeRatesToVND[curr] : 1;
         const jwtToken = localStorage.getItem('token');
@@ -253,12 +252,17 @@ window.sendChatMessage = async function() {
                 }
             }
 
-            // XỬ LÝ KHI CÚ MÈO VỪA SỬA MỘT GIAO DỊCH 
-            if (data.action === "update") {
-                if (typeof initialize === "function") await initialize();
+            // 💡 XỬ LÝ LÀM TƯƠI MÀN HÌNH NGÂN SÁCH/HŨ (ĐIỂM SỬA CHỮA)
+            if (["save", "update", "create_jar", "delete_jar", "jar_transfer"].includes(data.action)) {
+                if (typeof loadPlanningData === 'function') {
+                    await loadPlanningData();
+                }
+                if (typeof initialize === "function") {
+                    await initialize();
+                }
             }
 
-            // XỬ LÝ KHI TẠO MỚI GIAO DỊCH
+            // XỬ LÝ CẢNH BÁO KHI CHI TIÊU LỚN (LƯU GIAO DỊCH)
             if (data.action === "save" && data.transaction_data) {
                 const parsedTxn = data.transaction_data;
                 let amountInVND = Math.abs(parsedTxn.amount); 
@@ -322,7 +326,6 @@ window.sendChatMessage = async function() {
 
                 if (shouldKeep) {
                     if(window.showToast) showToast('Cú Mèo đã ghi nhận giao dịch!', 'success');
-                    if (typeof initialize === "function") await initialize(); 
                 }
             }
 
@@ -332,7 +335,6 @@ window.sendChatMessage = async function() {
             messagesContainer.innerHTML += `<div style="align-self: flex-start; max-width: 80%; background-color: #3f1d1d; border: 1px solid #ff4d4d; padding: 12px; border-radius: 0 15px 15px 15px; color: #ff4d4d; font-size: 14px;">❌ ${detail}</div>`;
         }
     } catch (error) {
-        // 💡 IN LỖI RA CONSOLE ĐỂ DỄ DÀNG KIỂM TRA NẾU CÓ BUG LẦN SAU
         console.error("LỖI CHATBOT:", error);
         if(document.getElementById(loadingId)) document.getElementById(loadingId).remove();
         messagesContainer.innerHTML += `<div style="align-self: flex-start; background-color: #3f1d1d; padding: 12px; border-radius: 0 15px 15px 15px; color: #ff4d4d; font-size: 14px;">❌ Lỗi kết nối. Không thể liên hệ Gemini lúc này.</div>`;
