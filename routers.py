@@ -2719,6 +2719,8 @@ def receive_n8n_receipt(
         clean_text = ai_text.strip().replace("```json", "").replace("```", "")
         ai_result = json.loads(clean_text)
         
+        print("🤖 KẾT QUẢ AI TRẢ VỀ:", ai_result)
+
         # 5. CHỐT CHẶN: Bỏ qua nếu không phải giao dịch
         if not ai_result.get("is_transaction", False):
             print(f"Bỏ qua email từ {payload.sender} vì không phải giao dịch hợp lệ.")
