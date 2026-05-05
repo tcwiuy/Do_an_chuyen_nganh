@@ -2,7 +2,8 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- 💡 Khóa tính năng Zoom (Chụm ngón tay) -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="/static/style.css">
     <script>
@@ -14,6 +15,87 @@
     </script>
     <title>Cài Đặt</title>
     <style>
+        /* --- BẮT ĐẦU CSS CHUẨN HÓA GIAO DIỆN --- */
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+
+        html, body {
+            overflow-x: hidden !important; 
+            overflow-y: auto !important;   
+            width: 100%;
+            max-width: 100vw;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            overflow-x: hidden !important;
+            width: 100%;
+            max-width: 100vw;
+        }
+
+        /* CSS MENU 3 CHẤM CHO ĐIỆN THOẠI */
+        .more-menu-container {
+            display: none; 
+            position: relative;
+            margin-left: auto; 
+        }
+        .more-dropdown {
+            display: none;
+            position: absolute;
+            top: 110%;
+            right: 0;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+            flex-direction: column;
+            min-width: 180px;
+            z-index: 1000;
+            overflow: hidden;
+        }
+        .more-dropdown.show {
+            display: flex;
+            animation: fadeIn 0.2s ease;
+        }
+        .more-dropdown a {
+            padding: 12px 15px;
+            color: var(--text-primary);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 0.95rem;
+            transition: background 0.2s;
+            border-bottom: 1px solid var(--border);
+        }
+        .more-dropdown a:last-child {
+            border-bottom: none;
+        }
+        .more-dropdown a:hover {
+            background: var(--bg-primary);
+        }
+        .more-dropdown a i {
+            width: 20px;
+            text-align: center;
+        }
+
+        @media (max-width: 768px) {
+            .hide-on-mobile {
+                display: none !important;
+            }
+            .more-menu-container {
+                display: block;
+            }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        /* --- KẾT THÚC CSS CHUẨN HÓA --- */
+
         .four-col-grid {
             display: grid; 
             grid-template-columns: repeat(4, 1fr); 
@@ -71,7 +153,6 @@
         .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 4px; bottom: 3px; background-color: #a0a0b0; transition: .4s; border-radius: 50%; }
         input:checked + .slider { background-color: var(--accent); border-color: #d4a5ff;}
         input:checked + .slider:before { transform: translateX(20px); background-color: #fff; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
@@ -81,14 +162,29 @@
                 <a href="/" class="view-button" data-tooltip="Trang Chủ"><i class="fa-solid fa-chart-pie"></i></a>
                 <a href="/history" class="view-button" data-tooltip="Hoạt động"><i class="fa-solid fa-clock-rotate-left"></i></a>
                 <a href="/trends" class="view-button" data-tooltip="Biến động"><i class="fa-solid fa-chart-line"></i></a>
-                <a href="/suggestions" class="view-button" data-tooltip="Gợi Ý AI"><i class="fa-solid fa-lightbulb"></i></a>
                 <a href="/planning" class="view-button" data-tooltip="Ngân sách"><i class="fa-solid fa-piggy-bank"></i></a>
-                <a href="/profile" class="view-button" data-tooltip="Tài khoản">
+                
+                <!-- 💡 Ẩn các nút phụ trên Mobile -->
+                <a href="/suggestions" class="view-button hide-on-mobile" data-tooltip="Gợi Ý AI"><i class="fa-solid fa-lightbulb"></i></a>
+                <a href="/profile" class="view-button hide-on-mobile" data-tooltip="Tài khoản">
                     <i class="fa-solid fa-user-tie"></i>
                 </a>
-                <a href="/settings" class="view-button active" data-tooltip="Cài Đặt"><i class="fa-solid fa-gear"></i></a>
+                <a href="/settings" class="view-button active hide-on-mobile" data-tooltip="Cài Đặt"><i class="fa-solid fa-gear"></i></a>
                 
-                <a href="javascript:void(0)" class="view-button" onclick="showLogoutModal()" data-tooltip="Đăng Xuất" style="margin-left: auto; color: #ff4d4d;"><i class="fa-solid fa-right-from-bracket"></i></a>
+                <a href="javascript:void(0)" class="view-button hide-on-mobile" onclick="showLogoutModal()" data-tooltip="Đăng Xuất" style="margin-left: auto; color: #ff4d4d;"><i class="fa-solid fa-right-from-bracket"></i></a>
+
+                <!-- 💡 Menu 3 chấm (Hiển thị trên Mobile) -->
+                <div class="more-menu-container">
+                    <a href="javascript:void(0)" class="view-button" id="mobileMoreBtn" style="padding: 10px 15px;">
+                        <i class="fa-solid fa-ellipsis-vertical"></i>
+                    </a>
+                    <div class="more-dropdown" id="mobileMoreDropdown">
+                        <a href="/suggestions"><i class="fa-solid fa-lightbulb" style="color: #f59e0b"></i> Gợi Ý AI</a>
+                        <a href="/profile"><i class="fa-solid fa-user-tie" style="color: #3b82f6"></i> Tài khoản</a>
+                        <a href="/settings" style="color: var(--accent);"><i class="fa-solid fa-gear" style="color: var(--accent);"></i> Cài Đặt</a>
+                        <a href="javascript:void(0)" onclick="showLogoutModal()" style="color: #ff4d4d"><i class="fa-solid fa-right-from-bracket"></i> Đăng Xuất</a>
+                    </div>
+                </div>
             </div>
         </header>
 
@@ -140,8 +236,7 @@
                 </div>
             </div>
 
-            <!-- KHỐI HỒ SƠ TÀI CHÍNH (Đã giữ giao diện SELECT cũ và tích hợp chức năng nhập tay) -->
-            <!-- KHỐI HỒ SƠ TÀI CHÍNH (Đã chuẩn hóa 100% Data) -->
+            <!-- KHỐI HỒ SƠ TÀI CHÍNH -->
             <div class="form-container half-width" style="flex: 1; display: flex; flex-direction: column;">
                 <h2 align="center" style="color: var(--accent); margin-top: 0;"><i class="fa-solid fa-brain"></i> Hồ Sơ Tài Chính AI</h2>
                 <p style="text-align: center; color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 20px;">Thông tin này giúp Trợ lý Cú Mèo đưa ra lời khuyên cá nhân hóa tốt hơn.</p>
@@ -194,8 +289,8 @@
             </div>
         </div>
 
-        <div class="settings-container">
-            <div class="form-container half-width">
+        <div class="settings-container" style="display: flex; gap: 20px; align-items: stretch; margin-bottom: 20px;">
+            <div class="form-container half-width" style="flex: 1;">
                 <h2 align="center">Cài Đặt Tiền Tệ</h2>
                 <div class="currency-selector">
                     <select id="currencySelect">
@@ -204,7 +299,7 @@
                 </div>
             </div>
             
-            <div class="form-container half-width">
+            <div class="form-container half-width" style="flex: 1;">
                 <h2 align="center">Ngày Bắt Đầu Tháng</h2>
                 <div class="start-date-manager">
                     <input type="number" id="startDate" min="1" max="31" placeholder="1">
@@ -213,8 +308,8 @@
             </div>
         </div>
 
-        <div class="settings-container">
-            <div class="form-container half-width">
+        <div class="settings-container" style="display: flex; gap: 20px; align-items: stretch;">
+            <div class="form-container half-width" style="flex: 1;">
                 <h2 align="center">Giao Diện</h2>
                 <div class="theme-selector">
                     <select id="themeSelect">
@@ -224,7 +319,7 @@
                     </select>
                 </div>
             </div>
-            <div class="form-container half-width">
+            <div class="form-container half-width" style="flex: 1;">
                 <h2 align="center">Nhập/Xuất Dữ Liệu</h2>
                 <div class="export-buttons" style="display: flex; justify-content: center; align-items: center; gap: 15px; margin-bottom: 20px; flex-wrap: wrap;">
                     <a href="javascript:void(0)" id="csv-export-file" class="nav-button" style="margin: 0; text-align: center;">
@@ -411,6 +506,23 @@
 
     <script src="/static/functions.js"></script>
     <script>
+        // 💡 LOGIC NÚT 3 CHẤM CHO ĐIỆN THOẠI
+        document.addEventListener('DOMContentLoaded', () => {
+            const mobileMoreBtn = document.getElementById("mobileMoreBtn");
+            const mobileMoreDropdown = document.getElementById("mobileMoreDropdown");
+            if (mobileMoreBtn && mobileMoreDropdown) {
+                mobileMoreBtn.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    mobileMoreDropdown.classList.toggle("show");
+                });
+                document.addEventListener("click", (e) => {
+                    if (!mobileMoreDropdown.contains(e.target) && e.target !== mobileMoreBtn) {
+                        mobileMoreDropdown.classList.remove("show");
+                    }
+                });
+            }
+        });
+
         // 💡 2 KHÔNG GIAN DỮ LIỆU ĐỘC LẬP
         let expenseCategories = [];
         let incomeCategories = [];

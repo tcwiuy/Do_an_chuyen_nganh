@@ -2,7 +2,7 @@
 <html lang="vi">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
@@ -89,6 +89,29 @@
         margin-bottom: -12px;
         padding-bottom: 9px;
       }
+
+      /* 1. Ép tất cả phần tử tính toán lại kích thước chuẩn */
+      *, *::before, *::after {
+        box-sizing: border-box;
+      }
+
+      /* 2. Chỉ khóa trục ngang, TRẢ LẠI trục dọc tự nhiên cho trình duyệt */
+      html, body {
+        overflow-x: hidden !important; /* Khóa ngang */
+        overflow-y: auto !important;   /* Cho phép cuộn dọc bình thường */
+        width: 100%;
+        max-width: 100vw;
+        margin: 0;
+        padding: 0;
+      }
+
+      /* 3. Khóa ngang ở cấp độ khung chứa ứng dụng */
+      .container {
+        overflow-x: hidden !important;
+        width: 100%;
+        max-width: 100vw;
+      }
+
       .wizard-input {
         width: 100%;
         padding: 12px;
@@ -158,12 +181,69 @@
         flex-direction: column;
         width: 100%;
       }
+
+      /* =========================================
+         💡 MENU 3 CHẤM CHO ĐIỆN THOẠI 
+         ========================================= */
+      .more-menu-container {
+        display: none; /* Mặc định ẩn trên Desktop */
+        position: relative;
+        margin-left: auto; /* Đẩy sang tận cùng bên phải */
+      }
+      .more-dropdown {
+        display: none;
+        position: absolute;
+        top: 110%;
+        right: 0;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+        flex-direction: column;
+        min-width: 180px;
+        z-index: 1000;
+        overflow: hidden;
+      }
+      .more-dropdown.show {
+        display: flex;
+        animation: fadeIn 0.2s ease;
+      }
+      .more-dropdown a {
+        padding: 12px 15px;
+        color: var(--text-primary);
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 0.95rem;
+        transition: background 0.2s;
+        border-bottom: 1px solid var(--border);
+      }
+      .more-dropdown a:last-child {
+        border-bottom: none;
+      }
+      .more-dropdown a:hover {
+        background: var(--bg-primary);
+      }
+      .more-dropdown a i {
+        width: 20px;
+        text-align: center;
+      }
+
       @media (max-width: 768px) {
         .four-col-grid {
           grid-template-columns: 1fr !important;
         }
         .four-col-grid .form-group {
           grid-column: span 1 !important;
+        }
+        
+        /* HIỆN nút 3 chấm và ẨN các tab phụ khi trên điện thoại */
+        .hide-on-mobile {
+          display: none !important;
+        }
+        .more-menu-container {
+          display: block;
         }
       }
 
@@ -224,27 +304,40 @@
           <a href="/trends" class="view-button" data-tooltip="Biến động"
             ><i class="fa-solid fa-chart-line"></i
           ></a>
-          <a href="/suggestions" class="view-button" data-tooltip="Gợi Ý AI"
-            ><i class="fa-solid fa-lightbulb"></i
-          ></a>
           <a href="/planning" class="view-button" data-tooltip="Ngân sách"
             ><i class="fa-solid fa-piggy-bank"></i
           ></a>
-          <a href="/profile" class="view-button" data-tooltip="Tài khoản">
+
+          <a href="/suggestions" class="view-button hide-on-mobile" data-tooltip="Gợi Ý AI"
+            ><i class="fa-solid fa-lightbulb"></i
+          ></a>
+          <a href="/profile" class="view-button hide-on-mobile" data-tooltip="Tài khoản">
             <i class="fa-solid fa-user-tie"></i>
           </a>
-          <a href="/settings" class="view-button" data-tooltip="Cài Đặt"
+          <a href="/settings" class="view-button hide-on-mobile" data-tooltip="Cài Đặt"
             ><i class="fa-solid fa-gear"></i
           ></a>
-
           <a
             href="javascript:void(0)"
-            class="view-button"
+            class="view-button hide-on-mobile"
             onclick="showLogoutModal()"
             data-tooltip="Đăng Xuất"
             style="margin-left: auto; color: #ff4d4d"
             ><i class="fa-solid fa-right-from-bracket"></i
           ></a>
+
+          <div class="more-menu-container">
+            <a href="javascript:void(0)" class="view-button" id="mobileMoreBtn" style="padding: 10px 15px;">
+              <i class="fa-solid fa-ellipsis-vertical"></i>
+            </a>
+            <div class="more-dropdown" id="mobileMoreDropdown">
+              <a href="/suggestions"><i class="fa-solid fa-lightbulb" style="color: #f59e0b"></i> Gợi Ý AI</a>
+              <a href="/profile"><i class="fa-solid fa-user-tie" style="color: #3b82f6"></i> Tài khoản</a>
+              <a href="/settings"><i class="fa-solid fa-gear" style="color: #8b5cf6"></i> Cài Đặt</a>
+              <a href="javascript:void(0)" onclick="showLogoutModal()" style="color: #ff4d4d"><i class="fa-solid fa-right-from-bracket"></i> Đăng Xuất</a>
+            </div>
+          </div>
+          
         </div>
       </header>
 
@@ -1236,35 +1329,6 @@
         }
       }
 
-      document.addEventListener("DOMContentLoaded", () => {
-        const reportGainCheckbox = document.getElementById("reportGain");
-        const categorySelect = document.getElementById("category");
-
-        if (reportGainCheckbox) {
-          reportGainCheckbox.addEventListener("change", () => {
-            updateExpenseFormCategoryOptions();
-            if (categorySelect)
-              categorySelect.value = reportGainCheckbox.checked
-                ? incomeCategories[0]
-                : expenseCategories[0];
-          });
-        }
-
-        if (categorySelect) {
-          categorySelect.addEventListener("change", (e) => {
-            const isIncomeCat = incomeCategories.includes(e.target.value);
-            if (
-              reportGainCheckbox &&
-              reportGainCheckbox.checked !== isIncomeCat
-            ) {
-              reportGainCheckbox.checked = isIncomeCat;
-              updateExpenseFormCategoryOptions();
-              categorySelect.value = e.target.value;
-            }
-          });
-        }
-      });
-
       // HÀM TẢI DANH SÁCH HŨ TỪ DATABASE
       let globalJars = [];
       async function loadJarsForSelect() {
@@ -1397,14 +1461,29 @@
         }
       }
 
+      // =========================================
+      // WIZARD LOGIC & CHATBOT LAZY LOAD
+      // =========================================
       
-      document.addEventListener("DOMContentLoaded", () => {
-        updateJarDashboardSummary();
-      });
+      // 💡 HÀM TẢI CHATBOT ĐỘNG (LAZY LOAD) ĐƯỢC NÂNG CẤP
+      function loadChatbot() {
+          if (!document.getElementById("dynamicChatbotScript")) {
+              const script = document.createElement("script");
+              script.id = "dynamicChatbotScript";
+              script.src = "/static/chatbot.js";
+              
+              // Đánh thức Chatbot bằng cách phát lại sự kiện load
+              script.onload = () => {
+                  if (document.readyState === "complete" || document.readyState === "interactive") {
+                      window.dispatchEvent(new Event("load"));
+                      document.dispatchEvent(new Event("DOMContentLoaded"));
+                  }
+              };
+              
+              document.body.appendChild(script);
+          }
+      }
 
-      // =========================================
-      // WIZARD LOGIC
-      // =========================================
       let wStep = 1;
       let wCurrentCatType = "expense";
       let wData = {
@@ -1436,20 +1515,20 @@
       }
 
       function checkSetupWizard(isNewUserFromServer) {
-          // BỎ: Không dùng localStorage nữa
-          // Nếu máy chủ báo đây là user mới chưa có config -> Hiện Wizard
           if (isNewUserFromServer === true) {
               wData.expenseCategories = [...expenseCategories]; 
               wData.incomeCategories = [...incomeCategories];
               switchWizCatType('expense');
               document.getElementById('setupWizardOverlay').style.display = 'flex';
+          } else {
+              loadChatbot(); // 💡 User cũ, tải chatbot luôn
           }
       }
 
       function skipWizard() { 
-          // Chỉ cần đóng giao diện, để user tự vào phần cài đặt sau
           document.getElementById('setupWizardOverlay').style.display = 'none'; 
           if(window.showToast) showToast("Đã bỏ qua thiết lập ban đầu", "success"); 
+          loadChatbot(); // 💡 Bỏ qua setup, tải chatbot
       }
       function markWizardDone() {
         
@@ -1644,6 +1723,8 @@
           document.getElementById("setupWizardOverlay").style.display = "none";
           if (window.showToast)
             showToast("Thiết lập thành công! Hãy bắt đầu theo dõi.", "success");
+            
+          loadChatbot(); // 💡 Hoàn tất setup, tải chatbot
           await initialize();
         } catch (e) {
           if (window.showToast)
@@ -1825,16 +1906,6 @@
               `;
         });
       }
-
-      document.addEventListener("DOMContentLoaded", () => {
-        const calToggleBtn = document.getElementById("calToggleBtn");
-        if (calToggleBtn) {
-          calToggleBtn.addEventListener("click", () => {
-            isCalendarExpanded = !isCalendarExpanded;
-            renderCalendar();
-          });
-        }
-      });
 
       window.toggleDayFilter = function (dStr) {
         if (selectedDayFilter === dStr) {
@@ -2586,7 +2657,7 @@
           }
           let amountInVND = rawAmount * rate;
 
-         
+          
 
           // --- BẮT ĐẦU LOGIC KIỂM TRA NGÂN SÁCH (CHỈ KIỂM TRA KHOẢN CHI) ---
           if (!isGain && selectedCategory) {
@@ -2672,11 +2743,6 @@
             if (window.showToast) showToast("Lỗi kết nối đến máy chủ", "error");
           }
         });
-
-      document.addEventListener("DOMContentLoaded", initialize);
-      document.getElementById("name").addEventListener("click", (e) => {
-        if (e.target.value === "-") e.target.value = "";
-      });
 
       async function sendToAI() {
         const inputField = document.getElementById("aiInput");
@@ -2815,22 +2881,90 @@
         }
       }
 
-      document
-        .getElementById("aiInput")
-        .addEventListener("keypress", function (e) {
-          if (e.key === "Enter") {
-            sendToAI();
-          }
-        });
-      document
-        .getElementById("chartTypeSelect")
-        .addEventListener("change", (e) => {
-          currentChartType = e.target.value;
-          updateChartAndLegend();
-        });
-    </script>
+      // =========================================
+      // GOM NHÓM LẠI TOÀN BỘ SỰ KIỆN KHỞI TẠO
+      // =========================================
+      let isAppReady = false;
+      document.addEventListener("DOMContentLoaded", () => {
+        // Tránh lỗi chạy 2 lần
+        if (isAppReady) return;
+        isAppReady = true;
 
-    <script src="/static/chatbot.js"></script>
+        // 1. Khởi tạo sự kiện của Form
+        const reportGainCheckbox = document.getElementById("reportGain");
+        const categorySelect = document.getElementById("category");
+        if (reportGainCheckbox) {
+          reportGainCheckbox.addEventListener("change", () => {
+            updateExpenseFormCategoryOptions();
+            if (categorySelect)
+              categorySelect.value = reportGainCheckbox.checked ? incomeCategories[0] : expenseCategories[0];
+          });
+        }
+        if (categorySelect) {
+          categorySelect.addEventListener("change", (e) => {
+            const isIncomeCat = incomeCategories.includes(e.target.value);
+            if (reportGainCheckbox && reportGainCheckbox.checked !== isIncomeCat) {
+              reportGainCheckbox.checked = isIncomeCat;
+              updateExpenseFormCategoryOptions();
+              categorySelect.value = e.target.value;
+            }
+          });
+        }
+        
+        // 2. Khởi tạo sự kiện Menu 3 chấm Mobile
+        const mobileMoreBtn = document.getElementById("mobileMoreBtn");
+        const mobileMoreDropdown = document.getElementById("mobileMoreDropdown");
+        if (mobileMoreBtn && mobileMoreDropdown) {
+          mobileMoreBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            mobileMoreDropdown.classList.toggle("show");
+          });
+          document.addEventListener("click", (e) => {
+            if (!mobileMoreDropdown.contains(e.target) && e.target !== mobileMoreBtn) {
+              mobileMoreDropdown.classList.remove("show");
+            }
+          });
+        }
+
+        // 3. Khởi tạo sự kiện Lịch
+        const calToggleBtn = document.getElementById("calToggleBtn");
+        if (calToggleBtn) {
+          calToggleBtn.addEventListener("click", () => {
+            isCalendarExpanded = !isCalendarExpanded;
+            renderCalendar();
+          });
+        }
+
+        // 4. Các sự kiện rời rạc khác
+        const nameInput = document.getElementById("name");
+        if(nameInput) {
+            nameInput.addEventListener("click", (e) => {
+                if (e.target.value === "-") e.target.value = "";
+            });
+        }
+
+        const aiInput = document.getElementById("aiInput");
+        if(aiInput) {
+            aiInput.addEventListener("keypress", function (e) {
+                if (e.key === "Enter") {
+                    sendToAI();
+                }
+            });
+        }
+
+        const chartTypeSelect = document.getElementById("chartTypeSelect");
+        if(chartTypeSelect) {
+            chartTypeSelect.addEventListener("change", (e) => {
+                currentChartType = e.target.value;
+                updateChartAndLegend();
+            });
+        }
+
+        // 5. Khởi chạy dữ liệu
+        updateJarDashboardSummary();
+        initialize();
+      });
+    </script>
 
     <!-- MODALS -->
     <div
@@ -3051,7 +3185,7 @@
         top: 0;
         width: 100%;
         height: 100%;
-        background-color: rgba(0, 0, 0, 0.8);
+        background-color: rgba(0,0,0,0.8);
         align-items: center;
         justify-content: center;
       "

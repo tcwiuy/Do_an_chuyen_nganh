@@ -7,6 +7,7 @@ from database import engine
 from routers import router as expenses_router, recurring_router, auth_router, ai_router
 from routers import config_router
 import routers
+import uvicorn
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -53,6 +54,7 @@ def get_register(request: Request):
     return templates.TemplateResponse(request=request, name="register.html", context={"request": request})
 
 @app.get("/")
+@app.get("/index")
 def render_dashboard(request: Request):
     # Trả về trang index.html
     return templates.TemplateResponse(request=request, name="index.html")
@@ -75,14 +77,7 @@ def render_suggestions(request: Request):
 def render_trends(request: Request):
     return templates.TemplateResponse(request=request, name="trend.html")
 
-# MOCK API CONFIG (Thêm vào main.py)
-@app.get("/api/config")
-def get_config():
-    return {
-        "categories": ["Food", "Transport", "Shopping", "Bills", "Entertainment"],
-        "currency": "usd",
-        "startDate": 1
-    }
+
 @app.get("/planning", response_class=HTMLResponse)
 async def read_planning(request: Request):
     return templates.TemplateResponse(request=request, name="planning.html")
@@ -101,3 +96,6 @@ async def profile_page(request: Request):
     # Đưa request ra ngoài làm tham số riêng
     return templates.TemplateResponse(request, "profile.html", {"request": request})
 
+if __name__ == "__main__":
+    # Đặt reload=True để server tự khởi động lại khi bạn sửa code
+    uvicorn.run("main:app", host="127.0.0.1", port=8001, reload=True)
