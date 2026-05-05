@@ -16,11 +16,21 @@ models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="ExpenseOwl Python API")
 
+@app.get("/health", tags=["Health Check"])
+async def health_check():
+    """
+    Endpoint siêu nhẹ dùng để Render không bị sleep.
+    Không gọi Database, không xử lý logic.
+    """
+    return {"status": "ok", "message": "Server is awake!"}
+
 # 1. Cấu hình phục vụ file tĩnh (CSS, JS, Ảnh) ở đường dẫn /static/
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # 2. Cấu hình thư mục chứa giao diện HTML
 templates = Jinja2Templates(directory="templates")
+
+
 
 # Nhúng API router
 app.include_router(expenses_router)
@@ -91,10 +101,3 @@ async def profile_page(request: Request):
     # Đưa request ra ngoài làm tham số riêng
     return templates.TemplateResponse(request, "profile.html", {"request": request})
 
-@app.get("/health", tags=["Health Check"])
-async def health_check():
-    """
-    Endpoint siêu nhẹ dùng để Render không bị sleep.
-    Không gọi Database, không xử lý logic.
-    """
-    return {"status": "ok", "message": "Server is awake!"}
