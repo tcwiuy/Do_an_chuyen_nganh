@@ -2820,3 +2820,5 @@ def update_profile_info(
     
     db.commit()
     return {"message": "Cập nhật thông tin cá nhân thành công!"}
+
+    

@@ -90,3 +90,11 @@ async def register_page(request: Request):
 async def profile_page(request: Request):
     # Đưa request ra ngoài làm tham số riêng
     return templates.TemplateResponse(request, "profile.html", {"request": request})
+
+@app.get("/health", tags=["Health Check"])
+async def health_check():
+    """
+    Endpoint siêu nhẹ dùng để Render không bị sleep.
+    Không gọi Database, không xử lý logic.
+    """
+    return {"status": "ok", "message": "Server is awake!"}
