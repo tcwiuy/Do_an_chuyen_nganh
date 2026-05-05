@@ -1,25 +1,23 @@
 import os
-import urllib.parse
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
-# 1. Tải các biến môi trường từ file .env lên hệ thống
+# 1. Tải các biến môi trường từ file .env (Dành cho lúc bạn test code ở máy cá nhân)
 load_dotenv()
 
-# 2. Lấy mật khẩu từ file .env (Không còn lộ trên code nữa)
-my_password = os.getenv("DB_PASSWORD")
+# 2. Lấy TOÀN BỘ chuỗi kết nối từ biến môi trường
+SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL")
 
-# Kiểm tra an toàn: Đảm bảo đã lấy được mật khẩu
-if not my_password:
-    raise ValueError("Không tìm thấy DB_PASSWORD trong file .env")
+# Kiểm tra an toàn: Đảm bảo đã lấy được URL
+if not SQLALCHEMY_DATABASE_URL:
+    raise ValueError("Không tìm thấy DATABASE_URL. Hãy kiểm tra lại biến môi trường!")
 
-# 3. Tự động mã hóa mật khẩu an toàn
-encoded_password = urllib.parse.quote_plus(my_password)
+# Fix lỗi tương thích của SQLAlchemy (Bắt buộc phải là postgresql:// thay vì postgres://)
+if SQLALCHEMY_DATABASE_URL.startswith("postgres://"):
+    SQLALCHEMY_DATABASE_URL = SQLALCHEMY_DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-# 4. Gắn vào chuỗi URL
-SQLALCHEMY_DATABASE_URL = f"postgresql://postgres:{encoded_password}@localhost:5432/expenseowl_db"
-
+# 3. Khởi tạo engine kết nối
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
