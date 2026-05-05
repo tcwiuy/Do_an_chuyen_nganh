@@ -1435,24 +1435,24 @@
         }
       }
 
-      function checkSetupWizard() {
-        const username = getUsernameFromToken();
-        if (!localStorage.getItem(`setupDone_${username}`)) {
-          wData.expenseCategories = [...expenseCategories];
-          wData.incomeCategories = [...incomeCategories];
-          switchWizCatType("expense");
-          document.getElementById("setupWizardOverlay").style.display = "flex";
-        }
+      function checkSetupWizard(isNewUserFromServer) {
+          // BỎ: Không dùng localStorage nữa
+          // Nếu máy chủ báo đây là user mới chưa có config -> Hiện Wizard
+          if (isNewUserFromServer === true) {
+              wData.expenseCategories = [...expenseCategories]; 
+              wData.incomeCategories = [...incomeCategories];
+              switchWizCatType('expense');
+              document.getElementById('setupWizardOverlay').style.display = 'flex';
+          }
       }
 
-      function skipWizard() {
-        markWizardDone();
-        document.getElementById("setupWizardOverlay").style.display = "none";
-        if (window.showToast)
-          showToast("Đã bỏ qua thiết lập ban đầu", "success");
+      function skipWizard() { 
+          // Chỉ cần đóng giao diện, để user tự vào phần cài đặt sau
+          document.getElementById('setupWizardOverlay').style.display = 'none'; 
+          if(window.showToast) showToast("Đã bỏ qua thiết lập ban đầu", "success"); 
       }
       function markWizardDone() {
-        localStorage.setItem(`setupDone_${getUsernameFromToken()}`, "true");
+        
       }
 
       function switchWizCatType(type) {
@@ -1862,11 +1862,17 @@
             currency: "usd",
             startDate: 1,
           };
+          
+          let isNewUser = false; // 💡 THÊM BIẾN: Hứng cờ từ máy chủ
+
           try {
             const configResponse = await fetch("/api/config");
             if (configResponse.ok) {
               const fetchedConfig = await configResponse.json();
-              if (fetchedConfig) config = { ...config, ...fetchedConfig };
+              if (fetchedConfig) {
+                  config = { ...config, ...fetchedConfig };
+                  isNewUser = fetchedConfig.is_new_user; // 💡 ĐỌC CỜ: Lấy trạng thái thiết lập từ Backend
+              }
             }
           } catch (e) {}
 
@@ -1967,7 +1973,10 @@
           await loadJarsForTransactionForm(); 
           updateChartAndLegend();            
           setupTagInput();
-          checkSetupWizard();
+          
+          // 💡 TRUYỀN BIẾN: Đưa cờ máy chủ vào hàm để quyết định có hiện Wizard hay không
+          checkSetupWizard(isNewUser); 
+          
         } catch (error) {
           console.error("Fatal error during initialization:", error);
         }
