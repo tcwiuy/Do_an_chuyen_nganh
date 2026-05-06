@@ -89,8 +89,8 @@ async def test_int_02_income_and_jars(async_client: AsyncClient, auth_headers):
 async def test_int_03_expense_and_budget(async_client: AsyncClient, auth_headers):
     payload = {
         "amount": -500000, 
-        "category": "Ăn uống",   # Đã sửa: category_id -> category
-        "name": "Ăn Lẩu",        # Đã sửa: note -> name
+        "category": "Ăn uống",   
+        "name": "Ăn Lẩu",        
         "date": "2023-10-15"
     }
     resp_add = await async_client.post("/api/expenses/", json=payload, headers=auth_headers)
