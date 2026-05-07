@@ -975,7 +975,7 @@ def chat_with_data(
     """
 
     # BƯỚC 5: Gọi Gemini
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key={api_key}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key={api_key}"
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {"temperature": 0.2},
@@ -1281,7 +1281,7 @@ def analyze_trends_and_anomalies(
     """
 
     # 4. Gọi API Gemini
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key={api_key}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key={api_key}"
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
 
     try:
@@ -1397,7 +1397,7 @@ Hãy trả về DUY NHẤT JSON hợp lệ theo schema sau (không markdown, kh�
 }}
     """
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key={api_key}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key={api_key}"
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {"temperature": 0.2},
@@ -1740,7 +1740,7 @@ Quy tắc quan trọng:
 - Nếu không đọc được số tiền, đặt amount = -1
 - Đơn vị là VND (Việt Nam Đồng), không cần dấu phẩy hay chấm phân cách"""
 
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key={api_key}"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key={api_key}"
 
         payload = {
             "contents": [
@@ -1992,7 +1992,7 @@ Trả về CHỈ một MẢNG JSON (Array of Objects), không dùng markdown hay
 ]
 """
         # 5. Gọi AI bằng hàm backoff có sẵn của bạn
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key={api_key}"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key={api_key}"
         payload = {
             "contents": [{"parts": [{"text": prompt}]}],
             "generationConfig": {"temperature": 0.1},
@@ -2122,7 +2122,7 @@ YÊU CẦU: Trả về DUY NHẤT một MẢNG JSON. Mỗi phần tử là 1 gia
 ]
 """
         # Gọi Gemini API
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key={api_key}"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key={api_key}"
         payload = {
             "contents": [{"parts": [{"text": prompt}]}],
             "generationConfig": {"temperature": 0.1},
@@ -2711,7 +2711,7 @@ def receive_n8n_receipt(
         """
         
         # 3. GỌI AI THỰC TẾ
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key={api_key}"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key={api_key}"
         ai_payload = {"contents": [{"parts": [{"text": prompt}]}]}
 
         response = call_gemini_with_backoff(
