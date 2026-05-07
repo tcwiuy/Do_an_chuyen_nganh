@@ -957,17 +957,19 @@ def chat_with_data(
         "reply": "Câu trả lời của bạn",
         "action": "chat" | "save" | "update" | "update_profile" | "create_jar" | "delete_jar" | "jar_transfer",
         "transaction_id": "Mã ID" | null,
-        "data": {{ 
-            "name": "...", 
-            "amount": Số tiền (ÂM nếu chi, DƯƠNG nếu thu. LUÔN NHÂN TỶ GIÁ), 
-            "category": "...", 
-            "date": "YYYY-MM-DD",
-            "jar_name": "Tên hũ (GHI ĐÚNG TÊN LÕI, KHÔNG KÈM CHỮ HŨ QUỸ)"
-        }} | null,
+        "data": [
+            {{ 
+                "name": "Tên giao dịch (Tách riêng nếu người dùng nhập nhiều khoản cùng lúc)", 
+                "amount": Số tiền (ÂM nếu chi, DƯƠNG nếu thu. CHỈ LẤY SỐ THEO ĐƠN VỊ {req.currency.upper()}, KHÔNG TỰ NHÂN TỶ GIÁ), 
+                "category": "...", 
+                "date": "YYYY-MM-DD",
+                "jar_name": "Tên hũ (GHI ĐÚNG TÊN LÕI)"
+            }}
+        ] | null,
         "profile_update": {{ "financial_goal": "...", "risk_tolerance": "..." }} | null,
         "jar_data": {{ 
-            "name": "Tên hũ (ĐÚNG TÊN LÕI)", "target_name": "Tên hũ nhận (ĐÚNG TÊN LÕI)", "goal_amount": Số,
-            "type": "deposit" | "withdraw" | "internal" | null, "amount": Số (GIỮ NGUYÊN SỐ KHÁCH NHẬP) 
+            "name": "Tên hũ", "target_name": "Tên hũ nhận", "goal_amount": Số,
+            "type": "deposit" | "withdraw" | "internal" | null, "amount": Số 
         }} | null
     }}
     """
@@ -1006,7 +1008,9 @@ def chat_with_data(
                 try: parsed_date = datetime.strptime(data.get("date", today_str), "%Y-%m-%d").date()
                 except: parsed_date = datetime.now().date()
                 
-                new_amount = float(data.get("amount", 0))
+                # 💡 FIX LỖI TIỀN TỆ: AI trả về USD/Tiền hiển thị -> Backend nhân tỷ giá để lưu VNĐ vào DB
+                new_amount_raw = float(data.get("amount", 0))
+                new_amount = new_amount_raw * req.rate  
                 
                 # 💡 VÁ LỖI TÌM TÊN HŨ KHI CHI TIÊU
                 jar_name_to_spend = str(data.get("jar_name", "")).strip().lower().replace("hũ ", "").replace("quỹ ", "").strip()
@@ -1064,7 +1068,13 @@ def chat_with_data(
                 if tx_to_update:
                     old_amount = tx_to_update.amount
                     old_category = tx_to_update.category
-                    new_amount = float(data.get("amount", old_amount))
+                    
+                    # 💡 FIX LỖI TIỀN TỆ KHI UPDATE
+                    if "amount" in data:
+                        new_amount = float(data["amount"]) * req.rate
+                    else:
+                        new_amount = old_amount
+
                     new_category = str(data.get("category", old_category)) if str(data.get("category", old_category)) in allowed_categories else "Khác"
 
                     if old_amount > 0: distribute_to_jars(db, current_user.id, -old_amount)
